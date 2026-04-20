@@ -1,7 +1,12 @@
+import {
+  sanitizeEditorHeadings,
+  stripLeadingH1IfMatchesMeta,
+} from "@/app/lib/sanitizeEditorHeadings";
+
 export default function SubCategoryContent({
   content,
   metaTitle,
-  metaDescription,
+  metaDescription: _metaDescription,
   metaSchemas,
 }: {
   content: string;
@@ -33,18 +38,22 @@ export default function SubCategoryContent({
     }
   };
 
+  const safeHtml = sanitizeEditorHeadings(
+    stripLeadingH1IfMatchesMeta(content || "", metaTitle)
+  );
+
   return (
     <div className="category-content mt-8">
-      {metaTitle && <h1 className="text-3xl font-bold mb-4">{metaTitle}</h1>}
-      {metaDescription && <p className="text-lg mb-4">{metaDescription}</p>}
-
       {metaSchemas?.length > 0 && (
         <div style={{ display: "none" }}>
           {metaSchemas.map((schema, index) => renderSchema(schema, index))}
         </div>
       )}
 
-      <div dangerouslySetInnerHTML={{ __html: content }} />
+      <div
+        className="prose prose-lg max-w-none prose-ul:list-disc prose-ol:list-decimal prose-li:my-1 prose-ul:pl-6 prose-ol:pl-6"
+        dangerouslySetInnerHTML={{ __html: safeHtml }}
+      />
     </div>
   );
 }

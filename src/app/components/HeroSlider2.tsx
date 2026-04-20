@@ -531,20 +531,22 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                               textAlign
                             )} ${textAlignTailwind(textAlign)}`}
                           >
-                            <div
-                              className={`font-bold tracking-wider text-white ${bannerCopyWrap} pb-1`}
-                              style={{
-                                fontSize: banner.content.titleSize || "24px",
-                                lineHeight: 1.8,
-                                color: banner.content.titleColor || "#FFFFFF",
-                              }}
-                              title={banner.content.title}
-                            >
-                              {banner.content.title}
-                            </div>
-                            {banner.content.subtitle && (
-                              <div
-                                className={`font-extrabold tracking-wide text-primary ${bannerCopyWrap} line-clamp-2`}
+                            {banner.content.title?.trim() ? (
+                              <h2
+                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1`}
+                                style={{
+                                  fontSize: banner.content.titleSize || "24px",
+                                  lineHeight: 1.8,
+                                  color: banner.content.titleColor || "#FFFFFF",
+                                }}
+                                title={banner.content.title}
+                              >
+                                {banner.content.title}
+                              </h2>
+                            ) : null}
+                            {banner.content.subtitle?.trim() ? (
+                              <h3
+                                className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap} line-clamp-2`}
                                 style={{
                                   fontSize:
                                     banner.content.subtitleSize || "32px",
@@ -555,8 +557,8 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                 title={banner.content.subtitle}
                               >
                                 {banner.content.subtitle}
-                              </div>
-                            )}
+                              </h3>
+                            ) : null}
                             {banner.content.paragraph && (
                               <p
                                 className={`mt-2 text-white ${
@@ -865,25 +867,29 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         currentSlide === index ? "animate-fadeIn" : "opacity-0"
                       }`}
                     >
-                      <h2
-                        className={`mb-1 text-xl font-bold tracking-wide text-shadow text-white ${bannerCopyWrap}`}
-                        style={{
-                          color: banner.content.titleColor || "#FFFFFF",
-                          lineHeight: 1.6,
-                        }}
-                        title={banner.content.title}
-                      >
-                        {banner.content.title}
-                      </h2>
-                      <h3
-                        className={`mb-1 text-[24px] font-bold leading-tight tracking-wide text-shadow text-white ${bannerCopyWrap} `}
-                        style={{
-                          color: banner.content.subtitleColor || "#FFFFFF",
-                        }}
-                        title={banner.content.subtitle}
-                      >
-                        {banner.content.subtitle}
-                      </h3>
+                      {banner.content.title?.trim() ? (
+                        <h2
+                          className={`mb-1 text-xl font-bold tracking-wide text-shadow text-white ${bannerCopyWrap}`}
+                          style={{
+                            color: banner.content.titleColor || "#FFFFFF",
+                            lineHeight: 1.6,
+                          }}
+                          title={banner.content.title}
+                        >
+                          {banner.content.title}
+                        </h2>
+                      ) : null}
+                      {banner.content.subtitle?.trim() ? (
+                        <h3
+                          className={`mb-1 text-[24px] font-bold leading-tight tracking-wide text-shadow text-white ${bannerCopyWrap} `}
+                          style={{
+                            color: banner.content.subtitleColor || "#FFFFFF",
+                          }}
+                          title={banner.content.subtitle}
+                        >
+                          {banner.content.subtitle}
+                        </h3>
+                      ) : null}
                       {banner.content.paragraph && (
                         <p
                           className={`mb-1 max-w-full text-[13px] leading-relaxed text-shadow text-white ${bannerCopyWrap} ${paragraphAlignClass(

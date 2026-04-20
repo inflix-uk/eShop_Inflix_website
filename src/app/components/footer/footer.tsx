@@ -586,7 +586,7 @@ const Footer: React.FC<FooterProps> = ({
             {showFooterNewsletter && (
               <section
                 aria-labelledby="footer-newsletter-heading"
-                className={`${footerCol} md:col-span-1`}
+                className={`${footerCol} min-w-0 max-w-full overflow-hidden md:col-span-1`}
               >
                 <NewsletterSignupWidget
                   heading={

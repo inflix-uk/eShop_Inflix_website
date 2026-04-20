@@ -71,6 +71,7 @@ export default function NavServer({ categories }: NavServerProps) {
         <li>
           <Link href="/blogs">Blog</Link>
         </li>
+        {/* Temporarily disabled — return 404
         <li>
           <Link href="/why-buying-a-refurbished-iphone-is-a-good-idea">
             Why Buy Refurbished?
@@ -82,18 +83,21 @@ export default function NavServer({ categories }: NavServerProps) {
         <li>
           <Link href="/recycle-mobile-phone">Bulk Recycling</Link>
         </li>
+        */}
         <li>
           <Link href="/deals-and-discounts">Deals</Link>
         </li>
         <li>
           <Link href="/contact-us">Contact</Link>
         </li>
+        {/* Route disabled (404): /about-zextons
         <li>
           <Link href="/about-zextons">About</Link>
         </li>
-        <li>
+        */}
+        {/* <li>
           <Link href="/faqs">FAQs</Link>
-        </li>
+        </li> */}
         <li>
           <Link href="/terms-and-conditions">Terms</Link>
         </li>

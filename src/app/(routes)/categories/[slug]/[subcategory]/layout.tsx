@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
 
 function toOriginalCase(slug: string) {
   return slug
@@ -50,6 +51,7 @@ export async function generateMetadata({
     };
   }
   const { metaTitle, metaDescription, metaKeywords, banner } = response;
+  const subcategoryPageUrl = `${getPublicSiteBaseUrl()}/categories/${slug}/${subcategory}`;
 
   return {
     title:
@@ -63,7 +65,7 @@ export async function generateMetadata({
       title:
         metaTitle ||
         `Buy Affordable and Cheap Deals on ${subcategory} Tech Products, at Zextons`,
-      url: `https://zextons.co.uk/categories/${slug}/${subcategory}`,
+      url: subcategoryPageUrl,
       description: metaDescription,
       type: "website",
       images: [
@@ -90,9 +92,9 @@ export async function generateMetadata({
       ],
     },
     alternates: {
-      canonical: `https://zextons.co.uk/categories/${slug}/${subcategory}`,
+      canonical: subcategoryPageUrl,
       languages: {
-        "en-gb": `https://zextons.co.uk/categories/${slug}/${subcategory}`,
+        "en-gb": subcategoryPageUrl,
       },
     },
   };

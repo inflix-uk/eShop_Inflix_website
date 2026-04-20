@@ -15,16 +15,7 @@
     max-width: 100%;
     min-width: 0;
     overflow-x: clip;
-    font-family: Arial, Helvetica, sans-serif;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: Helvetica, Arial, sans-serif;
+    /* Font family / weight / style: CMS typography + `body.font-sans` in root layout (`TypographyThemeStyles`) */
   }
 }
 

@@ -14,17 +14,32 @@ function toOriginalCase(slug: string) {
     .join("-");
 }
 
+/** Prefer full blob/API URL; avoid prefixing API base onto Vercel blob pathnames. */
+function subcategoryBannerSrc(banner: {
+  url?: string;
+  path?: string;
+} | null): string | null {
+  if (!banner) return null;
+  const u = typeof banner.url === "string" ? banner.url.trim() : "";
+  if (u) return u;
+  const p = typeof banner.path === "string" ? banner.path.trim() : "";
+  if (!p) return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  return `${base}/${p.replace(/^\//, "")}`;
+}
+
 async function getSubCategoryData(subCategoryName: string) {
   try {
     let res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subCategoryName)}`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
 
     if (!res.ok && subCategoryName !== toOriginalCase(subCategoryName)) {
       res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(toOriginalCase(subCategoryName))}`,
-        { next: { revalidate: 60 } }
+        { cache: "no-store" }
       );
     }
 
@@ -69,10 +84,10 @@ export default async function SubCategoryPage({
   const { slug, subcategory } = await params;
   const categoryData = await getSubCategoryData(subcategory);
   const products = await getProducts(subcategory);
-  console.log("categoryData:", JSON.stringify(categoryData, null, 2));
   if (!categoryData) {
     notFound();
   }
+  const bannerSrc = subcategoryBannerSrc(categoryData.banner);
   return (
     <>
       <header className="relative">
@@ -95,10 +110,10 @@ export default async function SubCategoryPage({
         </nav>
 
         <div className="relative mb-5">
-          {categoryData.banner?.path || categoryData.banner?.url ? (
+          {bannerSrc ? (
             <Image
               className="rounded-xl w-full"
-              src={categoryData.banner.url || `${process.env.NEXT_PUBLIC_API_URL}/${categoryData.banner.path}`}
+              src={bannerSrc}
               alt={`${subcategory} Banner`}
               width={1920}
               height={500}
@@ -110,19 +125,26 @@ export default async function SubCategoryPage({
           )}
         </div>
 
-        <Suspense fallback={<div>Loading products...</div>}>
-          <ProductList
-            initialProducts={products}
-            subCategoryName={subcategory}
-          />
-        </Suspense>
-        <TrustBoxWidget />
-        <SubCategoryContent
-          content={categoryData.content}
-          metaTitle={categoryData.metaTitle}
-          metaDescription={categoryData.metaDescription}
-          metaSchemas={categoryData.metaSchemas}
-        />
+        <div className="flex flex-col">
+          <section className="order-2" aria-label="Subcategory information">
+            <SubCategoryContent
+              content={categoryData.content}
+              content_blocks={categoryData.content_blocks}
+              metaTitle={categoryData.metaTitle}
+              metaDescription={categoryData.metaDescription}
+              metaSchemas={categoryData.metaSchemas}
+            />
+          </section>
+          <div className="order-1">
+            <Suspense fallback={<div>Loading products...</div>}>
+              <ProductList
+                initialProducts={products}
+                subCategoryName={subcategory}
+              />
+            </Suspense>
+            <TrustBoxWidget />
+          </div>
+        </div>
       </div>
       </>
   );

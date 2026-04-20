@@ -31,7 +31,7 @@ const MoreDropdown: React.FC<MoreDropdownProps> = ({ items }) => {
         </svg>
       </div>
       {isOpen && (
-        <ul className="absolute dropdown-menu bg-white text-black mt-0 space-y-2 py-2 rounded shadow-lg z-10 min-w-48">
+        <ul className="absolute dropdown-menu left-0 top-full z-50 mt-0 min-w-48 space-y-2 rounded bg-white py-2 pt-2 text-black shadow-lg">
           {items.map((item) => {
             if (isNavbarCustom(item)) {
               const external = /^https?:\/\//i.test(item.path.trim());
@@ -84,7 +84,7 @@ const MoreDropdown: React.FC<MoreDropdownProps> = ({ items }) => {
                 </Link>
 
                 {validSubCategories.length > 0 && (
-                  <ul className="absolute hidden group-hover:block bg-white text-black mt-0 space-y-2 py-2 rounded shadow-lg z-10 min-w-48 top-0 right-full">
+                  <ul className="absolute top-0 right-full z-50 mt-0 hidden min-w-48 space-y-2 rounded bg-white py-2 pl-2 text-black shadow-lg group-hover:block -ml-2">
                     {validSubCategories.map((subCat, index) => (
                       <li key={index}>
                         <Link

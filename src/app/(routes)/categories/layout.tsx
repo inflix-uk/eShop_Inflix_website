@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
 
+const categoriesIndexUrl = `${getPublicSiteBaseUrl()}/categories`;
 
 export const metadata: Metadata = {
   title: "Refurbished and Brand New Products | Explore All Categories | Zextons Tech Store",
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     siteName: "Zextons Tech Store",
     title: "Refurbished and Brand New Products | Explore All Categories | Zextons Tech Store",
-    url: "https://zextons.co.uk/categories",
+    url: categoriesIndexUrl,
     description:
       "Browse a wide range of refurbished and brand new products at Zextons Tech Store. Explore all categories and subcategories to find quality items at unbeatable prices. Shop now!",
     type: "website",
@@ -26,8 +28,8 @@ export const metadata: Metadata = {
     images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
   },
   alternates: {
-    canonical: "https://zextons.co.uk/categories",
-    languages: { "en-gb": "https://zextons.co.uk/categories" },
+    canonical: categoriesIndexUrl,
+    languages: { "en-gb": categoriesIndexUrl },
   },
 };
 export default async function CategoriesLayout({

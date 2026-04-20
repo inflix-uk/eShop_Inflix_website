@@ -59,8 +59,6 @@ export default async function SubCategoryPage({
   const subCategoryName = (await params).slug;
   const categoryData = await getSubCategoryData(subCategoryName);
   const products = await getProducts(subCategoryName);
-  console.log(categoryData);
-  // console.log(products);
   if (!categoryData) {
     notFound();
   }
@@ -101,20 +99,26 @@ export default async function SubCategoryPage({
           )}
         </div>
 
-        <Suspense fallback={<div>Loading products...</div>}>
-          <ProductList
-            initialProducts={products}
-            subCategoryName={subCategoryName}
-          />
-        </Suspense>
-        <TrustBoxWidget />
-        <SubCategoryContent
-          content={categoryData.content}
-          metaTitle={categoryData.metaTitle}
-          metaDescription={categoryData.metaDescription}
-          metaSchemas={categoryData.metaSchemas}
-        />
+        <div className="flex flex-col">
+          <section className="order-2" aria-label="Subcategory information">
+            <SubCategoryContent
+              content={categoryData.content}
+              metaTitle={categoryData.metaTitle}
+              metaDescription={categoryData.metaDescription}
+              metaSchemas={categoryData.metaSchemas}
+            />
+          </section>
+          <div className="order-1">
+            <Suspense fallback={<div>Loading products...</div>}>
+              <ProductList
+                initialProducts={products}
+                subCategoryName={subCategoryName}
+              />
+            </Suspense>
+            <TrustBoxWidget />
+          </div>
+        </div>
       </div>
-      </>
+    </>
   );
 }

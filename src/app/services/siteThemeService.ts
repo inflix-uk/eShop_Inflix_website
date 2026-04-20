@@ -1,64 +1,88 @@
-import { CMS_UPSTREAM_TIMEOUT_MS } from "@/app/lib/cmsTimedFetch";
 import {
   DEFAULT_SITE_THEME,
   resolveSiteTheme,
   type SiteThemeResolved,
 } from "@/app/lib/siteThemeUtils";
+import {
+  cloneTypographyDefaults,
+  resolveTypographyFromApi,
+  type TypographyConfig,
+} from "@/app/lib/typographyThemeUtils";
+import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import { cmsTimedFetch, isCmsFetchAbortError } from "@/app/lib/cmsTimedFetch";
+
+export type SiteThemeLayoutBundle = {
+  colors: SiteThemeResolved;
+  typography: TypographyConfig;
+};
 
 /**
- * Server-side fetch for public site theme (same source as `/api/site-theme`).
- * Used in root layout so `:root` CSS variables match the DB on first paint.
+ * Server-side fetch for public site theme (colors + typography).
+ * Same upstream as `/site-theme/public` — single request for layout (no flicker).
  */
-export async function getSiteThemePublic(): Promise<SiteThemeResolved> {
+export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   if (!base) {
-    return resolveSiteTheme(
-      DEFAULT_SITE_THEME.primaryColor,
-      DEFAULT_SITE_THEME.secondaryColor
-    );
+    return {
+      colors: resolveSiteTheme(
+        DEFAULT_SITE_THEME.primaryColor,
+        DEFAULT_SITE_THEME.secondaryColor
+      ),
+      typography: cloneTypographyDefaults(),
+    };
   }
 
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), CMS_UPSTREAM_TIMEOUT_MS);
-
   try {
-    const res = await fetch(`${base}/site-theme/public`, {
+    const res = await cmsTimedFetch(`${base}/site-theme/public`, {
       headers: { Accept: "application/json" },
-      signal: controller.signal,
       next: { revalidate: 120 },
+      ...cmsPublicFetchInit(),
     });
 
     if (!res.ok) {
-      return resolveSiteTheme(
-        DEFAULT_SITE_THEME.primaryColor,
-        DEFAULT_SITE_THEME.secondaryColor
-      );
+      return {
+        colors: resolveSiteTheme(
+          DEFAULT_SITE_THEME.primaryColor,
+          DEFAULT_SITE_THEME.secondaryColor
+        ),
+        typography: cloneTypographyDefaults(),
+      };
     }
 
     const json = await res.json();
     if (!json?.success || !json?.data) {
-      return resolveSiteTheme(
-        DEFAULT_SITE_THEME.primaryColor,
-        DEFAULT_SITE_THEME.secondaryColor
-      );
+      return {
+        colors: resolveSiteTheme(
+          DEFAULT_SITE_THEME.primaryColor,
+          DEFAULT_SITE_THEME.secondaryColor
+        ),
+        typography: cloneTypographyDefaults(),
+      };
     }
 
     const primary = String(json.data.primaryColor ?? "").trim();
     const secondary = String(json.data.secondaryColor ?? "").trim();
-    if (!primary || !secondary) {
-      return resolveSiteTheme(
+    const colors =
+      !primary || !secondary
+        ? resolveSiteTheme(
+            DEFAULT_SITE_THEME.primaryColor,
+            DEFAULT_SITE_THEME.secondaryColor
+          )
+        : resolveSiteTheme(primary, secondary);
+
+    const typography = resolveTypographyFromApi(json.data);
+
+    return { colors, typography };
+  } catch (e) {
+    if (!isCmsFetchAbortError(e)) {
+      console.error("[siteThemeService] public fetch:", e);
+    }
+    return {
+      colors: resolveSiteTheme(
         DEFAULT_SITE_THEME.primaryColor,
         DEFAULT_SITE_THEME.secondaryColor
-      );
-    }
-
-    return resolveSiteTheme(primary, secondary);
-  } catch {
-    return resolveSiteTheme(
-      DEFAULT_SITE_THEME.primaryColor,
-      DEFAULT_SITE_THEME.secondaryColor
-    );
-  } finally {
-    clearTimeout(id);
+      ),
+      typography: cloneTypographyDefaults(),
+    };
   }
 }

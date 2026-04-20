@@ -5,6 +5,55 @@ import {
   type FooterPage,
 } from "@/app/services/footerPageService";
 
+/**
+ * CMS often stores a full <script type="application/ld+json">…</script> snippet.
+ * Nesting that inside another ld+json script breaks HTML parsing (first </script>
+ * closes the tag) and causes hydration mismatches. Returns JSON text safe for
+ * embedding in <script type="application/ld+json">.
+ */
+function ldJsonForScriptTag(raw: string): string {
+  let s = String(raw).trim();
+  if (!s) return "";
+  const open = /^<script\b[^>]*>/i;
+  const close = /<\/script>\s*$/i;
+  if (open.test(s) && close.test(s)) {
+    s = s.replace(open, "").replace(close, "").trim();
+  }
+  try {
+    const parsed = JSON.parse(s) as unknown;
+    return JSON.stringify(parsed).replace(/</g, "\\u003c");
+  } catch {
+    return s.replace(/</g, "\\u003c");
+  }
+}
+
+/** Published static meta row (admin "Static Meta Pages") — fallback source. */
+type StaticMetaPage = {
+  titleTag: string;
+  metaDescription: string;
+  metaKeywords?: string;
+  canonicalUrl?: string;
+  metaSchemas?: string[];
+};
+
+async function fetchStaticMetaByPath(
+  path: string
+): Promise<StaticMetaPage | null> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return null;
+    const res = await fetch(
+      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent(path)}`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.success && data.data ? data.data : null;
+  } catch {
+    return null;
+  }
+}
+
 interface DynamicPageLayoutProps {
   children: React.ReactNode;
   params: Promise<{
@@ -12,8 +61,13 @@ interface DynamicPageLayoutProps {
   }>;
 }
 
+function defaultOgImage() {
+  return [{ url: getImageUrl("/uploads/web/Zextons.webp") }];
+}
+
 /**
- * Generates metadata for the footer page
+ * Generates metadata for the footer page.
+ * Priority: Footer Page SEO (from admin Footer Pages) > Static Meta > fallback
  */
 export async function generateMetadata({
   params,
@@ -22,77 +76,151 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
-  let page: FooterPage | null = null;
-
-  try {
-    page = await fetchFooterPageBySlug(decodedSlug);
-  } catch (error) {
-    console.error("Error fetching page for metadata:", error);
-  }
-
-  if (!page || page.publishStatus !== "published") {
-    return {
-      title: "Page Not Found | Zextons Tech Store",
-      description: "The page you're looking for doesn't exist.",
-      robots: "noindex, nofollow",
-    };
-  }
-
-  const title = page.metaTitle || page.title;
-  const description =
-    page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
-  
-  // Get base URL from environment variable
+  const path = `/${decodedSlug}`;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
   const pageUrl = `${baseUrl}/${decodedSlug}`;
 
-  const metadata: Metadata = {
-    title: `${title} | Zextons Tech Store`,
-    description: description,
-    robots: "index, follow",
-    openGraph: {
-      siteName: "Zextons",
-      title: title,
-      url: pageUrl,
-      description: description,
-      type: "website",
-      images: page.bannerImage
-        ? [
-            {
-              url: getImageUrl(page.bannerImage),
-            },
-          ]
-        : [{ url: getImageUrl("/uploads/web/Zextons.webp") }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: title,
-      description: description,
-      images: page.bannerImage
-        ? [
-            {
-              url: getImageUrl(page.bannerImage),
-            },
-          ]
-        : [{ url: getImageUrl("/uploads/web/Zextons.webp") }],
-    },
-    alternates: {
-      canonical: pageUrl,
-      languages: { "en-gb": pageUrl },
-    },
-  };
+  const [staticMeta, page] = await Promise.all([
+    fetchStaticMetaByPath(path),
+    fetchFooterPageBySlug(decodedSlug).catch((error) => {
+      console.error("Error fetching page for metadata:", error);
+      return null;
+    }),
+  ]);
 
-  // Add meta tags if provided
-  if (page.metaTags && page.metaTags.length > 0) {
-    metadata.keywords = page.metaTags.join(", ");
+  // Primary source: Footer Page from admin (if published and has metaTitle)
+  if (page?.publishStatus === "published" && page.metaTitle) {
+    const title = page.metaTitle;
+    const description =
+      page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
+
+    const metadata: Metadata = {
+      title: title,
+      description: description,
+      robots: "index, follow",
+      openGraph: {
+        siteName: "Zextons",
+        title: title,
+        url: pageUrl,
+        description: description,
+        type: "website",
+        images: page.bannerImage
+          ? [{ url: getImageUrl(page.bannerImage) }]
+          : defaultOgImage(),
+      },
+      twitter: {
+        card: "summary_large_image",
+        site: "@ZextonsTechStore",
+        title: title,
+        description: description,
+        images: page.bannerImage
+          ? [{ url: getImageUrl(page.bannerImage) }]
+          : defaultOgImage(),
+      },
+      alternates: {
+        canonical: pageUrl,
+        languages: { "en-gb": pageUrl },
+      },
+    };
+
+    if (page.metaTags && page.metaTags.length > 0) {
+      metadata.keywords = page.metaTags.join(", ");
+    }
+
+    return metadata;
   }
 
-  return metadata;
+  // Secondary source: Static Meta from admin (fallback when footer page has no metaTitle)
+  if (staticMeta?.titleTag) {
+    const canonicalUrl = staticMeta.canonicalUrl?.trim() || pageUrl;
+    const ogImages =
+      page?.publishStatus === "published" && page.bannerImage
+        ? [{ url: getImageUrl(page.bannerImage) }]
+        : defaultOgImage();
+
+    const metadata: Metadata = {
+      title: staticMeta.titleTag,
+      description: staticMeta.metaDescription,
+      robots: "index, follow",
+      openGraph: {
+        siteName: "Zextons",
+        title: staticMeta.titleTag,
+        url: canonicalUrl,
+        description: staticMeta.metaDescription,
+        type: "website",
+        images: ogImages,
+      },
+      twitter: {
+        card: "summary_large_image",
+        site: "@ZextonsTechStore",
+        title: staticMeta.titleTag,
+        description: staticMeta.metaDescription,
+        images: ogImages,
+      },
+      alternates: {
+        canonical: canonicalUrl,
+        languages: { "en-gb": canonicalUrl },
+      },
+    };
+    if (staticMeta.metaKeywords?.trim()) {
+      metadata.keywords = staticMeta.metaKeywords;
+    }
+    return metadata;
+  }
+
+  // Tertiary: Footer page exists but no metaTitle — use page.title as fallback
+  if (page?.publishStatus === "published") {
+    const title = page.title;
+    const description =
+      page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
+
+    const metadata: Metadata = {
+      title: `${title} | Zextons Tech Store`,
+      description: description,
+      robots: "index, follow",
+      openGraph: {
+        siteName: "Zextons",
+        title: title,
+        url: pageUrl,
+        description: description,
+        type: "website",
+        images: page.bannerImage
+          ? [{ url: getImageUrl(page.bannerImage) }]
+          : defaultOgImage(),
+      },
+      twitter: {
+        card: "summary_large_image",
+        site: "@ZextonsTechStore",
+        title: title,
+        description: description,
+        images: page.bannerImage
+          ? [{ url: getImageUrl(page.bannerImage) }]
+          : defaultOgImage(),
+      },
+      alternates: {
+        canonical: pageUrl,
+        languages: { "en-gb": pageUrl },
+      },
+    };
+
+    if (page.metaTags && page.metaTags.length > 0) {
+      metadata.keywords = page.metaTags.join(", ");
+    }
+
+    return metadata;
+  }
+
+  // Not found
+  return {
+    title: "Page Not Found | Zextons Tech Store",
+    description: "The page you're looking for doesn't exist.",
+    robots: "noindex, nofollow",
+  };
 }
 
 /**
- * Layout component that includes meta schemas
+ * Layout component that includes meta schemas.
+ * Priority: Footer Page schemas > Static Meta schemas
  */
 export default async function DynamicPageLayout({
   children,
@@ -100,25 +228,35 @@ export default async function DynamicPageLayout({
 }: DynamicPageLayoutProps) {
   const { slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
-  let page: FooterPage | null = null;
+  const path = `/${decodedSlug}`;
 
-  try {
-    page = await fetchFooterPageBySlug(decodedSlug);
-  } catch (error) {
-    console.error("Error fetching page for layout:", error);
-  }
+  const [staticMeta, page] = await Promise.all([
+    fetchStaticMetaByPath(path),
+    fetchFooterPageBySlug(decodedSlug).catch((error) => {
+      console.error("Error fetching page for layout:", error);
+      return null;
+    }),
+  ]);
+
+  // Prefer footer page schemas, fall back to static meta schemas
+  const schemaScripts =
+    page?.metaSchema && page.metaSchema.length > 0
+      ? page.metaSchema
+      : staticMeta?.metaSchemas ?? [];
+
+  const normalizedSchemas = schemaScripts
+    .map((schema) => ldJsonForScriptTag(schema))
+    .filter(Boolean);
 
   return (
     <>
-      {/* Render meta schemas if available */}
-      {page?.metaSchema &&
-        page.metaSchema.map((schema, index) => (
-          <script
-            key={index}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: schema }}
-          />
-        ))}
+      {normalizedSchemas.map((schema, index) => (
+        <script
+          key={index}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: schema }}
+        />
+      ))}
       {children}
     </>
   );

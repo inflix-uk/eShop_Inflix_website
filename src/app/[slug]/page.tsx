@@ -454,6 +454,8 @@ export default function DynamicFooterPage({ params }: DynamicPageProps) {
           <Link href={"/"} className="hover:underline">
             Home
           </Link>
+          <span className="mx-2">»</span>
+          <span className="text-gray-900">{page.title}</span>
         </nav>
 
         {/* Banner Image */}

@@ -20,6 +20,7 @@ import BlogCategoryCardsWidget from "./BlogCategoryCardsWidget";
 import BlogPromotionalSectionsWidget from "./BlogPromotionalSectionsWidget";
 import BlogLatestBlogsWidget from "./BlogLatestBlogsWidget";
 import BlogHtmlCssWidget from "./BlogHtmlCssWidget";
+import DealsDiscountCardsWidget from "@/app/components/deals/DealsDiscountCardsWidget";
 import NewsletterSignupWidget from "./NewsletterSignupWidget";
 import FaqWidget from "./FaqWidget";
 import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
@@ -692,6 +693,15 @@ export default function ClientBlogPage({ blog }) {
                                               sectionHeading={block.content.sectionHeading}
                                               maxPosts={block.content.maxPosts}
                                               viewAllLabel={block.content.viewAllLabel}
+                                            />
+                                          );
+                                        }
+                                        if (block.content?.widgetType === "dealsDiscountCards") {
+                                          return (
+                                            <DealsDiscountCardsWidget
+                                              key={`block-${rowIndex}-${colIndex}-${blockIndex}`}
+                                              sectionHeading={block.content.sectionHeading}
+                                              items={block.content.items || []}
                                             />
                                           );
                                         }

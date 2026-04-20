@@ -59,7 +59,7 @@ const ProductCardWithStock: React.FC<ProductCardWithStockProps> = memo(
               </div>
             </div>
 
-            <h3 className="text-lg mb-2 h-16 flex items-start font-normal">
+            <h3 className="text-lg mb-2 h-16 flex items-start font-normal m-0">
               <Link href={`/products/${productNameSlug}`} className="line-clamp-2 md:line-clamp-2">
                 {product.name}
                 <span className="absolute inset-0 z-[1]" aria-hidden="true" />

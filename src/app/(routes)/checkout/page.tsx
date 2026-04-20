@@ -564,7 +564,7 @@ export default function CheckoutPage() {
         </div>
 
         <TrustBoxWidget />
-        <BenefitsFromZextons />
+        {/* <BenefitsFromZextons /> */}
       </main>
 
       </>

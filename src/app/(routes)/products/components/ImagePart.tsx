@@ -313,54 +313,158 @@ export default function ImagePart({
       >
         {/* Image selector */}
         <div className="mx-auto mt-2 max-w-2xl md:w-fit w-full">
-          <TabList className="grid grid-cols-4 xl:grid-cols-1 md:gap-6 gap-2 mt-4 px-4 justify-end">
-            {images?.map(
-              (
-                image: { filename?: string; id?: string; path?: string; altText?: string },
-                index: number
-              ) => {
-                return (
-                  <Tab
-                    key={image?.filename || image?.id}
-                    className={`tab-rotate-on-load relative flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
-                      currentIndex === index
-                        ? "ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2"
-                        : ""
-                    }`}
-                    onClick={() => setCurrentIndex(index)}
-                  >
-                    {() => (
-                      <>
-                        <span className="sr-only">{image?.altText || image?.filename}</span>
-                        <span className="absolute inset-0 overflow-hidden rounded-md">
-                          <Image
-                            src={getImageUrl(image)}
-                            alt={getImageAlt(image, index)}
-                            className="object-contain object-center"
-                            fill
-                            sizes="(min-width: 768px) 5rem, 25vw"
-                            placeholder="blur"
-                            blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
-                            priority={index === 0}
-                            quality={75}
-                            loading={index === 0 ? "eager" : "lazy"}
-                          />
-                        </span>
-                        <span
-                          className={
+          {/* Scrollable container for more than 4 images on mobile/tablet */}
+          <div className={`${images?.length > 4 ? 'xl:block max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
+            <TabList className={`grid xl:grid-cols-1 md:gap-6 gap-2 mt-4 px-4 justify-end ${
+              images?.length > 4 
+                ? 'grid-cols-4 xl:grid-cols-1' 
+                : 'grid-cols-4 xl:grid-cols-1'
+            }`}>
+              {/* Show first 4 images in grid on mobile when more than 4 images */}
+              {images?.length > 4 ? (
+                <>
+                  {/* Mobile/Tablet: Horizontal scrollable thumbnails */}
+                  <div className="xl:hidden col-span-4 flex gap-4 overflow-x-auto pt-4 pb-4 px-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ minHeight: '115px' }}>
+                    {images?.map(
+                      (
+                        image: { filename?: string; id?: string; path?: string; altText?: string },
+                        index: number
+                      ) => (
+                        <Tab
+                          key={image?.filename || image?.id || index}
+                          className={`tab-rotate-on-load relative flex-shrink-0 w-[80px] h-[95px] cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-2 ${
                             currentIndex === index
-                              ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                              : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                          }
-                          aria-hidden="true"
-                        />
-                      </>
+                              ? "ring-green-500 ring-2 ring-offset-2"
+                              : "ring-1 ring-gray-200"
+                          }`}
+                          onClick={() => setCurrentIndex(index)}
+                        >
+                          {() => (
+                            <>
+                              <span className="sr-only">{image?.altText || image?.filename}</span>
+                              <span className="absolute inset-0 overflow-hidden rounded-md">
+                                <Image
+                                  src={getImageUrl(image)}
+                                  alt={getImageAlt(image, index)}
+                                  className="object-contain object-center"
+                                  fill
+                                  sizes="80px"
+                                  placeholder="blur"
+                                  blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+                                  priority={index === 0}
+                                  quality={75}
+                                  loading={index === 0 ? "eager" : "lazy"}
+                                />
+                              </span>
+                              <span
+                                className={
+                                  currentIndex === index
+                                    ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                                    : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                                }
+                                aria-hidden="true"
+                              />
+                            </>
+                          )}
+                        </Tab>
+                      )
                     )}
-                  </Tab>
-                );
-              }
-            )}{" "}
-          </TabList>{" "}
+                  </div>
+                  {/* Desktop: Vertical thumbnails (hidden on mobile) */}
+                  {images?.map(
+                    (
+                      image: { filename?: string; id?: string; path?: string; altText?: string },
+                      index: number
+                    ) => (
+                      <Tab
+                        key={`desktop-${image?.filename || image?.id || index}`}
+                        className={`tab-rotate-on-load relative hidden xl:flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
+                          currentIndex === index
+                            ? "ring-green-500 ring-2 ring-offset-2"
+                            : ""
+                        }`}
+                        onClick={() => setCurrentIndex(index)}
+                      >
+                        {() => (
+                          <>
+                            <span className="sr-only">{image?.altText || image?.filename}</span>
+                            <span className="absolute inset-0 overflow-hidden rounded-md">
+                              <Image
+                                src={getImageUrl(image)}
+                                alt={getImageAlt(image, index)}
+                                className="object-contain object-center"
+                                fill
+                                sizes="5rem"
+                                placeholder="blur"
+                                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+                                priority={index === 0}
+                                quality={75}
+                                loading={index === 0 ? "eager" : "lazy"}
+                              />
+                            </span>
+                            <span
+                              className={
+                                currentIndex === index
+                                  ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                                  : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                              }
+                              aria-hidden="true"
+                            />
+                          </>
+                        )}
+                      </Tab>
+                    )
+                  )}
+                </>
+              ) : (
+                /* 4 or fewer images - original grid layout */
+                images?.map(
+                  (
+                    image: { filename?: string; id?: string; path?: string; altText?: string },
+                    index: number
+                  ) => (
+                    <Tab
+                      key={image?.filename || image?.id || index}
+                      className={`tab-rotate-on-load relative flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
+                        currentIndex === index
+                          ? "ring-green-500 ring-2 ring-offset-2"
+                          : ""
+                      }`}
+                      onClick={() => setCurrentIndex(index)}
+                    >
+                      {() => (
+                        <>
+                          <span className="sr-only">{image?.altText || image?.filename}</span>
+                          <span className="absolute inset-0 overflow-hidden rounded-md">
+                            <Image
+                              src={getImageUrl(image)}
+                              alt={getImageAlt(image, index)}
+                              className="object-contain object-center"
+                              fill
+                              sizes="(min-width: 768px) 5rem, 25vw"
+                              placeholder="blur"
+                              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+                              priority={index === 0}
+                              quality={75}
+                              loading={index === 0 ? "eager" : "lazy"}
+                            />
+                          </span>
+                          <span
+                            className={
+                              currentIndex === index
+                                ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                                : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
+                            }
+                            aria-hidden="true"
+                          />
+                        </>
+                      )}
+                    </Tab>
+                  )
+                )
+              )}
+            </TabList>
+          </div>
         </div>
 
         <div className="mx-auto relative w-full md:ms-3 flex justify-center">
