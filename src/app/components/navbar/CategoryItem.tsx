@@ -45,7 +45,7 @@ const CategoryItem: React.FC<CategoryItemProps> = ({ category }) => {
         )}
       </div>
       {isOpen && validSubCategories.length > 0 && (
-        <ul className="absolute dropdown-menu bg-white text-black mt-0 space-y-2 py-2 rounded shadow-lg z-10 min-w-48 top-8 left-0">
+        <ul className="absolute dropdown-menu left-0 top-full z-50 min-w-48 space-y-2 rounded bg-white py-2 pt-2 text-black shadow-lg">
           {validSubCategories.map((subCat, index) => (
             <li key={index}>
               <Link

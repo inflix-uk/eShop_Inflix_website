@@ -1,7 +1,11 @@
 "use client";
 
 import CategoriesCard from "@/app/components/CategoriesCard";
-import type { CategoryCard } from "@/app/services/categoryCardsService";
+import {
+  resolveCategoryCardsDividerColor,
+  resolveCategoryCardsHeadingColor,
+  type CategoryCard,
+} from "@/app/services/categoryCardsService";
 
 export type CategoryCardBlockItem = {
   id?: string;
@@ -51,8 +55,8 @@ function toDisplayCards(items: CategoryCardBlockItem[] | undefined): CategoryCar
 
 export default function BlogCategoryCardsWidget({
   headingText = "Popular Categories",
-  headingColor = "var(--secondary)",
-  dividerColor = "#000000",
+  headingColor,
+  dividerColor,
   sectionBackgroundColor = "",
   items = [],
 }: BlogCategoryCardsWidgetProps) {
@@ -60,7 +64,7 @@ export default function BlogCategoryCardsWidget({
 
   return (
     <section
-      className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8"
+      className="mt-8 w-full min-w-0"
       style={
         sectionBackgroundColor?.trim()
           ? { backgroundColor: sectionBackgroundColor.trim() }
@@ -71,13 +75,13 @@ export default function BlogCategoryCardsWidget({
         <div className="flex items-center gap-3 mt-10">
           <h2
             className="text-2xl font-semibold"
-            style={{ color: headingColor }}
+            style={{ color: resolveCategoryCardsHeadingColor(headingColor) }}
           >
             {headingText}
           </h2>
           <div
-            className="min-w-0 flex-grow border-b mt-1"
-            style={{ borderColor: dividerColor }}
+            className="mt-1 min-w-0 flex-grow border-b"
+            style={{ borderColor: resolveCategoryCardsDividerColor(dividerColor) }}
           />
         </div>
       </div>

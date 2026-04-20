@@ -74,6 +74,7 @@ export async function generateMetadata(): Promise<Metadata> {
     keywordsFromCms ?? metaData?.metaKeywords;
 
   const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
 
   return {
     title,
@@ -81,23 +82,22 @@ export async function generateMetadata(): Promise<Metadata> {
     ...(keywords ? { keywords } : {}),
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: title,
       title,
-      url: "https://zextons.co.uk/",
+      url: baseUrl,
       description,
       type: "website",
       images: [{ url: ogImage }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
       title,
       description,
       images: [{ url: ogImage }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/",
-      languages: { "en-gb": "https://zextons.co.uk/" },
+      canonical: baseUrl,
+      languages: { "en-gb": baseUrl },
     },
   };
 }

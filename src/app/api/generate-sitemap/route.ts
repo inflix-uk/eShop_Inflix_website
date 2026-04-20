@@ -6,21 +6,9 @@ import fs from 'fs';
 
 export const runtime = 'nodejs';
 
-// CORS setup
-const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:3201',
-  'http://127.0.0.1:3201',
-  'http://localhost:5173',
-  'https://zextons.co.uk',
-  'https://www.zextons.co.uk',
-  'https://green.zextons.co.uk/',
-];
-
+// CORS setup - allow any origin for sitemap generation
 function applyCORS(res: NextResponse, origin?: string) {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : '*';
-  res.headers.set('Access-Control-Allow-Origin', allowed);
+  res.headers.set('Access-Control-Allow-Origin', origin || '*');
   res.headers.set('Vary', 'Origin');
   res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -28,26 +16,55 @@ function applyCORS(res: NextResponse, origin?: string) {
   return res;
 }
 
+function extractPath(url: string): string {
+  if (!url) return '/';
+  
+  // If it's already a relative path, return as-is
+  if (url.startsWith('/')) return url;
+  
+  // Strip any domain (http://..., https://...) and return the path
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname + parsed.search + parsed.hash;
+  } catch {
+    // If URL parsing fails, try regex fallback
+    const match = url.match(/^https?:\/\/[^/]+(\/.*)?$/);
+    return match?.[1] || '/';
+  }
+}
+
 async function generate() {
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://zextons.co.uk').replace(/\/$/, '');
+  
   try {
     const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/create/sitemap`);
-    const links: any[] = Array.isArray(response.data) ? response.data : [];
+    const rawLinks: any[] = Array.isArray(response.data) ? response.data : [];
 
-    if (!links.length) {
+    if (!rawLinks.length) {
       return NextResponse.json(
         { ok: false, message: 'No URLs returned from backend' },
         { status: 400 }
       );
     }
 
-    const stream = new SitemapStream({ hostname: 'https://zextons.co.uk/' });
+    // Convert all URLs to use the correct base URL
+    // Backend returns full URLs with hardcoded domain, we need to replace them
+    const links = rawLinks.map((item) => {
+      const path = extractPath(item.url);
+      return {
+        ...item,
+        url: `${baseUrl}${path}`,
+      };
+    });
+
+    const stream = new SitemapStream({ hostname: baseUrl });
     const sitemap = await streamToPromise(Readable.from(links).pipe(stream));
 
     // Write to the public folder (available at /sitemap.xml)
     const outPath = `${process.cwd()}/public/sitemap.xml`;
     fs.writeFileSync(outPath, sitemap.toString());
 
-    return NextResponse.json({ ok: true, count: links.length, path: '/sitemap.xml' });
+    return NextResponse.json({ ok: true, count: links.length, path: '/sitemap.xml', baseUrl });
   } catch (error: any) {
     console.error('API generate-sitemap error:', error);
     return NextResponse.json(

@@ -109,18 +109,30 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
           )}
         </div>
 
-
-        <Suspense fallback={<div>Loading products...</div>}>
-          <ProductList initialProducts={products} categoryName={categoryName} />
-        </Suspense>
-        <TrustBoxWidget />
-        <CategoryContent
-          content={categoryData.content}
-          metaTitle={categoryData.metaTitle}
-          metaDescription={categoryData.metaDescription}
-          metaSchemas={categoryData.metaSchemas}
-        />
-        
+        {/*
+          DOM order = SEO / heading outline order (CMS H1/H2/FAQ first, then product H3s).
+          flex order keeps the grid + Trustpilot visually above the long copy (unchanged layout).
+        */}
+        <div className="flex flex-col">
+          <section className="order-2" aria-label="Category information">
+            <CategoryContent
+              content={categoryData.content}
+              content_blocks={categoryData.content_blocks}
+              metaTitle={categoryData.metaTitle}
+              metaDescription={categoryData.metaDescription}
+              metaSchemas={categoryData.metaSchemas}
+            />
+          </section>
+          <div className="order-1">
+            <Suspense fallback={<div>Loading products...</div>}>
+              <ProductList
+                initialProducts={products}
+                categoryName={categoryName}
+              />
+            </Suspense>
+            <TrustBoxWidget />
+          </div>
+        </div>
       </div>
       </>
   );

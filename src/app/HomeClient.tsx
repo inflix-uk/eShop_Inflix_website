@@ -31,10 +31,14 @@ import {
   getTrustpilotSettings,
   type TrustpilotSettings,
 } from "./services/trustpilotService";
+/* Hardcoded home category row disabled — category cards come from CMS widget only.
 import {
+  resolveCategoryCardsDividerColor,
+  resolveCategoryCardsHeadingColor,
   getCategoryCardsSectionSettings,
   type CategoryCardsSectionSettings,
 } from "./services/categoryCardsService";
+*/
 import {
   getHomeNavLinksPublic,
   type HomeNavLink,
@@ -59,7 +63,7 @@ const DEFAULT_WIDGET_VISIBILITY: SiteWidgetVisibility = {
   htmlCssEnabled: true,
 };
 
-const CategoriesCard = dynamic(() => import("./components/CategoriesCard"), {
+/* const CategoriesCard = dynamic(() => import("./components/CategoriesCard"), {
   loading: () => (
     <div
       className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-6"
@@ -73,7 +77,7 @@ const CategoriesCard = dynamic(() => import("./components/CategoriesCard"), {
       ))}
     </div>
   ),
-});
+}); */
 
 const SwiperComponent = dynamic(
   () => import("./components/SwiperComponent")
@@ -181,7 +185,7 @@ export default function HomeClient({
     useState<TrustpilotSettings | null>(() =>
       prefetched ? (cmsPrefetch!.trustpilotSettings ?? null) : null
     );
-  const [categoryCardsSection, setCategoryCardsSection] =
+  /* const [categoryCardsSection, setCategoryCardsSection] =
     useState<CategoryCardsSectionSettings>(() =>
       prefetched
         ? cmsPrefetch!.categoryCardsSection
@@ -191,7 +195,7 @@ export default function HomeClient({
             dividerColor: "#000000",
             sectionBackgroundColor: "",
           }
-    );
+    ); */
   const [homeNavLinks, setHomeNavLinks] = useState<HomeNavLink[]>(() =>
     prefetched ? cmsPrefetch!.homeNavLinks : []
   );
@@ -503,7 +507,7 @@ export default function HomeClient({
     }
   }, [mounted]);
 
-  useEffect(() => {
+  /* useEffect(() => {
     if (prefetched) return;
     let cancelled = false;
     const cancelSchedule = scheduleIdle(() => {
@@ -515,7 +519,7 @@ export default function HomeClient({
       cancelled = true;
       cancelSchedule();
     };
-  }, [prefetched]);
+  }, [prefetched]); */
 
   useEffect(() => {
     if (prefetched) return;
@@ -537,33 +541,13 @@ export default function HomeClient({
 
   return (
     <>
-      <section
-        className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8"
-        style={
-          categoryCardsSection.sectionBackgroundColor?.trim()
-            ? {
-                backgroundColor:
-                  categoryCardsSection.sectionBackgroundColor.trim(),
-              }
-            : undefined
-        }
-      >
-        {/* Categories  */}
-        <div className="relative">
-          <div className="flex items-center gap-3 mt-10">
-            <h2
-              className="text-2xl font-semibold"
-              style={{ color: categoryCardsSection.headingColor }}
-            >
-              {categoryCardsSection.headingText}
-            </h2>
-            <div
-              className="min-w-0 flex-grow border-b mt-1"
-              style={{ borderColor: categoryCardsSection.dividerColor }}
-            />
-          </div>
-        </div>
-        <CategoriesCard newCategories={newCategories} countItems={countItems} />
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
+        {/*
+          Hardcoded homepage category heading + CategoriesCard (not the CMS widget) — disabled.
+          To restore: uncomment categoryCardsService import, CategoriesCard dynamic(), state,
+          getCategoryCardsSectionSettings useEffect, put section background style on this section,
+          then add the heading row + <CategoriesCard newCategories={newCategories} countItems={countItems} />.
+        */}
 {/* 
         Featured Products
         <SwiperComponent
@@ -773,6 +757,9 @@ export default function HomeClient({
           </div>
         )} */}
         </section>
+
+
+        
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-5">
         {/* Samsung new and refurbished */}
         <SwiperComponent

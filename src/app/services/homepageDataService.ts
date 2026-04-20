@@ -224,6 +224,35 @@ export interface WidgetLatestBlogsContent {
   viewAllLabel?: string;
 }
 
+/** Curated deal/coupon cards authored in the block editor (footer pages, blogs, homepage). */
+export interface DealsDiscountCardItem {
+  id?: string;
+  emoji?: string;
+  title?: string;
+  desc?: string;
+  type?: "Coupon" | "Deal";
+  /** When false, the public card shows “Expires: No Expiry” and hides the start line. */
+  hasExpiry?: boolean;
+  startDate?: string;
+  expiryDate?: string;
+  /** Force grey “Expired” state (also inferred when `expiryDate` parses to a past instant). */
+  isExpired?: boolean;
+  couponCode?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+}
+
+export interface WidgetDealsDiscountCardsContent {
+  widgetType: "dealsDiscountCards";
+  sectionHeading?: string;
+  items?: DealsDiscountCardItem[];
+}
+
+/** Live deals / coupons from public `/get/active/deals` (footer pages & blogs). */
+export interface WidgetActiveDealsContent {
+  widgetType: "activeDeals";
+}
+
 /** Fragment HTML + scoped CSS (rendered in a shadow root on the public site). */
 export interface WidgetHtmlCssContent {
   widgetType: "htmlCss";
@@ -262,6 +291,8 @@ export interface ContentBlock {
     | WidgetCategoryCardsContent
     | WidgetPromotionalSectionsContent
     | WidgetLatestBlogsContent
+    | WidgetActiveDealsContent
+    | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
     | ProductSliderBlockContent;
 }

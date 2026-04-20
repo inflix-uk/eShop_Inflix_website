@@ -52,6 +52,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
     title: "Useful Links",
     links: [
       { text: "Read Our Blogs", link: "/blogs", isActive: true, order: 1 },
+      /* Temporarily disabled — routes return 404
       {
         text: "Why Buying Refurbished iPhone is Good Idea?",
         link: "/why-buying-a-refurbished-iphone-is-a-good-idea",
@@ -59,6 +60,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
         order: 2,
         ariaLabel: "Learn why buying a refurbished iPhone is a good idea",
       },
+      */
       {
         text: "Sell My Mobile Phone",
         link: "https://sell.zextons.co.uk/",
@@ -66,7 +68,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
         order: 3,
         ariaLabel: "Sell your mobile phone on Zextons",
       },
-      {
+      /* {
         text: "Buy Now Pay Later",
         link: "/buy-now-pay-later",
         isActive: true,
@@ -86,7 +88,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
         isActive: true,
         order: 6,
         ariaLabel: "Recycle your mobile phone in bulk",
-      },
+      }, */
       {
         text: "Zextons Help Center",
         link: "https://zextons.tawk.help/",
@@ -94,7 +96,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
         order: 7,
         ariaLabel: "Help Center",
       },
-      {
+      /* {
         text: "Sustainability at Zextons",
         link: "/Sustainability",
         isActive: true,
@@ -106,7 +108,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
         link: "/18-months-warranty",
         isActive: true,
         order: 10,
-      },
+      }, */
     ],
   },
   section3: {
@@ -142,15 +144,15 @@ export const DEFAULT_FOOTER: FooterSettings = {
         isActive: true,
         order: 6,
       },
-      { text: "FAQs", link: "/faqs", isActive: true, order: 7 },
+      // { text: "FAQs", link: "/faqs", isActive: true, order: 7 },
       { text: "Contact Us", link: "/contact-us", isActive: true, order: 8 },
-      { text: "About Us", link: "/about-zextons", isActive: true, order: 9 },
-      {
+      // { text: "About Us", link: "/about-zextons", isActive: true, order: 9 },
+      /* {
         text: "Subscribe Our Newsletter",
         link: "/subscribe-newsletter",
         isActive: true,
         order: 10,
-      },
+      }, */
     ],
   },
   sectionNewsletter: {

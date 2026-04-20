@@ -1,4 +1,8 @@
-import React from 'react'
+import React from "react";
+import HomepageContent from "@/app/components/HomepageContent";
+import {
+  DEFAULT_SITE_WIDGET_VISIBILITY,
+} from "@/app/services/siteWidgetSettingsService";
 
 const productContentStyles = `
   .product-content ul li h1,
@@ -43,32 +47,43 @@ const productContentStyles = `
   }
 `;
 
-export default function ProductDescription({ product }: {
-    product: any,
+export default function ProductDescription({
+  product,
+}: {
+  product: any;
 }) {
-    return (
-        <>
-            <style dangerouslySetInnerHTML={{ __html: productContentStyles }} />
-            <section className='relative z-10'>
-                <div className="flex h-full flex-col">
-                    <div className="flex items-start justify-between">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                            Product Description :
-                        </h2>
-                    </div>
-                    <div className="relative flex-1  z-10 ">
-                        <div
-                            className="prose prose-sm sm:prose-base max-w-none text-justify rounded-xl break-words !text-black product-content"
-                            dangerouslySetInnerHTML={{
-                                __html: product
-                                    ? product.Product_description
-                                    : "<p>No content provided</p>",
-                            }}
-                        />
-                    </div>
-                </div>
-            </section>
+  const blocks = product?.Product_description_blocks;
+  const hasBlocks = Array.isArray(blocks) && blocks.length > 0;
 
-        </>
-    )
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: productContentStyles }} />
+      <section className="relative z-10">
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between">
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Product Description :
+            </h2>
+          </div>
+          <div className="relative z-10 flex-1">
+            {hasBlocks ? (
+              <div className="product-content max-w-none rounded-xl break-words text-black">
+                <HomepageContent
+                  blocks={blocks}
+                  widgetVisibility={DEFAULT_SITE_WIDGET_VISIBILITY}
+                />
+              </div>
+            ) : (
+              <div
+                className="prose prose-sm sm:prose-base max-w-none text-justify rounded-xl break-words !text-black product-content"
+                dangerouslySetInnerHTML={{
+                  __html: product?.Product_description || "<p>No content provided</p>",
+                }}
+              />
+            )}
+          </div>
+        </div>
+      </section>
+    </>
+  );
 }

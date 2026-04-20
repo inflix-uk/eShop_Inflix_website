@@ -127,6 +127,7 @@ useEffect(() => {
     <>
       <AccordionItem
         title="Categories"
+        headingLevel={false}
         isOpen={openSections.categories}
         onClick={() => toggleSection("categories")}
       >
@@ -147,6 +148,7 @@ useEffect(() => {
 
       <AccordionItem
         title="Price"
+        headingLevel={false}
         isOpen={openSections.price}
         onClick={() => toggleSection("price")}
       >
@@ -178,6 +180,7 @@ useEffect(() => {
 
       <AccordionItem
         title="Discount"
+        headingLevel={false}
         isOpen={openSections.discount}
         onClick={() => toggleSection("discount")}
       >
@@ -209,6 +212,7 @@ useEffect(() => {
 
       <AccordionItem
         title="Ratings"
+        headingLevel={false}
         isOpen={openSections.ratings}
         onClick={() => toggleSection("ratings")}
       >

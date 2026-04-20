@@ -37,6 +37,32 @@ export interface CategoryCardsSectionSettings {
   sectionBackgroundColor: string;
 }
 
+/**
+ * Fallbacks when admin/CMS leaves a color empty — uses site CSS variables from Site Settings.
+ */
+export const CATEGORY_CARDS_SITE_THEME = {
+  sectionHeading: "var(--secondary)",
+  sectionDivider: "rgb(var(--primary-rgb) / 0.45)",
+  cardTitle: "var(--secondary)",
+  cardItemCountMuted: "rgb(var(--secondary-rgb) / 0.75)",
+} as const;
+
+export function resolveCategoryCardsHeadingColor(
+  value: string | undefined | null
+): string {
+  const t = value?.trim();
+  if (t) return t;
+  return CATEGORY_CARDS_SITE_THEME.sectionHeading;
+}
+
+export function resolveCategoryCardsDividerColor(
+  value: string | undefined | null
+): string {
+  const t = value?.trim();
+  if (t) return t;
+  return CATEGORY_CARDS_SITE_THEME.sectionDivider;
+}
+
 export interface CategoryCardsResponse {
   success: boolean;
   data: CategoryCard[] | null;
@@ -116,6 +142,7 @@ export async function getCategoryCards(): Promise<CategoryCard[]> {
   }
 }
 
+/** Matches admin `categoryCardWidgetDefaults.js` (blog + category-cards CMS). */
 const DEFAULT_SECTION: CategoryCardsSectionSettings = {
   headingText: "Popular Categories",
   headingColor: "var(--secondary)",

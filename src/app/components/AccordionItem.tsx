@@ -6,6 +6,11 @@ interface AccordionItemProps {
   children: React.ReactNode;
   isOpen: boolean;
   onClick: () => void;
+  /**
+   * Default h2. Use 3 for subsection titles.
+   * Use false for filter controls so category CMS headings (H1…) stay first in the document outline.
+   */
+  headingLevel?: 2 | 3 | false;
 }
 
 const AccordionItem: React.FC<AccordionItemProps> = ({
@@ -13,10 +18,17 @@ const AccordionItem: React.FC<AccordionItemProps> = ({
   children,
   isOpen,
   onClick,
+  headingLevel = 2,
 }) => {
+  const HeadingTag =
+    headingLevel === false
+      ? "div"
+      : headingLevel === 3
+        ? "h3"
+        : "h2";
   return (
     <div className="border-b border-gray-200">
-      <h2>
+      <HeadingTag className={headingLevel === false ? "m-0 p-0" : undefined}>
         <button
           type="button"
           className="flex items-center justify-between w-full p-5 font-medium text-gray-500 hover:bg-gray-100 gap-3"
@@ -42,7 +54,7 @@ const AccordionItem: React.FC<AccordionItemProps> = ({
             />
           </svg>
         </button>
-      </h2>
+      </HeadingTag>
       {isOpen && <div className="p-5 border-t border-gray-200">{children}</div>}
     </div>
   );

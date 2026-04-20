@@ -8,18 +8,13 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { Fragment } from "react";
+import {
+  getVariantValueImageSrc,
+  renderVariantOptionIcon,
+} from "./variantOptionIcons";
+import type { ComesWithItem } from "./ComesWith";
 
-export interface ComesWithItem {
-  slug: string;
-  name: string;
-  icon: string | null;
-  description: string | null;
-  image?: {
-    filename?: string;
-    path?: string;
-    url?: string;
-  } | null;
-}
+export type { ComesWithItem };
 
 // Fallback SVG icon when no icon is provided
 const DefaultIcon = () => (
@@ -38,19 +33,13 @@ const DefaultIcon = () => (
   </svg>
 );
 
-// Render icon - supports HTML icons from database
 const renderIcon = (item: ComesWithItem) => {
-  // Check if icon is HTML (like Flaticon <i class="fi fi-rr-truck-side"></i>)
-  if (item.icon && item.icon.trim().startsWith("<")) {
-    return (
-      <span
-        className="flex items-center justify-center [&>i]:text-3xl [&>svg]:w-8 [&>svg]:h-8"
-        dangerouslySetInnerHTML={{ __html: item.icon }}
-      />
-    );
-  }
-
-  // Fallback to default icon
+  const node = renderVariantOptionIcon(
+    item,
+    "w-8 h-8",
+    "flex items-center justify-center [&>i]:text-3xl [&>svg]:w-8 [&>svg]:h-8"
+  );
+  if (node) return node;
   return <DefaultIcon />;
 };
 
@@ -96,8 +85,8 @@ export default function ComesWithSlider({
               >
                 <DialogPanel className="pointer-events-auto w-screen max-w-md">
                   <div className="flex h-full flex-col overflow-y-scroll bg-white py-6 shadow-xl">
-                    <div className="px-4 sm:px-6 flex items-center justify-between">
-                      <DialogTitle className="text-lg font-semibold text-gray-900">
+                    <div className="px-4 sm:px-6 flex min-w-0 items-center justify-between gap-3">
+                      <DialogTitle className="min-w-0 flex-1 text-lg font-semibold text-gray-900 break-anywhere">
                         {selectedItem?.name || "Comes With"}
                       </DialogTitle>
                       <button
@@ -114,11 +103,11 @@ export default function ComesWithSlider({
                       {selectedItem ? (
                         <div>
                           {/* Icon and Name */}
-                          <div className="flex items-center gap-4 mb-6">
-                            <div className="p-4 bg-green-100 rounded-xl flex items-center justify-center">
+                          <div className="flex min-w-0 items-center gap-4 mb-6">
+                            <div className="shrink-0 p-4 bg-green-100 rounded-xl flex items-center justify-center">
                               {renderIcon(selectedItem)}
                             </div>
-                            <h3 className="text-xl font-semibold text-gray-900">
+                            <h3 className="min-w-0 flex-1 text-xl font-semibold text-gray-900 break-anywhere">
                               {selectedItem.name}
                             </h3>
                           </div>
@@ -138,15 +127,21 @@ export default function ComesWithSlider({
                           )}
 
                           {/* Image if available */}
-                          {selectedItem.image?.url && (
-                            <div className="mt-6">
-                              <img
-                                src={selectedItem.image.url}
-                                alt={selectedItem.name}
-                                className="w-full rounded-lg object-cover"
-                              />
-                            </div>
-                          )}
+                          {(() => {
+                            const src = getVariantValueImageSrc(
+                              selectedItem.image ?? null
+                            );
+                            if (!src) return null;
+                            return (
+                              <div className="mt-6">
+                                <img
+                                  src={src}
+                                  alt={selectedItem.name}
+                                  className="w-full rounded-lg object-cover"
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-center py-8">

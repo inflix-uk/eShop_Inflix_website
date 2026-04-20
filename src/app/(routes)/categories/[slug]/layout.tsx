@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -52,6 +53,9 @@ export async function generateMetadata({
     };
   }
 
+  const { slug } = await params;
+  const categoryPageUrl = `${getPublicSiteBaseUrl()}/categories/${slug}`;
+
   return {
     title: category?.metaTitle,
     description: category?.metaDescription,
@@ -60,7 +64,7 @@ export async function generateMetadata({
     openGraph: {
       siteName: "Zextons Tech Store",
       title: category?.metaTitle,
-      url: `https://zextons.co.uk/categories/${(await params).slug}`,
+      url: categoryPageUrl,
       description: category?.metaDescription,
       type: "website",
       images: [
@@ -85,9 +89,9 @@ export async function generateMetadata({
       ],
     },
     alternates: {
-      canonical: `https://zextons.co.uk/categories/${(await params).slug}`,
+      canonical: categoryPageUrl,
       languages: {
-        "en-gb": `https://zextons.co.uk/categories/${(await params).slug}`,
+        "en-gb": categoryPageUrl,
       },
     },
   };

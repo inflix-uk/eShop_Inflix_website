@@ -1,19 +1,18 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
+import {
+  renderVariantOptionIcon,
+  type VariantOptionIconish,
+} from "./variantOptionIcons";
 
-export interface ComesWithItem {
+export interface ComesWithItem extends VariantOptionIconish {
   slug: string;
   name: string;
-  icon: string | null;
   description: string | null;
-  image?: {
-    filename?: string;
-    path?: string;
-    url?: string;
-  } | null;
+  /** Set by API when slug matches VariantAttribute; false = stale slug placeholder */
+  fromCatalog?: boolean;
 }
 
-// Fallback SVG icon when no icon is provided
 const DefaultIcon = () => (
   <svg
     className="w-5 h-5"
@@ -30,21 +29,26 @@ const DefaultIcon = () => (
   </svg>
 );
 
-// Render icon - supports HTML icons from database
-const renderIcon = (item: ComesWithItem) => {
-  // Check if icon is HTML (like Flaticon <i class="fi fi-rr-truck-side"></i>)
-  if (item.icon && item.icon.trim().startsWith("<")) {
-    return (
-      <span
-        className="flex items-center justify-center [&>i]:text-lg [&>svg]:w-5 [&>svg]:h-5"
-        dangerouslySetInnerHTML={{ __html: item.icon }}
-      />
-    );
-  }
+function hasAnyMedia(item: ComesWithItem): boolean {
+  const img = item.image?.url || item.image?.path;
+  return Boolean(item.icon || item.description || img);
+}
 
-  // Fallback to default icon
-  return <DefaultIcon />;
-};
+/** Keep rows that exist in the catalog (or legacy payloads that look enriched). */
+function isCatalogComesWithRow(item: ComesWithItem): boolean {
+  if (item.fromCatalog === false) return false;
+  if (item.fromCatalog === true) return true;
+  return hasAnyMedia(item);
+}
+
+function dedupeBySlug(items: ComesWithItem[]): ComesWithItem[] {
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    if (seen.has(i.slug)) return false;
+    seen.add(i.slug);
+    return true;
+  });
+}
 
 export default function ComesWith({
   product,
@@ -55,28 +59,51 @@ export default function ComesWith({
   comesWithItemsPopulated?: ComesWithItem[];
   onItemClick?: (item: ComesWithItem) => void;
 }) {
-  // Use populated items if available
-  const hasPopulatedItems =
-    comesWithItemsPopulated && comesWithItemsPopulated.length > 0;
-  const comesWithSlugs: string[] = product?.comesWithItems || [];
+  const comesWithItems: ComesWithItem[] = useMemo(() => {
+    const slugs: string[] = product?.comesWithItems || [];
+    const populated = (comesWithItemsPopulated || []) as ComesWithItem[];
 
-  // Convert slugs to items if not populated
-  const comesWithItems: ComesWithItem[] = hasPopulatedItems
-    ? comesWithItemsPopulated
-    : comesWithSlugs.map((slug) => ({
+    let list: ComesWithItem[];
+
+    if (populated.length > 0) {
+      const catalogRows = populated.filter(isCatalogComesWithRow);
+      const hasExplicitFromCatalog = populated.some(
+        (i) => typeof i.fromCatalog === "boolean"
+      );
+      if (catalogRows.length > 0) {
+        list = catalogRows;
+      } else if (hasExplicitFromCatalog) {
+        list = [];
+      } else {
+        list = populated;
+      }
+    } else {
+      list = slugs.map((slug) => ({
         slug,
         name: slug
-          .split("_")
+          .split(/[-_]/)
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" "),
         icon: null,
         description: null,
       }));
+    }
+
+    return dedupeBySlug(list);
+  }, [comesWithItemsPopulated, product?.comesWithItems]);
+
+  const renderIcon = (item: ComesWithItem) => {
+    const node = renderVariantOptionIcon(
+      item,
+      "h-5 w-5",
+      "flex items-center justify-center [&>i]:text-lg [&>svg]:w-5 [&>svg]:h-5"
+    );
+    if (node) return node;
+    return <DefaultIcon />;
+  };
 
   const handleItemClick = (item: ComesWithItem) => {
-    if (onItemClick) {
-      onItemClick(item);
-    }
+    if (onItemClick) onItemClick(item);
   };
 
   if (comesWithItems.length === 0) return null;
@@ -86,23 +113,21 @@ export default function ComesWith({
       <h2 className="text-sm font-semibold leading-6 text-gray-900 mb-2">
         Comes with
       </h2>
-      <div className="grid md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 grid-cols-2 justify-start gap-3 items-center">
-        {comesWithItems.map((item) => {
-          return (
-            <div
-              key={item.slug}
-              className="flex flex-row items-center gap-3 border p-2 rounded-lg bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
-              onClick={() => handleItemClick(item)}
-            >
-              <div className="h-6 w-6 flex items-center justify-center">
-                {renderIcon(item)}
-              </div>
-              <label className="text-xs font-medium leading-6 text-gray-900 lg:whitespace-nowrap flex-1 cursor-pointer">
-                {item.name}
-              </label>
+      <div className="grid md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 grid-cols-2 justify-start gap-3 items-stretch">
+        {comesWithItems.map((item) => (
+          <div
+            key={item.slug}
+            className="flex min-w-0 flex-row items-center gap-2 border p-2 rounded-lg bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
+            onClick={() => handleItemClick(item)}
+          >
+            <div className="h-6 w-6 shrink-0 flex items-center justify-center">
+              {renderIcon(item)}
             </div>
-          );
-        })}
+            <span className="min-w-0 flex-1 cursor-pointer text-xs font-medium leading-snug text-gray-900 break-anywhere">
+              {item.name}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
 import {
+  CATEGORY_CARDS_SITE_THEME,
   getCategoryCards,
   getCategoryCardImageUrl,
   type CategoryCard,
@@ -203,7 +204,7 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
               >
                 <div className="h-5 rounded bg-gray-200/60 w-1/3 mb-2" />
                 <div className="h-4 rounded bg-gray-200/60 w-1/4 mb-4" />
-                <div className="w-full max-w-[734px] aspect-[734/412] rounded border border-gray-200/60 bg-transparent" />
+                <div className="w-full aspect-[734/412] rounded border border-gray-200/60 bg-transparent" />
                 <div className="mt-4 h-9 rounded bg-gray-200/60 w-24" />
               </div>
             </div>
@@ -234,7 +235,7 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
     const displayName = card.categoryName.replace(/-/g, " ");
     return (
       <Link href={shopLink} className="block h-full">
-        <div className="relative overflow-hidden rounded-lg shadow-xl p-2 sm:p-5 mb-2 md:mb-0 cursor-pointer transition-all duration-[1200ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] hover:scale-[1.03] hover:shadow-card-shadow group h-full">
+        <div className="relative overflow-hidden rounded-lg shadow-xl p-2 sm:p-3 md:p-5 mb-2 md:mb-0 cursor-pointer transition-all duration-[1200ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] hover:scale-[1.03] hover:shadow-card-shadow group h-full">
           {bgUrl ? (
             <div
               className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-[1400ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:scale-110"
@@ -253,7 +254,9 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
             <p
               className="text-lg font-bold mb-2 sm:line-clamp-1 line-clamp-2 relative z-10"
               style={{
-                color: card.categoryNameColor?.trim() || "#000000",
+                color:
+                  card.categoryNameColor?.trim() ||
+                  CATEGORY_CARDS_SITE_THEME.cardTitle,
               }}
             >
               {displayName}
@@ -261,12 +264,14 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
             <p
               className="mb-0"
               style={{
-                color: card.itemCountColor?.trim() || "#6B7280",
+                color:
+                  card.itemCountColor?.trim() ||
+                  CATEGORY_CARDS_SITE_THEME.cardItemCountMuted,
               }}
             >
               {card.itemCount ?? 0} items
             </p>
-            <div className="relative w-full min-w-0 max-w-[734px] aspect-[734/412] overflow-hidden rounded-md bg-transparent">
+            <div className="relative w-full min-w-0 aspect-[734/412] overflow-hidden rounded-md bg-transparent">
               {imgUrl ? (
                 <Image
                   src={imgUrl}
@@ -275,8 +280,8 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
                   className="object-cover object-center transition-transform duration-[1400ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:scale-110"
                   sizes={
                     cardCount <= 1
-                      ? "(max-width: 768px) 100vw, 734px"
-                      : `(max-width: 768px) 100vw, min(734px, ${Math.ceil(100 / cardCount)}vw)`
+                      ? "(max-width: 768px) 100vw, min(1280px, 100vw)"
+                      : `(max-width: 768px) 100vw, ${Math.ceil(100 / cardCount)}vw`
                   }
                   loading="lazy"
                   unoptimized={imgUrl.startsWith("http://localhost")}

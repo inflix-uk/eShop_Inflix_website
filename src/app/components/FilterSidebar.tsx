@@ -90,6 +90,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         <>
             <AccordionItem
                 title="Price"
+                headingLevel={false}
                 isOpen={openSections.price}
                 onClick={() => toggleSection("price")}
             >
@@ -121,6 +122,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
 
             <AccordionItem
                 title="Discount"
+                headingLevel={false}
                 isOpen={openSections.discount}
                 onClick={() => toggleSection("discount")}
             >
@@ -152,6 +154,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
 
             <AccordionItem
                 title="Ratings"
+                headingLevel={false}
                 isOpen={openSections.ratings}
                 onClick={() => toggleSection("ratings")}
             >

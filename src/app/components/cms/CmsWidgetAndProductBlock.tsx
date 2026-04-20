@@ -16,6 +16,8 @@ import {
   type WidgetCategoryCardsContent,
   type WidgetPromotionalSectionsContent,
   type WidgetLatestBlogsContent,
+  type WidgetActiveDealsContent,
+  type WidgetDealsDiscountCardsContent,
   type WidgetHtmlCssContent,
   type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
@@ -90,6 +92,14 @@ const BlogHtmlCssWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget"),
   { loading: WidgetChunkFallback }
 );
+const ActiveDealsWidget = dynamic(
+  () => import("@/app/components/deals/ActiveDealsWidget"),
+  { loading: WidgetChunkFallback, ssr: false }
+);
+const DealsDiscountCardsWidget = dynamic(
+  () => import("@/app/components/deals/DealsDiscountCardsWidget"),
+  { loading: WidgetChunkFallback }
+);
 
 export type CmsWidgetAndProductBlockProps = {
   block: ContentBlock;
@@ -133,6 +143,8 @@ export function CmsWidgetAndProductBlock({
     | WidgetCategoryCardsContent
     | WidgetPromotionalSectionsContent
     | WidgetLatestBlogsContent
+    | WidgetActiveDealsContent
+    | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent;
 
   if (w?.widgetType === "slider") {
@@ -256,6 +268,18 @@ export function CmsWidgetAndProductBlock({
         sectionHeading={lb.sectionHeading}
         maxPosts={lb.maxPosts}
         viewAllLabel={lb.viewAllLabel}
+      />
+    );
+  }
+  if (w?.widgetType === "activeDeals") {
+    return <ActiveDealsWidget />;
+  }
+  if (w?.widgetType === "dealsDiscountCards") {
+    const dd = w as WidgetDealsDiscountCardsContent;
+    return (
+      <DealsDiscountCardsWidget
+        sectionHeading={dd.sectionHeading}
+        items={dd.items || []}
       />
     );
   }

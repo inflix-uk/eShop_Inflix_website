@@ -10,6 +10,8 @@ import DeferredGoogleTagManager from "@/app/components/analytics/DeferredGoogleT
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
+import TypographyThemeStyles from "@/app/components/TypographyThemeStyles";
+import { HTML_FONT_VARIABLE_CLASSES } from "@/app/lib/fonts";
 import SiteScriptsRaw from "@/app/components/SiteScriptsRaw";
 import FooterShell from "@/app/components/footer/FooterShell";
 import DeferredLayoutWidgets from "@/app/components/DeferredLayoutWidgets";
@@ -83,33 +85,23 @@ export async function generateMetadata(): Promise<Metadata> {
         }
       : {};
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
+  const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
+
   const metadata: Metadata = {
-    title: "Best Refurbished and New Mobile Phones - Zextons",
-    description:
-      "Zextons offers high-quality refurbished and new mobile phones at competitive prices. Shop now on eBay, Amazon, Back Market, or our own site!",
-    keywords:
-      "refurbished mobile phones, buy mobile phones, sell mobile phones, new phones, Zextons, eBay, Amazon, Back Market, mobile phone deals",
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
-      title: "Buy Refurbished Mobile Phones in the UK | Zextons Tech Store",
-      url: "https://zextons.co.uk/",
-      description:
-        "Zextons offers high-quality refurbished and new mobile phones at competitive prices. Shop now on eBay, Amazon, Back Market, or our own site!",
+      url: baseUrl,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: ogImage }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: "Buy Refurbished Mobile Phones in the UK | Zextons Tech Store",
-      description:
-        "Zextons offers high-quality refurbished and new mobile phones at competitive prices. Shop now on eBay, Amazon, Back Market, or our own site!",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: ogImage }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/",
-      languages: { "en-gb": "https://zextons.co.uk/" },
+      canonical: baseUrl,
+      languages: { "en-gb": baseUrl },
     },
     // Skip metadata.verification when GSC meta is injected via Site scripts head HTML (avoids duplicate tags)
     ...(verificationCode && {
@@ -128,7 +120,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [siteScripts, siteTheme, announcementBanner, siteWideSchemas] = await Promise.all([
+  const [siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas] = await Promise.all([
     getSiteScriptsPublic(),
     getSiteThemePublic(),
     getAnnouncementBannerPublic(),
@@ -139,7 +131,11 @@ export default async function RootLayout({
   const combinedBodyEnd = combineBodyEndScripts(siteScripts);
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={HTML_FONT_VARIABLE_CLASSES}
+      suppressHydrationWarning
+    >
       <head>
         <meta
           name="ahrefs-site-verification"
@@ -149,6 +145,14 @@ export default async function RootLayout({
         <link
           rel="stylesheet"
           href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn-uicons.flaticon.com/2.6.0/uicons-bold-rounded/css/uicons-bold-rounded.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn-uicons.flaticon.com/2.6.0/uicons-solid-rounded/css/uicons-solid-rounded.css"
         />
         <FacebookPixelBlock />
         <DeferredGoogleTagManager />
@@ -215,7 +219,8 @@ export default async function RootLayout({
           data-namespace="PayPalSDK"
           strategy="lazyOnload"
         />
-        <SiteThemeInlineStyles theme={siteTheme} />
+        <SiteThemeInlineStyles theme={siteThemeBundle.colors} />
+        <TypographyThemeStyles typography={siteThemeBundle.typography} />
       </head>
 
       <body

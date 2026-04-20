@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isDisabledMarketingSlug } from "@/app/lib/disabledMarketingRoutes";
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (isDisabledMarketingSlug(pathname)) {
+    return NextResponse.rewrite(
+      new URL("/__disabled-marketing-route", request.url)
+    );
+  }
 
   // Enforce lowercase URLs for /categories/ routes
   if (pathname.startsWith("/categories/")) {
@@ -46,5 +53,28 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/subcategory/:path*", "/categories/:path*"],
+  matcher: [
+    "/subcategory/:path*",
+    "/categories/:path*",
+    "/subscribe-newsletter",
+    "/subscribe-newsletter/:path*",
+    "/why-buying-a-refurbished-iphone-is-a-good-idea",
+    "/why-buying-a-refurbished-iphone-is-a-good-idea/:path*",
+    "/buy-now-pay-later",
+    "/buy-now-pay-later/:path*",
+    "/customer-reviews",
+    "/customer-reviews/:path*",
+    "/recycle-mobile-phone",
+    "/recycle-mobile-phone/:path*",
+    "/Sustainability",
+    "/Sustainability/:path*",
+    "/sustainability",
+    "/sustainability/:path*",
+    "/18-months-warranty",
+    "/18-months-warranty/:path*",
+    "/faqs",
+    "/faqs/:path*",
+    "/about-zextons",
+    "/about-zextons/:path*",
+  ],
 };
