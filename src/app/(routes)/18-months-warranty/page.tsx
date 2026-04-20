@@ -7,7 +7,7 @@ import Link from "next/link";
 const Nav = dynamic(() => import("@/app/components/navbar/Nav"), {
   ssr: false,
 });
-
+ 
 
 const TopBar = dynamic(() => import("@/app/topbar/page"), { ssr: false });
 
