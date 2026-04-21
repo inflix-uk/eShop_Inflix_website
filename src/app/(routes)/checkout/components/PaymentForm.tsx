@@ -10,12 +10,21 @@ import {
 import { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
 import { logCheckoutEvent } from "../api/api";
 
+interface ExpressShippingRate {
+  id: string;
+  displayName: string;
+  amount: number; // amount in pence/cents
+  deliveryEstimate?: string;
+}
+
 interface PaymentFormProps {
   onPaymentSuccess: (paymentIntent: any) => void;
   totalAmount: number;
   isProcessing?: boolean;
   onBeforePayment?: () => Promise<{ success: boolean; error?: string }>;
   onBeforeExpressPayment?: (expressCheckoutData: any) => Promise<{ success: boolean; error?: string }>;
+  expressShippingRates?: ExpressShippingRate[];
+  onExpressShippingRateChange?: (rateId: string) => Promise<{ success: boolean }>;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -24,6 +33,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   isProcessing: externalProcessing = false,
   onBeforePayment,
   onBeforeExpressPayment,
+  expressShippingRates,
+  onExpressShippingRateChange,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -120,18 +131,92 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     [stripe, elements, onBeforePayment, onPaymentSuccess]
   );
 
-  // Handle Express Checkout click - request user details from wallet
+  // Handle Express Checkout click - request user details from wallet.
+  // We MUST provide shippingRates when shippingAddressRequired is true, or
+  // Google Pay rejects the payment with "Shipping option pending" and OR_BIBED_06.
   const handleExpressCheckoutClick = useCallback(
     (event: { resolve: (options: any) => void }) => {
-      // Request all available user info from Apple Pay / Google Pay wallet
+      const rates = (expressShippingRates || []).map(r => ({
+        id: r.id,
+        displayName: r.displayName,
+        amount: r.amount,
+        deliveryEstimate: r.deliveryEstimate,
+      }));
+
+      const hasRates = rates.length > 0;
+
+      logCheckoutEvent({
+        event: 'frontend.express.click',
+        data: { ratesCount: rates.length, rates: rates.map(r => r.displayName) },
+      });
+
       event.resolve({
         emailRequired: true,
         phoneNumberRequired: true,
-        shippingAddressRequired: true,
+        // Only request a shipping address if we can offer rates for it.
+        // Otherwise the wallet's own validation fails before onConfirm fires.
+        shippingAddressRequired: hasRates,
         billingAddressRequired: true,
+        ...(hasRates ? { shippingRates: rates } : {}),
       });
     },
-    []
+    [expressShippingRates]
+  );
+
+  // User picked a shipping rate in the wallet UI. Update the PaymentIntent
+  // amount on the server so it matches what the wallet is about to charge,
+  // then resolve the wallet with the new line items.
+  const handleExpressShippingRateChange = useCallback(
+    async (event: any) => {
+      const rateId: string = event.shippingRate?.id;
+      logCheckoutEvent({
+        event: 'frontend.express.shippingRateChange',
+        data: { rateId, displayName: event.shippingRate?.displayName, amount: event.shippingRate?.amount },
+      });
+
+      try {
+        if (onExpressShippingRateChange && rateId) {
+          const result = await onExpressShippingRateChange(rateId);
+          if (!result.success) {
+            event.reject();
+            return;
+          }
+        }
+        event.resolve();
+      } catch (err: any) {
+        logCheckoutEvent({
+          event: 'frontend.express.shippingRateChange.threw',
+          data: { message: err?.message },
+        });
+        event.reject();
+      }
+    },
+    [onExpressShippingRateChange]
+  );
+
+  // User changed their shipping address in the wallet. Re-offer the same
+  // rates (we don't vary rates by address/country for now — all UK).
+  const handleExpressShippingAddressChange = useCallback(
+    (event: any) => {
+      const rates = (expressShippingRates || []).map(r => ({
+        id: r.id,
+        displayName: r.displayName,
+        amount: r.amount,
+        deliveryEstimate: r.deliveryEstimate,
+      }));
+
+      logCheckoutEvent({
+        event: 'frontend.express.shippingAddressChange',
+        data: { country: event.address?.country, ratesOffered: rates.length },
+      });
+
+      if (rates.length === 0) {
+        event.reject();
+        return;
+      }
+      event.resolve({ shippingRates: rates });
+    },
+    [expressShippingRates]
   );
 
   // Handle Express Checkout (Apple Pay, Google Pay, Link)
@@ -167,6 +252,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const expressCheckoutData = {
         billingDetails: event.billingDetails,
         shippingAddress: event.shippingAddress,
+        shippingRate: (event as any).shippingRate,
         payerEmail: (event as any).payerEmail,
         payerName: (event as any).payerName,
         payerPhone: (event as any).payerPhone,
@@ -303,6 +389,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           <ExpressCheckoutElement
             onClick={handleExpressCheckoutClick}
             onConfirm={handleExpressCheckoutConfirm}
+            onShippingAddressChange={handleExpressShippingAddressChange}
+            onShippingRateChange={handleExpressShippingRateChange}
             onReady={() => setExpressCheckoutReady(true)}
             onLoadError={(error) => {
               console.log('Express checkout not available:', error);
