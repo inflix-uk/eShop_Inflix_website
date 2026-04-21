@@ -14,6 +14,7 @@ interface PaymentFormProps {
   totalAmount: number;
   isProcessing?: boolean;
   onBeforePayment?: () => Promise<{ success: boolean; error?: string }>;
+  onBeforeExpressPayment?: (expressCheckoutData: any) => Promise<{ success: boolean; error?: string }>;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -21,6 +22,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   totalAmount,
   isProcessing: externalProcessing = false,
   onBeforePayment,
+  onBeforeExpressPayment,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -115,7 +117,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   );
 
   // Handle Express Checkout (Apple Pay, Google Pay, Link)
-  // NOTE: Skip form validation for express checkout - wallet provides all customer data
   const handleExpressCheckoutConfirm = useCallback(
     async (event: StripeExpressCheckoutElementConfirmEvent) => {
       if (!stripe || !elements) {
@@ -125,15 +126,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setIsProcessing(true);
       setMessage(null);
 
-      // For Express Checkout, we DON'T call onBeforePayment validation
-      // because Apple Pay/Google Pay provides all customer info from the wallet
-      // (name, email, phone, shipping address, billing address)
-      console.log('Express checkout - using wallet data:', {
+      const expressCheckoutData = {
         billingDetails: event.billingDetails,
         shippingAddress: event.shippingAddress,
         payerEmail: (event as any).payerEmail,
         payerName: (event as any).payerName,
-      });
+        payerPhone: (event as any).payerPhone,
+      };
+
+      // Create the order and patch PaymentIntent metadata BEFORE stripe.confirmPayment.
+      // Stripe's payment_intent.succeeded webhook is a frozen snapshot taken at the
+      // moment of success, so the orderNumber must be present in metadata by then.
+      if (onBeforeExpressPayment) {
+        try {
+          const result = await onBeforeExpressPayment(expressCheckoutData);
+          if (!result.success) {
+            setMessage(result.error || 'Unable to prepare order. Please try again.');
+            setIsProcessing(false);
+            return;
+          }
+        } catch (error: any) {
+          setMessage(error.message || 'Unable to prepare order. Please try again.');
+          setIsProcessing(false);
+          return;
+        }
+      }
 
       try {
         const { error, paymentIntent } = await stripe.confirmPayment({
@@ -150,16 +167,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
           console.log('Express checkout payment successful:', paymentIntent.id);
           setMessage("Payment successful!");
-          // Pass wallet data along with payment intent for order creation
           onPaymentSuccess({
             paymentIntent,
-            expressCheckoutData: {
-              billingDetails: event.billingDetails,
-              shippingAddress: event.shippingAddress,
-              payerEmail: (event as any).payerEmail,
-              payerName: (event as any).payerName,
-              payerPhone: (event as any).payerPhone,
-            }
+            expressCheckoutData,
           });
         }
       } catch (err: any) {
@@ -168,7 +178,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setIsProcessing(false);
       }
     },
-    [stripe, elements, onBeforePayment, onPaymentSuccess]
+    [stripe, elements, onBeforeExpressPayment, onPaymentSuccess]
   );
 
   // Listen for PaymentElement changes

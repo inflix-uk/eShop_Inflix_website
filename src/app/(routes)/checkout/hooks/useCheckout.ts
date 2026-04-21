@@ -755,104 +755,12 @@ export const useCheckout = () => {
     setIsProcessingPayment(true);
 
     try {
-      let orderNum = currentOrderNumber || orderService.getStoredOrderNumber();
+      const orderNum = currentOrderNumber || orderService.getStoredOrderNumber();
 
       // Get cart data for thank-you page
       const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
       const appliedCouponData = JSON.parse(localStorage.getItem('appliedcoupon') || 'null');
-      let shippingInfo = JSON.parse(localStorage.getItem('shippingInformation') || 'null');
-
-      // Check if this is an Express Checkout (Apple Pay / Google Pay)
-      // If so, we need to create the order using wallet data since validateAndCreateOrder was skipped
-      const expressCheckoutData = paymentIntentResult.expressCheckoutData;
-      if (expressCheckoutData && !orderNum) {
-        console.log('🍎 Express Checkout detected - creating order with wallet data');
-
-        // Extract customer info from wallet
-        const walletShipping = expressCheckoutData.shippingAddress || {};
-        const walletBilling = expressCheckoutData.billingDetails || {};
-        const payerName = expressCheckoutData.payerName || walletBilling.name || '';
-        const payerEmail = expressCheckoutData.payerEmail || walletBilling.email || '';
-        const payerPhone = expressCheckoutData.payerPhone || walletBilling.phone || walletShipping.phone || '';
-
-        // Parse name
-        const nameParts = payerName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        // Build shipping info from wallet data
-        shippingInfo = {
-          firstName,
-          lastName,
-          companyName: '',
-          address: walletShipping.line1 || walletShipping.address?.line1 || '',
-          apartment: walletShipping.line2 || walletShipping.address?.line2 || '',
-          country: walletShipping.country || walletShipping.address?.country || 'United Kingdom',
-          city: walletShipping.city || walletShipping.address?.city || '',
-          county: walletShipping.state || walletShipping.address?.state || '',
-          postalCode: walletShipping.postal_code || walletShipping.address?.postal_code || '',
-          phoneNumber: payerPhone,
-        };
-
-        // Store shipping info for order creation
-        localStorage.setItem('shippingInformation', JSON.stringify(shippingInfo));
-
-        // Store user for order
-        orderService.storeUserForOrder({
-          email: payerEmail,
-          _id: 'express_checkout_user',
-        });
-
-        // Create order with wallet data
-        try {
-          const orderResult = await orderService.createOrder({
-            cart: cartData,
-            shippingInformation: shippingInfo,
-            contactInformation: { email: payerEmail, userId: 'express_checkout' },
-            coupon: appliedCouponData,
-            status: 'Processing',
-            shippingMethod: selectedShippingMethod ? {
-              name: selectedShippingMethod.name,
-              price: shippingCost,
-              estimatedDays: selectedShippingMethod.estimatedDays,
-              methodId: selectedShippingMethod._id,
-            } : null,
-          });
-
-          if (orderResult && orderResult.orderNumber) {
-            orderNum = orderResult.orderNumber;
-            setCurrentOrderNumber(orderNum);
-            console.log('✅ Express checkout order created:', orderNum);
-
-            // Update PaymentIntent metadata with order number
-            if (paymentIntentId) {
-              try {
-                const fullAddress = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.postalCode}`;
-                await api.updatePaymentIntentMetadata({
-                  paymentIntentId,
-                  orderNumber: orderNum,
-                  email: payerEmail,
-                  phoneNumber: payerPhone,
-                  customerName: payerName,
-                  shippingAddress: fullAddress,
-                  shippingMethod: selectedShippingMethod ? {
-                    name: selectedShippingMethod.name,
-                    price: shippingCost,
-                    estimatedDays: selectedShippingMethod.estimatedDays,
-                    methodId: selectedShippingMethod._id,
-                  } : null,
-                });
-                console.log('✅ PaymentIntent metadata updated with order number');
-              } catch (metadataError) {
-                console.error('Failed to update PaymentIntent metadata:', metadataError);
-              }
-            }
-          }
-        } catch (orderError: any) {
-          console.error('Failed to create express checkout order:', orderError);
-          // Continue anyway - webhook can handle this
-        }
-      }
+      const shippingInfo = JSON.parse(localStorage.getItem('shippingInformation') || 'null');
 
       console.log('💳 Payment successful! Order:', orderNum);
       console.log('🔔 Webhook will update order status to Pending');
@@ -1154,6 +1062,141 @@ export const useCheckout = () => {
     }
   }, [isChecked, shippingInformation, contactInfo, userState, appliedCoupon, orderService, email, password, confirmPassword, authService, dispatch, selectedShippingMethod, shippingCost]);
 
+  // Create order from wallet data BEFORE stripe.confirmPayment so the webhook
+  // receives a PaymentIntent with orderNumber in its metadata. Without this,
+  // Stripe's payment_intent.succeeded event fires with empty metadata and
+  // the backend webhook handler cannot match it to an order.
+  const validateAndCreateOrderFromWallet = useCallback(
+    async (expressCheckoutData: any): Promise<{ success: boolean; error?: string }> => {
+      setProgress(50);
+      setIsProcessingPayment(true);
+      setPaymentError('');
+      setGeneralError('');
+
+      try {
+        const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
+        if (!ValidationService.validateCartData(cartData)) {
+          setProgress(100);
+          setIsProcessingPayment(false);
+          return { success: false, error: 'Your cart is empty' };
+        }
+
+        const walletShipping = expressCheckoutData?.shippingAddress || {};
+        const walletBilling = expressCheckoutData?.billingDetails || {};
+        const walletBillingAddress = walletBilling?.address || {};
+        const payerName = expressCheckoutData?.payerName || walletBilling?.name || walletShipping?.name || '';
+        const payerEmail = expressCheckoutData?.payerEmail || walletBilling?.email || '';
+        const payerPhone = expressCheckoutData?.payerPhone || walletBilling?.phone || walletShipping?.phone || '';
+
+        if (!payerEmail) {
+          setProgress(100);
+          setIsProcessingPayment(false);
+          return { success: false, error: 'Your wallet did not provide an email. Please try a different payment method.' };
+        }
+
+        const nameParts = payerName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const shippingInfoFromWallet = {
+          firstName,
+          lastName,
+          companyName: '',
+          address: walletShipping.line1 || walletShipping.address?.line1 || walletBillingAddress.line1 || '',
+          apartment: walletShipping.line2 || walletShipping.address?.line2 || walletBillingAddress.line2 || '',
+          country: walletShipping.country || walletShipping.address?.country || walletBillingAddress.country || 'United Kingdom',
+          city: walletShipping.city || walletShipping.address?.city || walletBillingAddress.city || '',
+          county: walletShipping.state || walletShipping.address?.state || walletBillingAddress.state || '',
+          postalCode: walletShipping.postal_code || walletShipping.address?.postal_code || walletBillingAddress.postal_code || '',
+          phoneNumber: payerPhone,
+        };
+
+        localStorage.setItem('shippingInformation', JSON.stringify(shippingInfoFromWallet));
+        localStorage.setItem('cart-old', JSON.stringify(cartData));
+
+        orderService.storeUserForOrder({
+          email: payerEmail,
+          _id: 'express_checkout_user',
+        });
+
+        const orderResponse = await orderService.createOrder({
+          cart: cartData,
+          shippingInformation: shippingInfoFromWallet,
+          contactInformation: { email: payerEmail, userId: 'express_checkout' },
+          coupon: appliedCoupon,
+          orderNumber: orderService.getStoredOrderNumber(),
+          status: 'Failed',
+          shippingMethod: selectedShippingMethod ? {
+            name: selectedShippingMethod.name,
+            price: shippingCost,
+            estimatedDays: selectedShippingMethod.estimatedDays,
+            methodId: selectedShippingMethod._id,
+          } : null,
+        });
+
+        if (!orderResponse || !orderResponse.orderNumber) {
+          setProgress(100);
+          setIsProcessingPayment(false);
+          return { success: false, error: 'Failed to create order. Please try again.' };
+        }
+
+        const orderNum = orderResponse.orderNumber;
+        setCurrentOrderNumber(orderNum);
+        orderService.storeOrderNumber(orderNum);
+
+        const storedPaymentIntentId = localStorage.getItem('paymentIntentId');
+        if (!storedPaymentIntentId) {
+          setProgress(100);
+          setIsProcessingPayment(false);
+          return { success: false, error: 'Payment session missing. Please refresh and try again.' };
+        }
+
+        const fullAddress = [
+          shippingInfoFromWallet.address,
+          shippingInfoFromWallet.apartment,
+          shippingInfoFromWallet.city,
+          shippingInfoFromWallet.county,
+          shippingInfoFromWallet.postalCode,
+          shippingInfoFromWallet.country,
+        ].filter(Boolean).join(', ');
+
+        try {
+          await api.updatePaymentIntentMetadata({
+            paymentIntentId: storedPaymentIntentId,
+            orderNumber: orderNum,
+            email: payerEmail,
+            phoneNumber: payerPhone,
+            customerName: payerName,
+            shippingAddress: fullAddress,
+            shippingMethod: selectedShippingMethod ? {
+              name: selectedShippingMethod.name,
+              price: shippingCost,
+              estimatedDays: selectedShippingMethod.estimatedDays,
+              methodId: selectedShippingMethod._id,
+            } : null,
+          });
+        } catch (metadataError) {
+          // Metadata patch must succeed — otherwise the webhook fires with empty
+          // orderNumber and the order is never marked Pending. Abort the payment.
+          console.error('Failed to update PaymentIntent metadata:', metadataError);
+          setProgress(100);
+          setIsProcessingPayment(false);
+          return { success: false, error: 'Failed to prepare payment. Please try again.' };
+        }
+
+        setProgress(100);
+        return { success: true };
+
+      } catch (error: any) {
+        console.error('Express checkout order creation failed:', error);
+        setProgress(100);
+        setIsProcessingPayment(false);
+        return { success: false, error: error.message || 'Failed to prepare order. Please try again.' };
+      }
+    },
+    [appliedCoupon, orderService, selectedShippingMethod, shippingCost]
+  );
+
   const handleRegisterAndPlaceOrder = async () => {
     try {
       const registerSuccess = await handleRegister();
@@ -1250,5 +1293,6 @@ export const useCheckout = () => {
     handlePaymentSuccess,
     resetPaymentState,
     validateAndCreateOrder,
+    validateAndCreateOrderFromWallet,
   };
 };
