@@ -143,6 +143,81 @@ export const useCheckout = () => {
     setSelectedShippingMethod(method);
   }, []);
 
+  // Derive the shipping rates we hand to the wallet (Apple Pay / Google Pay).
+  // Without this, Google Pay rejects the payment with "Shipping option pending"
+  // and OR_BIBED_06 before Stripe's onConfirm ever fires.
+  const expressShippingRates = useMemo(
+    () => shippingMethods.map((m) => ({
+      id: m._id,
+      displayName: m.name,
+      amount: Math.round((m.price || 0) * 100),
+      deliveryEstimate: m.estimatedDays || undefined,
+    })),
+    [shippingMethods]
+  );
+
+  // Callback passed to PaymentForm: when the user picks a shipping rate inside
+  // the wallet UI, we must update the server-side PaymentIntent amount so it
+  // matches what the wallet is about to authorize.
+  const handleExpressShippingRateChange = useCallback(
+    async (rateId: string): Promise<{ success: boolean }> => {
+      const method = shippingMethods.find((m) => m._id === rateId);
+      if (!method) {
+        logCheckoutEvent({
+          event: 'frontend.wallet.rate_change.no_match',
+          data: { rateId, availableIds: shippingMethods.map((m) => m._id) },
+        });
+        return { success: false };
+      }
+
+      setSelectedShippingMethod(method);
+
+      const storedPaymentIntentId = localStorage.getItem('paymentIntentId');
+      if (!storedPaymentIntentId) {
+        logCheckoutEvent({
+          event: 'frontend.wallet.rate_change.no_payment_intent',
+          data: { rateId },
+        });
+        return { success: false };
+      }
+
+      const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
+      const storedCoupon = JSON.parse(localStorage.getItem('appliedcoupon') || 'null');
+
+      try {
+        const response = await api.updatePaymentIntentAmount({
+          paymentIntentId: storedPaymentIntentId,
+          cartproducts: cartData,
+          coupondata: storedCoupon,
+          shippingMethod: {
+            name: method.name,
+            price: method.price,
+            estimatedDays: method.estimatedDays,
+            methodId: method._id,
+          },
+        });
+        if (response.clientSecret && response.clientSecret !== clientSecret) {
+          setClientSecret(response.clientSecret);
+          localStorage.setItem('clientSecret', response.clientSecret);
+        }
+        logCheckoutEvent({
+          event: 'frontend.wallet.rate_change.updated',
+          paymentIntentId: storedPaymentIntentId,
+          data: { rateId, finalTotal: response.finalTotal },
+        });
+        return { success: true };
+      } catch (error: any) {
+        logCheckoutEvent({
+          event: 'frontend.wallet.rate_change.threw',
+          paymentIntentId: storedPaymentIntentId,
+          data: { rateId, message: error?.message },
+        });
+        return { success: false };
+      }
+    },
+    [shippingMethods, clientSecret]
+  );
+
   // Update PaymentIntent amount when shipping method changes
   // This ensures Stripe shows the correct total including shipping
   const shippingUpdateRef = useRef<boolean>(false);
@@ -1137,6 +1212,29 @@ export const useCheckout = () => {
           _id: 'express_checkout_user',
         });
 
+        // Prefer the shipping rate the user picked inside the wallet UI.
+        // Fall back to the hook's selectedShippingMethod (the one chosen on the
+        // page) if the wallet didn't return one.
+        const walletRate = expressCheckoutData?.shippingRate;
+        const matchedWalletMethod = walletRate?.id
+          ? shippingMethods.find((m) => m._id === walletRate.id)
+          : null;
+        const shippingMethodForOrder = matchedWalletMethod
+          ? {
+              name: matchedWalletMethod.name,
+              price: typeof walletRate?.amount === 'number' ? walletRate.amount / 100 : matchedWalletMethod.price,
+              estimatedDays: matchedWalletMethod.estimatedDays,
+              methodId: matchedWalletMethod._id,
+            }
+          : selectedShippingMethod
+            ? {
+                name: selectedShippingMethod.name,
+                price: shippingCost,
+                estimatedDays: selectedShippingMethod.estimatedDays,
+                methodId: selectedShippingMethod._id,
+              }
+            : null;
+
         const orderResponse = await orderService.createOrder({
           cart: cartData,
           shippingInformation: shippingInfoFromWallet,
@@ -1144,12 +1242,7 @@ export const useCheckout = () => {
           coupon: appliedCoupon,
           orderNumber: orderService.getStoredOrderNumber(),
           status: 'Failed',
-          shippingMethod: selectedShippingMethod ? {
-            name: selectedShippingMethod.name,
-            price: shippingCost,
-            estimatedDays: selectedShippingMethod.estimatedDays,
-            methodId: selectedShippingMethod._id,
-          } : null,
+          shippingMethod: shippingMethodForOrder,
         });
 
         if (!orderResponse || !orderResponse.orderNumber) {
@@ -1251,7 +1344,7 @@ export const useCheckout = () => {
         return { success: false, error: error.message || 'Failed to prepare order. Please try again.' };
       }
     },
-    [appliedCoupon, orderService, selectedShippingMethod, shippingCost]
+    [appliedCoupon, orderService, selectedShippingMethod, shippingCost, shippingMethods]
   );
 
   const handleRegisterAndPlaceOrder = async () => {
@@ -1351,5 +1444,7 @@ export const useCheckout = () => {
     resetPaymentState,
     validateAndCreateOrder,
     validateAndCreateOrderFromWallet,
+    handleExpressShippingRateChange,
+    expressShippingRates,
   };
 };
