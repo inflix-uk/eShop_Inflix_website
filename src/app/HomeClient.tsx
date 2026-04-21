@@ -11,7 +11,7 @@ import ProductCardWithStock from "./components/ProductCardWithStock";
 import {
   getBuyNowPayLater,
   getSellBuyCards,
-  getTinyPhoneBanner,
+  getTinyPhoneBanner,   
   type BuyNowPayLater as BuyNowPayLaterType,
   type SellBuyCards as SellBuyCardsType,
   type TinyPhoneBanner as TinyPhoneBannerType,
