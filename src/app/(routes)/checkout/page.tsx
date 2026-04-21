@@ -106,6 +106,7 @@ export default function CheckoutPage() {
     handlePaymentSuccess,
     resetPaymentState,
     validateAndCreateOrder,
+    validateAndCreateOrderFromWallet,
   } = useCheckout();
 
   // Additional local state
@@ -521,6 +522,7 @@ export default function CheckoutPage() {
                             totalAmount={discountedPrice}
                             isProcessing={isProcessingPayment}
                             onBeforePayment={validateAndCreateOrder}
+                            onBeforeExpressPayment={validateAndCreateOrderFromWallet}
                           />
                         </Elements>
                         {paymentError && (
