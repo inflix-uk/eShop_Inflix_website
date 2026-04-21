@@ -474,6 +474,28 @@ export interface GetShippingMethodsResponse {
 
 export const api = new CheckoutApi();
 
+// Fire-and-forget checkout event logger. Never throws, never blocks.
+// Each call persists a row in the backend CheckoutLog collection so we can
+// trace exactly which code path every wallet/card payment took.
+export interface CheckoutLogEntry {
+  event: string;
+  paymentIntentId?: string | null;
+  orderNumber?: string | null;
+  paymentMethodType?: string | null;
+  data?: any;
+}
+
+export const logCheckoutEvent = (entry: CheckoutLogEntry): void => {
+  try {
+    fetch(`${API_URL}/checkout-log`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {}
+};
+
 // ============================================================================
 // SHIPPING API
 // ============================================================================

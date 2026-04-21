@@ -8,6 +8,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
+import { logCheckoutEvent } from "../api/api";
 
 interface PaymentFormProps {
   onPaymentSuccess: (paymentIntent: any) => void;
@@ -39,7 +40,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     async (e?: React.FormEvent<HTMLFormElement>) => {
       e?.preventDefault();
 
+      const paymentIntentId = typeof window !== 'undefined' ? localStorage.getItem('paymentIntentId') : null;
+      logCheckoutEvent({ event: 'frontend.card.handleSubmit.enter', paymentIntentId });
+
       if (!stripe || !elements) {
+        logCheckoutEvent({ event: 'frontend.card.handleSubmit.stripe_not_ready', paymentIntentId });
         return;
       }
 
@@ -48,18 +53,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
       // Call validation callback before payment
       if (onBeforePayment) {
+        logCheckoutEvent({ event: 'frontend.card.onBeforePayment.calling', paymentIntentId });
         try {
           const result = await onBeforePayment();
+          logCheckoutEvent({
+            event: 'frontend.card.onBeforePayment.result',
+            paymentIntentId,
+            data: { success: result.success, error: result.error },
+          });
           if (!result.success) {
             setMessage(result.error || 'Please fill in all required fields.');
             setIsProcessing(false);
             return;
           }
         } catch (error: any) {
+          logCheckoutEvent({
+            event: 'frontend.card.onBeforePayment.threw',
+            paymentIntentId,
+            data: { message: error?.message },
+          });
           setMessage(error.message || 'Validation failed. Please try again.');
           setIsProcessing(false);
           return;
         }
+      } else {
+        logCheckoutEvent({ event: 'frontend.card.onBeforePayment.not_provided', paymentIntentId });
       }
 
       try {
@@ -119,7 +137,27 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   // Handle Express Checkout (Apple Pay, Google Pay, Link)
   const handleExpressCheckoutConfirm = useCallback(
     async (event: StripeExpressCheckoutElementConfirmEvent) => {
+      const paymentIntentId = typeof window !== 'undefined' ? localStorage.getItem('paymentIntentId') : null;
+      const expressPaymentType = (event as any).expressPaymentType;
+
+      logCheckoutEvent({
+        event: 'frontend.express.handleExpressCheckoutConfirm.enter',
+        paymentIntentId,
+        paymentMethodType: expressPaymentType,
+        data: {
+          hasShippingAddress: !!event.shippingAddress,
+          hasBillingDetails: !!event.billingDetails,
+          payerEmail: (event as any).payerEmail,
+          payerName: (event as any).payerName,
+        },
+      });
+
       if (!stripe || !elements) {
+        logCheckoutEvent({
+          event: 'frontend.express.stripe_not_ready',
+          paymentIntentId,
+          paymentMethodType: expressPaymentType,
+        });
         return;
       }
 
@@ -138,21 +176,55 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Stripe's payment_intent.succeeded webhook is a frozen snapshot taken at the
       // moment of success, so the orderNumber must be present in metadata by then.
       if (onBeforeExpressPayment) {
+        logCheckoutEvent({
+          event: 'frontend.express.onBeforeExpressPayment.calling',
+          paymentIntentId,
+          paymentMethodType: expressPaymentType,
+        });
         try {
           const result = await onBeforeExpressPayment(expressCheckoutData);
+          logCheckoutEvent({
+            event: 'frontend.express.onBeforeExpressPayment.result',
+            paymentIntentId,
+            paymentMethodType: expressPaymentType,
+            data: { success: result.success, error: result.error },
+          });
           if (!result.success) {
+            logCheckoutEvent({
+              event: 'frontend.express.aborted_pre_payment_failed',
+              paymentIntentId,
+              paymentMethodType: expressPaymentType,
+              data: { error: result.error },
+            });
             setMessage(result.error || 'Unable to prepare order. Please try again.');
             setIsProcessing(false);
             return;
           }
         } catch (error: any) {
+          logCheckoutEvent({
+            event: 'frontend.express.onBeforeExpressPayment.threw',
+            paymentIntentId,
+            paymentMethodType: expressPaymentType,
+            data: { message: error?.message },
+          });
           setMessage(error.message || 'Unable to prepare order. Please try again.');
           setIsProcessing(false);
           return;
         }
+      } else {
+        logCheckoutEvent({
+          event: 'frontend.express.onBeforeExpressPayment.not_provided',
+          paymentIntentId,
+          paymentMethodType: expressPaymentType,
+        });
       }
 
       try {
+        logCheckoutEvent({
+          event: 'frontend.express.confirmPayment.calling',
+          paymentIntentId,
+          paymentMethodType: expressPaymentType,
+        });
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
