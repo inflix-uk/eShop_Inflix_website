@@ -11,7 +11,7 @@ import { OrderService } from '../services/orderService';
 import { PaymentService } from '../services/paymentService';
 import { CouponService } from '../services/couponService';
 import { ValidationService } from '../services/validationService';
-import { api, getActiveShippingMethods, ShippingMethod } from '../api';
+import { api, getActiveShippingMethods, ShippingMethod, logCheckoutEvent } from '../api';
 
 import {
   ShippingInformation,
@@ -1068,6 +1068,17 @@ export const useCheckout = () => {
   // the backend webhook handler cannot match it to an order.
   const validateAndCreateOrderFromWallet = useCallback(
     async (expressCheckoutData: any): Promise<{ success: boolean; error?: string }> => {
+      const paymentIntentId = typeof window !== 'undefined' ? localStorage.getItem('paymentIntentId') : null;
+      logCheckoutEvent({
+        event: 'frontend.wallet.validateAndCreate.enter',
+        paymentIntentId,
+        data: {
+          payerEmail: expressCheckoutData?.payerEmail,
+          payerName: expressCheckoutData?.payerName,
+          hasShipping: !!expressCheckoutData?.shippingAddress,
+          hasBilling: !!expressCheckoutData?.billingDetails,
+        },
+      });
       setProgress(50);
       setIsProcessingPayment(true);
       setPaymentError('');
@@ -1075,7 +1086,13 @@ export const useCheckout = () => {
 
       try {
         const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
+        logCheckoutEvent({
+          event: 'frontend.wallet.cart_read',
+          paymentIntentId,
+          data: { items: cartData.length },
+        });
         if (!ValidationService.validateCartData(cartData)) {
+          logCheckoutEvent({ event: 'frontend.wallet.cart_invalid', paymentIntentId });
           setProgress(100);
           setIsProcessingPayment(false);
           return { success: false, error: 'Your cart is empty' };
@@ -1089,6 +1106,7 @@ export const useCheckout = () => {
         const payerPhone = expressCheckoutData?.payerPhone || walletBilling?.phone || walletShipping?.phone || '';
 
         if (!payerEmail) {
+          logCheckoutEvent({ event: 'frontend.wallet.no_payer_email', paymentIntentId });
           setProgress(100);
           setIsProcessingPayment(false);
           return { success: false, error: 'Your wallet did not provide an email. Please try a different payment method.' };
@@ -1135,6 +1153,11 @@ export const useCheckout = () => {
         });
 
         if (!orderResponse || !orderResponse.orderNumber) {
+          logCheckoutEvent({
+            event: 'frontend.wallet.order_create_failed',
+            paymentIntentId,
+            data: { response: orderResponse },
+          });
           setProgress(100);
           setIsProcessingPayment(false);
           return { success: false, error: 'Failed to create order. Please try again.' };
@@ -1144,8 +1167,18 @@ export const useCheckout = () => {
         setCurrentOrderNumber(orderNum);
         orderService.storeOrderNumber(orderNum);
 
+        logCheckoutEvent({
+          event: 'frontend.wallet.order_created',
+          paymentIntentId,
+          orderNumber: orderNum,
+        });
+
         const storedPaymentIntentId = localStorage.getItem('paymentIntentId');
         if (!storedPaymentIntentId) {
+          logCheckoutEvent({
+            event: 'frontend.wallet.no_payment_intent_id',
+            orderNumber: orderNum,
+          });
           setProgress(100);
           setIsProcessingPayment(false);
           return { success: false, error: 'Payment session missing. Please refresh and try again.' };
@@ -1161,6 +1194,11 @@ export const useCheckout = () => {
         ].filter(Boolean).join(', ');
 
         try {
+          logCheckoutEvent({
+            event: 'frontend.wallet.metadata_patch.calling',
+            paymentIntentId: storedPaymentIntentId,
+            orderNumber: orderNum,
+          });
           await api.updatePaymentIntentMetadata({
             paymentIntentId: storedPaymentIntentId,
             orderNumber: orderNum,
@@ -1175,20 +1213,39 @@ export const useCheckout = () => {
               methodId: selectedShippingMethod._id,
             } : null,
           });
-        } catch (metadataError) {
+          logCheckoutEvent({
+            event: 'frontend.wallet.metadata_patch.success',
+            paymentIntentId: storedPaymentIntentId,
+            orderNumber: orderNum,
+          });
+        } catch (metadataError: any) {
           // Metadata patch must succeed — otherwise the webhook fires with empty
           // orderNumber and the order is never marked Pending. Abort the payment.
-          console.error('Failed to update PaymentIntent metadata:', metadataError);
+          logCheckoutEvent({
+            event: 'frontend.wallet.metadata_patch.failed',
+            paymentIntentId: storedPaymentIntentId,
+            orderNumber: orderNum,
+            data: { message: metadataError?.message },
+          });
           setProgress(100);
           setIsProcessingPayment(false);
           return { success: false, error: 'Failed to prepare payment. Please try again.' };
         }
 
+        logCheckoutEvent({
+          event: 'frontend.wallet.validateAndCreate.success',
+          paymentIntentId: storedPaymentIntentId,
+          orderNumber: orderNum,
+        });
         setProgress(100);
         return { success: true };
 
       } catch (error: any) {
-        console.error('Express checkout order creation failed:', error);
+        logCheckoutEvent({
+          event: 'frontend.wallet.validateAndCreate.threw',
+          paymentIntentId,
+          data: { message: error?.message },
+        });
         setProgress(100);
         setIsProcessingPayment(false);
         return { success: false, error: error.message || 'Failed to prepare order. Please try again.' };
