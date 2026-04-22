@@ -1,5 +1,5 @@
 // Export the consolidated API class and singleton instance
-export { CheckoutApi, api, getActiveShippingMethods } from './api';
+export { CheckoutApi, api, getActiveShippingMethods, logCheckoutEvent } from './api';
 
 // Export all types
 export type {
