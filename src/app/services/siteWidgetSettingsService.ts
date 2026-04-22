@@ -18,6 +18,7 @@ export type SiteWidgetVisibility = {
   promotionalSectionsEnabled: boolean;
   latestBlogsEnabled: boolean;
   htmlCssEnabled: boolean;
+  contactUsEnabled: boolean;
 };
 
 /** Default when API is unavailable; also used as initial client state before fetch. */
@@ -36,6 +37,7 @@ export const DEFAULT_SITE_WIDGET_VISIBILITY: SiteWidgetVisibility = {
   promotionalSectionsEnabled: true,
   latestBlogsEnabled: true,
   htmlCssEnabled: true,
+  contactUsEnabled: true,
 };
 
 /**
@@ -71,6 +73,7 @@ export async function getSiteWidgetSettingsPublic(): Promise<SiteWidgetVisibilit
       promotionalSectionsEnabled: d.promotionalSectionsEnabled !== false,
       latestBlogsEnabled: d.latestBlogsEnabled !== false,
       htmlCssEnabled: d.htmlCssEnabled !== false,
+      contactUsEnabled: d.contactUsEnabled !== false,
     };
   } catch {
     return DEFAULT_SITE_WIDGET_VISIBILITY;

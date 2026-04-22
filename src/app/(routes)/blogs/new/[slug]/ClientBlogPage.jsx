@@ -20,6 +20,7 @@ import BlogCategoryCardsWidget from "./BlogCategoryCardsWidget";
 import BlogPromotionalSectionsWidget from "./BlogPromotionalSectionsWidget";
 import BlogLatestBlogsWidget from "./BlogLatestBlogsWidget";
 import BlogHtmlCssWidget from "./BlogHtmlCssWidget";
+import BlogContactUsWidget from "./BlogContactUsWidget";
 import DealsDiscountCardsWidget from "@/app/components/deals/DealsDiscountCardsWidget";
 import NewsletterSignupWidget from "./NewsletterSignupWidget";
 import FaqWidget from "./FaqWidget";
@@ -245,6 +246,7 @@ export default function ClientBlogPage({ blog }) {
     promotionalSectionsEnabled: true,
     latestBlogsEnabled: true,
     htmlCssEnabled: true,
+    contactUsEnabled: true,
   });
 
   useEffect(() => {
@@ -702,6 +704,15 @@ export default function ClientBlogPage({ blog }) {
                                               key={`block-${rowIndex}-${colIndex}-${blockIndex}`}
                                               sectionHeading={block.content.sectionHeading}
                                               items={block.content.items || []}
+                                            />
+                                          );
+                                        }
+                                        if (block.content?.widgetType === "contactUs") {
+                                          if (!widgetVisibility.contactUsEnabled) return null;
+                                          return (
+                                            <BlogContactUsWidget
+                                              key={`block-${rowIndex}-${colIndex}-${blockIndex}`}
+                                              content={block.content}
                                             />
                                           );
                                         }

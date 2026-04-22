@@ -4,7 +4,9 @@ import Link from "next/link";
 import { FC } from "react";
 import Image from "next/image";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import Zextons from "../../assets/Zextons.png";
+
+const sidebarLogoSrc =
+  "/1775033425417_1773417790440_aroma_psd_logo__2_.png" as const;
 interface SidebarProps {
   selectedPage: string;
   isSidebarOpen: boolean;
@@ -38,9 +40,10 @@ const Sidebar: FC<SidebarProps> = ({
               >
                 <Image
                   className="h-16 w-auto"
-                  src={Zextons}
-                  alt="Zextons Limited"
-                  width={100}
+                  src={sidebarLogoSrc}
+                  alt="AROMA Desire logo"
+                  width={384}
+                  height={195}
                 />
               </Link>
               <button
@@ -191,10 +194,11 @@ const Sidebar: FC<SidebarProps> = ({
           <div className="flex shrink-0 justify-center items-center w-full">
             <Link href="/" className="flex justify-center items-center h-16">
               <Image
-                className="w-full h-28 object-contain"
-                src={Zextons}
-                alt="Zextons Limited"
-                width={200}
+                className="w-full h-16 object-contain"
+                src={sidebarLogoSrc}
+                alt="AROMA Desire logo"
+                width={384}
+                height={195}
               />
             </Link>
           </div>

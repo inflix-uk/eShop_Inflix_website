@@ -61,6 +61,7 @@ const DEFAULT_WIDGET_VISIBILITY: SiteWidgetVisibility = {
   promotionalSectionsEnabled: true,
   latestBlogsEnabled: true,
   htmlCssEnabled: true,
+  contactUsEnabled: true,
 };
 
 /* const CategoriesCard = dynamic(() => import("./components/CategoriesCard"), {

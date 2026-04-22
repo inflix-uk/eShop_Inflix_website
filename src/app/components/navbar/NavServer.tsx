@@ -84,9 +84,11 @@ export default function NavServer({ categories }: NavServerProps) {
           <Link href="/recycle-mobile-phone">Bulk Recycling</Link>
         </li>
         */}
+        {/* Route disabled (404): /deals-and-discounts
         <li>
           <Link href="/deals-and-discounts">Deals</Link>
         </li>
+        */}
         <li>
           <Link href="/contact-us">Contact</Link>
         </li>

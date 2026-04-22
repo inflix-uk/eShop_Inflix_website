@@ -32,6 +32,9 @@ const FONT_BY_LC = new Map<string, AllowedFontKey>([
   ["roboto", "Roboto"],
   ["inter", "Inter"],
   ["montserrat", "Montserrat"],
+  ["cormorant garamond", "Cormorant Garamond"],
+  ["cormorantgaramond", "Cormorant Garamond"],
+  ["cormorant_garamond", "Cormorant Garamond"],
   ["georgia", "Georgia"],
 ]);
 

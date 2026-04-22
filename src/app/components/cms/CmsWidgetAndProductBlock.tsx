@@ -19,6 +19,7 @@ import {
   type WidgetActiveDealsContent,
   type WidgetDealsDiscountCardsContent,
   type WidgetHtmlCssContent,
+  type WidgetContactUsContent,
   type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
 import type { SiteWidgetVisibility } from "@/app/services/siteWidgetSettingsService";
@@ -98,6 +99,10 @@ const ActiveDealsWidget = dynamic(
 );
 const DealsDiscountCardsWidget = dynamic(
   () => import("@/app/components/deals/DealsDiscountCardsWidget"),
+  { loading: WidgetChunkFallback }
+);
+const BlogContactUsWidget = dynamic(
+  () => import("@/app/(routes)/blogs/new/[slug]/BlogContactUsWidget"),
   { loading: WidgetChunkFallback }
 );
 
@@ -287,6 +292,11 @@ export function CmsWidgetAndProductBlock({
     if (!widgetVisibility.htmlCssEnabled) return null;
     const hc = w as WidgetHtmlCssContent;
     return <BlogHtmlCssWidget html={hc.html} css={hc.css} />;
+  }
+  if (w?.widgetType === "contactUs") {
+    if (!widgetVisibility.contactUsEnabled) return null;
+    const cu = w as WidgetContactUsContent;
+    return <BlogContactUsWidget content={cu} />;
   }
 
   return null;

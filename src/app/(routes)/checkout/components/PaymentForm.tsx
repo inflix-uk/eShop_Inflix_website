@@ -8,23 +8,12 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
-import { logCheckoutEvent } from "../api/api";
-
-interface ExpressShippingRate {
-  id: string;
-  displayName: string;
-  amount: number; // amount in pence/cents
-  deliveryEstimate?: string;
-}
 
 interface PaymentFormProps {
   onPaymentSuccess: (paymentIntent: any) => void;
   totalAmount: number;
   isProcessing?: boolean;
   onBeforePayment?: () => Promise<{ success: boolean; error?: string }>;
-  onBeforeExpressPayment?: (expressCheckoutData: any) => Promise<{ success: boolean; error?: string }>;
-  expressShippingRates?: ExpressShippingRate[];
-  onExpressShippingRateChange?: (rateId: string) => Promise<{ success: boolean }>;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -32,9 +21,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   totalAmount,
   isProcessing: externalProcessing = false,
   onBeforePayment,
-  onBeforeExpressPayment,
-  expressShippingRates,
-  onExpressShippingRateChange,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -51,11 +37,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     async (e?: React.FormEvent<HTMLFormElement>) => {
       e?.preventDefault();
 
-      const paymentIntentId = typeof window !== 'undefined' ? localStorage.getItem('paymentIntentId') : null;
-      logCheckoutEvent({ event: 'frontend.card.handleSubmit.enter', paymentIntentId });
-
       if (!stripe || !elements) {
-        logCheckoutEvent({ event: 'frontend.card.handleSubmit.stripe_not_ready', paymentIntentId });
         return;
       }
 
@@ -64,31 +46,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
       // Call validation callback before payment
       if (onBeforePayment) {
-        logCheckoutEvent({ event: 'frontend.card.onBeforePayment.calling', paymentIntentId });
         try {
           const result = await onBeforePayment();
-          logCheckoutEvent({
-            event: 'frontend.card.onBeforePayment.result',
-            paymentIntentId,
-            data: { success: result.success, error: result.error },
-          });
           if (!result.success) {
             setMessage(result.error || 'Please fill in all required fields.');
             setIsProcessing(false);
             return;
           }
         } catch (error: any) {
-          logCheckoutEvent({
-            event: 'frontend.card.onBeforePayment.threw',
-            paymentIntentId,
-            data: { message: error?.message },
-          });
           setMessage(error.message || 'Validation failed. Please try again.');
           setIsProcessing(false);
           return;
         }
-      } else {
-        logCheckoutEvent({ event: 'frontend.card.onBeforePayment.not_provided', paymentIntentId });
       }
 
       try {
@@ -131,186 +100,42 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     [stripe, elements, onBeforePayment, onPaymentSuccess]
   );
 
-  // Handle Express Checkout click - request user details from wallet.
-  // We MUST provide shippingRates when shippingAddressRequired is true, or
-  // Google Pay rejects the payment with "Shipping option pending" and OR_BIBED_06.
+  // Handle Express Checkout click - request user details from wallet
   const handleExpressCheckoutClick = useCallback(
     (event: { resolve: (options: any) => void }) => {
-      const rates = (expressShippingRates || []).map(r => ({
-        id: r.id,
-        displayName: r.displayName,
-        amount: r.amount,
-        deliveryEstimate: r.deliveryEstimate,
-      }));
-
-      const hasRates = rates.length > 0;
-
-      logCheckoutEvent({
-        event: 'frontend.express.click',
-        data: { ratesCount: rates.length, rates: rates.map(r => r.displayName) },
-      });
-
+      // Request all available user info from Apple Pay / Google Pay wallet
       event.resolve({
         emailRequired: true,
         phoneNumberRequired: true,
-        // Only request a shipping address if we can offer rates for it.
-        // Otherwise the wallet's own validation fails before onConfirm fires.
-        shippingAddressRequired: hasRates,
+        shippingAddressRequired: true,
         billingAddressRequired: true,
-        ...(hasRates ? { shippingRates: rates } : {}),
       });
     },
-    [expressShippingRates]
-  );
-
-  // User picked a shipping rate in the wallet UI. Update the PaymentIntent
-  // amount on the server so it matches what the wallet is about to charge,
-  // then resolve the wallet with the new line items.
-  const handleExpressShippingRateChange = useCallback(
-    async (event: any) => {
-      const rateId: string = event.shippingRate?.id;
-      logCheckoutEvent({
-        event: 'frontend.express.shippingRateChange',
-        data: { rateId, displayName: event.shippingRate?.displayName, amount: event.shippingRate?.amount },
-      });
-
-      try {
-        if (onExpressShippingRateChange && rateId) {
-          const result = await onExpressShippingRateChange(rateId);
-          if (!result.success) {
-            event.reject();
-            return;
-          }
-        }
-        event.resolve();
-      } catch (err: any) {
-        logCheckoutEvent({
-          event: 'frontend.express.shippingRateChange.threw',
-          data: { message: err?.message },
-        });
-        event.reject();
-      }
-    },
-    [onExpressShippingRateChange]
-  );
-
-  // User changed their shipping address in the wallet. Re-offer the same
-  // rates (we don't vary rates by address/country for now — all UK).
-  const handleExpressShippingAddressChange = useCallback(
-    (event: any) => {
-      const rates = (expressShippingRates || []).map(r => ({
-        id: r.id,
-        displayName: r.displayName,
-        amount: r.amount,
-        deliveryEstimate: r.deliveryEstimate,
-      }));
-
-      logCheckoutEvent({
-        event: 'frontend.express.shippingAddressChange',
-        data: { country: event.address?.country, ratesOffered: rates.length },
-      });
-
-      if (rates.length === 0) {
-        event.reject();
-        return;
-      }
-      event.resolve({ shippingRates: rates });
-    },
-    [expressShippingRates]
+    []
   );
 
   // Handle Express Checkout (Apple Pay, Google Pay, Link)
+  // NOTE: Skip form validation for express checkout - wallet provides all customer data
   const handleExpressCheckoutConfirm = useCallback(
     async (event: StripeExpressCheckoutElementConfirmEvent) => {
-      const paymentIntentId = typeof window !== 'undefined' ? localStorage.getItem('paymentIntentId') : null;
-      const expressPaymentType = (event as any).expressPaymentType;
-
-      logCheckoutEvent({
-        event: 'frontend.express.handleExpressCheckoutConfirm.enter',
-        paymentIntentId,
-        paymentMethodType: expressPaymentType,
-        data: {
-          hasShippingAddress: !!event.shippingAddress,
-          hasBillingDetails: !!event.billingDetails,
-          payerEmail: (event as any).payerEmail,
-          payerName: (event as any).payerName,
-        },
-      });
-
       if (!stripe || !elements) {
-        logCheckoutEvent({
-          event: 'frontend.express.stripe_not_ready',
-          paymentIntentId,
-          paymentMethodType: expressPaymentType,
-        });
         return;
       }
 
       setIsProcessing(true);
       setMessage(null);
 
-      const expressCheckoutData = {
+      // For Express Checkout, we DON'T call onBeforePayment validation
+      // because Apple Pay/Google Pay provides all customer info from the wallet
+      // (name, email, phone, shipping address, billing address)
+      console.log('Express checkout - using wallet data:', {
         billingDetails: event.billingDetails,
         shippingAddress: event.shippingAddress,
-        shippingRate: (event as any).shippingRate,
         payerEmail: (event as any).payerEmail,
         payerName: (event as any).payerName,
-        payerPhone: (event as any).payerPhone,
-      };
-
-      // Create the order and patch PaymentIntent metadata BEFORE stripe.confirmPayment.
-      // Stripe's payment_intent.succeeded webhook is a frozen snapshot taken at the
-      // moment of success, so the orderNumber must be present in metadata by then.
-      if (onBeforeExpressPayment) {
-        logCheckoutEvent({
-          event: 'frontend.express.onBeforeExpressPayment.calling',
-          paymentIntentId,
-          paymentMethodType: expressPaymentType,
-        });
-        try {
-          const result = await onBeforeExpressPayment(expressCheckoutData);
-          logCheckoutEvent({
-            event: 'frontend.express.onBeforeExpressPayment.result',
-            paymentIntentId,
-            paymentMethodType: expressPaymentType,
-            data: { success: result.success, error: result.error },
-          });
-          if (!result.success) {
-            logCheckoutEvent({
-              event: 'frontend.express.aborted_pre_payment_failed',
-              paymentIntentId,
-              paymentMethodType: expressPaymentType,
-              data: { error: result.error },
-            });
-            setMessage(result.error || 'Unable to prepare order. Please try again.');
-            setIsProcessing(false);
-            return;
-          }
-        } catch (error: any) {
-          logCheckoutEvent({
-            event: 'frontend.express.onBeforeExpressPayment.threw',
-            paymentIntentId,
-            paymentMethodType: expressPaymentType,
-            data: { message: error?.message },
-          });
-          setMessage(error.message || 'Unable to prepare order. Please try again.');
-          setIsProcessing(false);
-          return;
-        }
-      } else {
-        logCheckoutEvent({
-          event: 'frontend.express.onBeforeExpressPayment.not_provided',
-          paymentIntentId,
-          paymentMethodType: expressPaymentType,
-        });
-      }
+      });
 
       try {
-        logCheckoutEvent({
-          event: 'frontend.express.confirmPayment.calling',
-          paymentIntentId,
-          paymentMethodType: expressPaymentType,
-        });
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
@@ -325,9 +150,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
           console.log('Express checkout payment successful:', paymentIntent.id);
           setMessage("Payment successful!");
+          // Pass wallet data along with payment intent for order creation
           onPaymentSuccess({
             paymentIntent,
-            expressCheckoutData,
+            expressCheckoutData: {
+              billingDetails: event.billingDetails,
+              shippingAddress: event.shippingAddress,
+              payerEmail: (event as any).payerEmail,
+              payerName: (event as any).payerName,
+              payerPhone: (event as any).payerPhone,
+            }
           });
         }
       } catch (err: any) {
@@ -336,7 +168,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setIsProcessing(false);
       }
     },
-    [stripe, elements, onBeforeExpressPayment, onPaymentSuccess]
+    [stripe, elements, onBeforePayment, onPaymentSuccess]
   );
 
   // Listen for PaymentElement changes
@@ -389,8 +221,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           <ExpressCheckoutElement
             onClick={handleExpressCheckoutClick}
             onConfirm={handleExpressCheckoutConfirm}
-            onShippingAddressChange={handleExpressShippingAddressChange}
-            onShippingRateChange={handleExpressShippingRateChange}
             onReady={() => setExpressCheckoutReady(true)}
             onLoadError={(error) => {
               console.log('Express checkout not available:', error);

@@ -21,6 +21,8 @@ export interface LogoResponse {
     altText?: string;
     faviconUrl?: string;
     updatedAt?: string | null;
+    /** Milliseconds — cache-bust / version for favicon URL */
+    faviconVersion?: number | null;
   } | null;
   message?: string;
 }
@@ -29,6 +31,7 @@ export interface LogoSettings {
   logoUrl: string | null;
   altText: string;
   faviconUrl: string | null;
+  faviconVersion?: number | null;
 }
 
 /**
@@ -156,11 +159,17 @@ export async function getLogoSettingsPublic(): Promise<LogoSettings | null> {
         const faviconPath = data.data.faviconUrl?.trim();
         const logoUrl = logoPath ? getLogoUrl(logoPath) : null;
         const faviconUrl = faviconPath ? getLogoUrl(faviconPath) : null;
+        const faviconVersion =
+          data.data.faviconVersion ??
+          (data.data.updatedAt
+            ? new Date(data.data.updatedAt).getTime()
+            : null);
 
         return {
           logoUrl,
           altText: data.data.altText || 'Zextons',
           faviconUrl,
+          faviconVersion,
         };
       } catch {
         continue;
