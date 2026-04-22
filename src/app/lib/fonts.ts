@@ -1,4 +1,10 @@
-import { Inter, Montserrat, Poppins, Roboto } from "next/font/google";
+import {
+  Cormorant_Garamond,
+  Inter,
+  Montserrat,
+  Poppins,
+  Roboto,
+} from "next/font/google";
 
 /**
  * Allowed font families (must match backend `typographyConstants.js`).
@@ -9,6 +15,7 @@ export const ALLOWED_FONT_KEYS = [
   "Poppins",
   "Roboto",
   "Montserrat",
+  "Cormorant Garamond",
   "Georgia",
 ] as const;
 export type AllowedFontKey = (typeof ALLOWED_FONT_KEYS)[number];
@@ -45,12 +52,21 @@ export const montserrat = Montserrat({
   adjustFontFallback: true,
 });
 
+export const cormorantGaramond = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-cormorant-garamond",
+  display: "swap",
+  adjustFontFallback: true,
+});
+
 /** next/font CSS variables (Georgia uses a literal stack, not an entry here). */
 export const FONT_CSS_VAR: Record<Exclude<AllowedFontKey, "Georgia">, string> = {
   Inter: "var(--font-inter)",
   Poppins: "var(--font-poppins)",
   Roboto: "var(--font-roboto)",
   Montserrat: "var(--font-montserrat)",
+  "Cormorant Garamond": "var(--font-cormorant-garamond)",
 };
 
 /** Concatenate for `<html className={...}>` — Google fonts only (static imports). */
@@ -59,4 +75,5 @@ export const HTML_FONT_VARIABLE_CLASSES = [
   poppins.variable,
   roboto.variable,
   montserrat.variable,
+  cormorantGaramond.variable,
 ].join(" ");

@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Zextons from "@/app/assets/Zextons.png";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
 import TopBar from "@/app/topbar/page";
@@ -119,15 +118,18 @@ export default function LoginPage() {
         progress={progress}
         onLoaderFinished={() => setProgress(0)}
       />
-      <TopBar />
+      {/* <TopBar /> */}
       <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
 
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
           <Link href="/">
             <Image
               className="mx-auto h-20 w-auto"
-              src={Zextons}
-              alt="Your Company"
+              src="/1775033425417_1773417790440_aroma_psd_logo__2_.png"
+              alt="AROMA Desire logo"
+              width={384}
+              height={195}
+              priority
             />
           </Link>
           <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">

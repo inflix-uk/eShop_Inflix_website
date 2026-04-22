@@ -261,6 +261,17 @@ export interface WidgetHtmlCssContent {
   css?: string;
 }
 
+/** Contact form schema stored in page blocks (same validation as global contact widget on submit). */
+export interface WidgetContactUsContent {
+  widgetType: "contactUs";
+  isActive?: boolean;
+  title?: string;
+  description?: string;
+  submitButtonLabel?: string;
+  successMessage?: string;
+  fields?: Array<Record<string, unknown>>;
+}
+
 /** How the product slider is filled: manual/category picks, auto latest 6, or featured subset. */
 export type ProductSliderSource = "manual" | "latest" | "featured";
 
@@ -294,6 +305,7 @@ export interface ContentBlock {
     | WidgetActiveDealsContent
     | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
+    | WidgetContactUsContent
     | ProductSliderBlockContent;
 }
 

@@ -76,5 +76,7 @@ export const config = {
     "/faqs/:path*",
     "/about-zextons",
     "/about-zextons/:path*",
+    "/deals-and-discounts",
+    "/deals-and-discounts/:path*",
   ],
 };

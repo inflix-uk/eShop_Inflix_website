@@ -26,13 +26,24 @@ import {
   combineHeadScripts,
   getSiteScriptsPublic,
 } from "@/app/services/siteScriptsService";
-import { getLogoSettingsPublic } from "@/app/services/logoService";
+import {
+  getLogoSettingsPublic,
+  type LogoSettings,
+} from "@/app/services/logoService";
+import FaviconRuntimeSync from "@/app/components/FaviconRuntimeSync";
 import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
 };
+
+function buildStaticFaviconHref(branding: LogoSettings | null): string | null {
+  const raw = branding?.faviconUrl?.trim();
+  const v = branding?.faviconVersion;
+  if (!raw) return null;
+  return `${raw}${raw.includes("?") ? "&" : "?"}v=${v ?? ""}`;
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   let verificationCode: string | null = null;
@@ -66,7 +77,12 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const siteBranding = await getLogoSettingsPublic();
-  const faviconHref = siteBranding?.faviconUrl?.trim();
+  const faviconHrefRaw = siteBranding?.faviconUrl?.trim();
+  const faviconVersion = siteBranding?.faviconVersion;
+  const faviconHref =
+    faviconHrefRaw && faviconHrefRaw.length > 0
+      ? `${faviconHrefRaw}${faviconHrefRaw.includes("?") ? "&" : "?"}v=${faviconVersion ?? ""}`
+      : null;
   const faviconIcons =
     faviconHref && faviconHref.length > 0
       ? {
@@ -74,7 +90,10 @@ export async function generateMetadata(): Promise<Metadata> {
             icon: [
               {
                 url: faviconHref,
-                type: faviconHref.toLowerCase().endsWith(".ico")
+                type: faviconHrefRaw
+                  .toLowerCase()
+                  .split("?")[0]
+                  .endsWith(".ico")
                   ? "image/x-icon"
                   : "image/png",
               },
@@ -120,12 +139,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas] = await Promise.all([
-    getSiteScriptsPublic(),
-    getSiteThemePublic(),
-    getAnnouncementBannerPublic(),
-    getSiteWideSchemaPublic(),
-  ]);
+  const [siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding] =
+    await Promise.all([
+      getSiteScriptsPublic(),
+      getSiteThemePublic(),
+      getAnnouncementBannerPublic(),
+      getSiteWideSchemaPublic(),
+      getLogoSettingsPublic(),
+    ]);
+
+  const ssrFaviconHref = buildStaticFaviconHref(siteBranding);
+  const faviconHeadScriptLiteral = JSON.stringify(ssrFaviconHref);
   const combinedHeadScripts = combineHeadScripts(siteScripts);
   const combinedBodyStart = combineBodyStartScripts(siteScripts);
   const combinedBodyEnd = combineBodyEndScripts(siteScripts);
@@ -137,6 +161,11 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var href=${faviconHeadScriptLiteral};var sel='link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"],link[rel="apple-touch-icon-precomposed"]';if(href){document.querySelectorAll(sel).forEach(function(n){n.remove();});["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l);});try{localStorage.setItem("favicon",href);}catch(e2){}}else{document.querySelectorAll(sel).forEach(function(n){n.remove();});try{localStorage.removeItem("favicon");}catch(e3){}}}catch(e){}})();`,
+          }}
+        />
         <meta
           name="ahrefs-site-verification"
           content="e104a647a256b0215a2711b55f63420f2e8a84bf449ced9c3e942a98bccef408"
@@ -227,6 +256,10 @@ export default async function RootLayout({
         className="bg-white font-sans antialiased"
         suppressHydrationWarning
       >
+        <FaviconRuntimeSync
+          ssrFaviconResolvedUrl={siteBranding?.faviconUrl?.trim() ?? null}
+          ssrFaviconVersion={siteBranding?.faviconVersion ?? null}
+        />
         <SiteScriptsRaw html={combinedBodyStart} />
         <StoreProvider>
           <AuthProvider>
