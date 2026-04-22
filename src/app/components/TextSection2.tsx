@@ -70,10 +70,7 @@ const TextSection2: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <p className="mb-4">
             We offer{" "}
-            <Link
-              href="https://zextons.co.uk/deals-and-discounts"
-              className="underline text-green-600 cursor-pointer"
-            >
+            <Link href="/" className="underline text-green-600 cursor-pointer">
               amazing deals
             </Link>{" "}
             on refurbished tablets, laptops, gaming consoles, and smartwatches.

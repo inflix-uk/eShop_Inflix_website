@@ -12,6 +12,7 @@ const DISABLED = new Set([
   "18-months-warranty",
   "faqs",
   "about-zextons",
+  "deals-and-discounts",
 ]);
 
 export function isDisabledMarketingSlug(slug: string): boolean {

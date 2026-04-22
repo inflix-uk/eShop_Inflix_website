@@ -129,7 +129,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
       {
         text: "Deals & Discounts",
         link: "/deals-and-discounts",
-        isActive: true,
+        isActive: false,
         order: 4,
       },
       {

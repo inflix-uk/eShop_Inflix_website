@@ -1,38 +1,48 @@
 "use client";
-import React from "react";
-import TopBar from "@/app/topbar/page";
-import NavBar from "@/app/components/navbar/Nav";
 
-const ContactUs: React.FC = () => {
+import React, { useEffect, useState } from "react";
+import NavBar from "@/app/components/navbar/Nav";
+import DynamicContactForm from "@/app/components/contact/DynamicContactForm";
+import {
+  getContactUsWidgetPublic,
+  type ContactUsWidgetPublic,
+} from "@/app/services/contactUsWidgetPublicService";
+
+export default function ContactUs() {
+  const [widget, setWidget] = useState<ContactUsWidgetPublic | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const w = await getContactUsWidgetPublic();
+      if (!cancelled) setWidget(w);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <header className="relative">
-          <TopBar />
-          <NavBar />
+        <NavBar />
       </header>
       <div className="relative isolate bg-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 lg:grid-cols-2">
-          {/* Contact Details Section */}
-          <div className="relative px-6 md:py-10 lg:static lg:px-8 lg:py-10">
-            <div className="mx-auto max-w-xl lg:mx-0 lg:max-w-lg">
-              <h2 className="md:text-5xl text-3xl font-bold tracking-tight text-primary">
-                Contact us
-              </h2>
+        <div className="mx-auto max-w-7xl px-6 py-8 sm:px-8 md:py-10 lg:px-8 lg:py-12">
+          <div className="border-b border-gray-100 pb-8 lg:pb-10">
+            <div className="max-w-2xl">
+              {widget && widget._id && widget.title?.trim() ? (
+                <h2 className="text-3xl font-bold tracking-tight text-primary md:text-5xl">
+                  {widget.title.trim()}
+                </h2>
+              ) : null}
               <p className="mt-6 text-lg leading-8 text-gray-600">
-                We would love to speak with you. Feel free to reach out using
-                the below details.
+                We would love to speak with you. Use the form below to send a message, or reach us using the
+                details here.
               </p>
-              <h2 className="md:text-2xl text-xl font-bold text-primary md:mt-10 mt-5">
-                Get In Touch
-              </h2>
-              {/* Phone Number */}
-              <div className="flex items-center mt-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="1.1em"
-                  height="1.1em"
-                  viewBox="0 0 24 24"
-                >
+              <h2 className="mt-8 text-xl font-bold text-primary md:mt-10 md:text-2xl">Get In Touch</h2>
+              <div className="mt-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 24 24">
                   <path
                     fill="green"
                     d="M19 17.47c-.88-.07-1.75-.22-2.6-.45l-1.19 1.19c1.2.41 2.48.67 3.8.75v-1.49zM5.03 5c.09 1.32.35 2.59.75 3.8l1.2-1.2c-.23-.84-.38-1.71-.44-2.6z"
@@ -45,36 +55,21 @@ const ContactUs: React.FC = () => {
                 </svg>
                 <p className="ps-2">0333 344 8541</p>
               </div>
-              {/* Email */}
-              <div className="flex items-center mt-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="1.1em"
-                  height="1.1em"
-                  viewBox="0 0 16 16"
-                >
+              <div className="mt-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1.1em" height="1.1em" viewBox="0 0 16 16">
                   <path
                     fill="green"
                     d="M4 3a2 2 0 0 0-2 2v.201l6 3.231l6-3.23V5a2 2 0 0 0-2-2zm10 3.337L8.237 9.44a.5.5 0 0 1-.474 0L2 6.337V11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2z"
                   />
                 </svg>
                 <p className="ps-2">
-                  <a
-                    href="mailto:hello@zextons.co.uk"
-                    className="hover:underline"
-                  >
+                  <a href="mailto:hello@zextons.co.uk" className="hover:underline">
                     hello@zextons.co.uk
                   </a>
                 </p>
               </div>
-              {/* Office Hours */}
-              <div className="flex items-center mt-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="1em"
-                  height="1em"
-                  viewBox="0 0 32 32"
-                >
+              <div className="mt-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32">
                   <path
                     fill="green"
                     d="M16 2C8.4 2 2 8.4 2 16s6.4 14 14 14s14-6.4 14-14S23.6 2 16 2m4.587 20L15 16.41V7h2v8.582l5 5.004z"
@@ -82,105 +77,37 @@ const ContactUs: React.FC = () => {
                 </svg>
                 <div>
                   <p className="ps-2">
-                    <span className="font-bold">Mon to Fri:</span> Our lines are
-                    open from 10:00 AM to 6:00 PM
+                    <span className="font-bold">Mon to Fri:</span> Our lines are open from 10:00 AM to 6:00 PM
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          {/* Contact Form */}
-          <form
-            action="#"
-            method="POST"
-            className="px-6 pb-24 pt-20 sm:pb-32 lg:px-8 lg:py-10"
-          >
-            <div className="mx-auto max-w-xl lg:mr-0 lg:max-w-lg">
-              <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="first-name"
-                    className="block text-sm font-semibold leading-6 text-gray-900"
-                  >
-                    Name
-                  </label>
-                  <div className="mt-2.5">
-                    <input
-                      type="text"
-                      name="first-name"
-                      id="first-name"
-                      autoComplete="given-name"
-                      className="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="Email"
-                    className="block text-sm font-semibold leading-6 text-gray-900"
-                  >
-                    Email
-                  </label>
-                  <div className="mt-2.5">
-                    <input
-                      type="email"
-                      name="Email"
-                      id="Email"
-                      autoComplete="family-name"
-                      className="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
-                    />
-                  </div>
-                </div>
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="Subject"
-                    className="block text-sm font-semibold leading-6 text-gray-900"
-                  >
-                    Subject
-                  </label>
-                  <div className="mt-2.5">
-                    <input
-                      type="text"
-                      name="Subject"
-                      id="Subject"
-                      autoComplete="Subject"
-                      className="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
-                    />
-                  </div>
-                </div>
 
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="message"
-                    className="block text-sm font-semibold leading-6 text-gray-900"
-                  >
-                    Message
-                  </label>
-                  <div className="mt-2.5">
-                    <textarea
-                      name="message"
-                      id="message"
-                      rows={6}
-                      className="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
-                      defaultValue={""}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-start">
-                <button
-                  type="submit"
-                  className="rounded-md bg-primary px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                >
-                  Send
-                </button>
+          {widget === undefined ? (
+            <div className="flex justify-center py-12 text-gray-500">Loading form…</div>
+          ) : widget && widget._id ? (
+            <div className="w-full pt-6 sm:pt-8 lg:pt-10">
+              <DynamicContactForm widget={widget} />
+            </div>
+          ) : (
+            <div className="px-0 pb-12 pt-8 sm:pb-16">
+              <div className="mx-auto max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+                <p className="font-semibold">Contact form not available yet</p>
+                <p className="mt-2">
+                  An administrator needs to save the global Contact Us widget in the admin panel (Settings →
+                  Homepage Widgets, section at the bottom), or add a Contact form block on a CMS page. Until then,
+                  please email{" "}
+                  <a href="mailto:hello@zextons.co.uk" className="font-medium underline">
+                    hello@zextons.co.uk
+                  </a>
+                  .
+                </p>
               </div>
             </div>
-          </form>
+          )}
         </div>
       </div>
-      </>
+    </>
   );
-};
-
-export default ContactUs;
+}

@@ -156,7 +156,7 @@ export default function AboutZextons() {
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
                 <Link
-                  href="/deals-and-discounts"
+                  href="/contact-us"
                   className="flex items-center p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-blue-300"
                 >
                   <span className="text-2xl mr-3">💳</span>
