@@ -150,7 +150,8 @@ export function CmsWidgetAndProductBlock({
     | WidgetLatestBlogsContent
     | WidgetActiveDealsContent
     | WidgetDealsDiscountCardsContent
-    | WidgetHtmlCssContent;
+    | WidgetHtmlCssContent
+    | WidgetContactUsContent;
 
   if (w?.widgetType === "slider") {
     if (!widgetVisibility.sliderEnabled) return null;

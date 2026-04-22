@@ -84,7 +84,7 @@ export async function generateMetadata(): Promise<Metadata> {
       ? `${faviconHrefRaw}${faviconHrefRaw.includes("?") ? "&" : "?"}v=${faviconVersion ?? ""}`
       : null;
   const faviconIcons =
-    faviconHref && faviconHref.length > 0
+    faviconHref && faviconHrefRaw
       ? {
           icons: {
             icon: [
