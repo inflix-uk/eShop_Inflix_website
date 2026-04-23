@@ -158,6 +158,19 @@ export interface UpdatePaymentIntentMetadataRequest {
   phoneNumber?: string;
   customerName?: string;
   shippingAddress?: string;
+  // Structured shipping fields — lets the backend overwrite the placeholder
+  // city/postalCode metadata values that were written at PaymentIntent creation.
+  shippingInformation?: {
+    firstName?: string;
+    lastName?: string;
+    address?: string;
+    apartment?: string;
+    city?: string;
+    county?: string;
+    postalCode?: string;
+    country?: string;
+    phoneNumber?: string;
+  };
   shippingMethod?: {
     name: string;
     price: number;
