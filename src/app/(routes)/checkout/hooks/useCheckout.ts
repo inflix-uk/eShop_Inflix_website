@@ -1104,6 +1104,17 @@ export const useCheckout = () => {
             phoneNumber: shippingInformation.phoneNumber,
             customerName: customerName,
             shippingAddress: fullAddress,
+            shippingInformation: {
+              firstName: shippingInformation.firstName,
+              lastName: shippingInformation.lastName,
+              address: shippingInformation.address,
+              apartment: shippingInformation.apartment,
+              city: shippingInformation.city,
+              county: shippingInformation.county,
+              postalCode: shippingInformation.postalCode,
+              country: shippingInformation.country,
+              phoneNumber: shippingInformation.phoneNumber,
+            },
             shippingMethod: selectedShippingMethod ? {
               name: selectedShippingMethod.name,
               price: shippingCost,
@@ -1291,6 +1302,17 @@ export const useCheckout = () => {
             phoneNumber: payerPhone,
             customerName: payerName,
             shippingAddress: fullAddress,
+            shippingInformation: {
+              firstName: shippingInfoFromWallet.firstName,
+              lastName: shippingInfoFromWallet.lastName,
+              address: shippingInfoFromWallet.address,
+              apartment: shippingInfoFromWallet.apartment,
+              city: shippingInfoFromWallet.city,
+              county: shippingInfoFromWallet.county,
+              postalCode: shippingInfoFromWallet.postalCode,
+              country: shippingInfoFromWallet.country,
+              phoneNumber: shippingInfoFromWallet.phoneNumber,
+            },
             shippingMethod: shippingMethodForOrder,
           });
           logCheckoutEvent({
