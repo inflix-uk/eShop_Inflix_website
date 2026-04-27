@@ -9,6 +9,7 @@ import TopBar from "@/app/topbar/page";
 import ClientBlogPage from "../new/[slug]/ClientBlogPage";
 import { getFullImageUrl } from "../new/[slug]/blogUtils";
 import { metaSchemaEntryToJsonLdString } from "@/app/lib/homepageJsonLd";
+import { getCanonical } from "@/lib/getCanonical";
 
 interface BlogData {
   _id: string;
@@ -108,7 +109,8 @@ function formatDateISO(dateStr: string): string {
 
 function buildNewBlogBlogPostingJsonLd(
   post: Record<string, unknown>,
-  slug: string
+  slug: string,
+  canonicalPostUrl: string
 ): Record<string, unknown> {
   const title = typeof post.title === "string" ? post.title : "";
   const metaTitle =
@@ -132,15 +134,7 @@ function buildNewBlogBlogPostingJsonLd(
     typeof post.featuredImage === "string" ? post.featuredImage : "";
   const imagePath = banner || featured;
   const imageUrl = imagePath ? getFullImageUrl(imagePath) : undefined;
-  const base =
-    process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
-    "https://zextons.co.uk";
-  const pageUrl = `${base}/blogs/${slug}`;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
-  const logoUrl = apiUrl
-    ? `${apiUrl}/uploads/web/Zextons.webp`
-    : "https://zextons.co.uk/logo.png";
-
+  const pageUrl = canonicalPostUrl;
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -148,16 +142,6 @@ function buildNewBlogBlogPostingJsonLd(
     description,
     datePublished: formatDateISO(String(publishRaw)),
     dateModified: formatDateISO(String(modifiedRaw)),
-    author: {
-      "@type": "Organization",
-      name: "Zextons",
-      url: "https://zextons.co.uk",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "Zextons",
-      logo: { "@type": "ImageObject", url: logoUrl },
-    },
     mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
   };
   if (imageUrl) {
@@ -176,20 +160,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const canonicalUrl = await getCanonical(`/blogs/${slug}`);
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog && typeof newBlog.title === "string") {
-    const title = newBlog.title as string;
     const metaTitle =
       typeof newBlog.metaTitle === "string" ? newBlog.metaTitle.trim() : "";
-    const displayTitle = metaTitle || title;
-    const excerpt =
-      typeof newBlog.excerpt === "string" ? newBlog.excerpt : "";
+    const displayTitle = metaTitle || "";
     const metaDesc =
       typeof newBlog.metaDescription === "string"
         ? newBlog.metaDescription.trim()
         : "";
-    const description =
-      metaDesc || excerpt || "Read our latest blog post on Zextons";
+    const description = metaDesc || "";
     const banner =
       typeof newBlog.bannerImage === "string" ? newBlog.bannerImage : "";
     const featured =
@@ -204,7 +185,7 @@ export async function generateMetadata({
         : undefined;
 
     return {
-      title: `${displayTitle} | Zextons`,
+      title: displayTitle,
       description,
       ...(keywords ? { keywords } : {}),
       robots: "index, follow, max-image-preview:large, max-snippet:-1",
@@ -214,18 +195,17 @@ export async function generateMetadata({
         type: "article",
         publishedTime: newBlog.publishDate as string | undefined,
         modifiedTime: newBlog.updatedAt as string | undefined,
-        url: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/${slug}`,
+        url: canonicalUrl,
         images: ogImage ? [ogImage] : [],
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title: displayTitle,
         description,
         images: ogImage ? [ogImage] : [],
       },
       alternates: {
-        canonical: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/${slug}`,
+        canonical: canonicalUrl,
       },
     };
   }
@@ -234,8 +214,8 @@ export async function generateMetadata({
 
   if (!blog) {
     return {
-      title: "Blog Not Found | Zextons",
-      description: "The requested blog post could not be found.",
+      title: "",
+      description: "",
       robots: "noindex, nofollow",
     };
   }
@@ -248,15 +228,15 @@ export async function generateMetadata({
   const ogImageAlt = blog.metaImageAlt || blog.blogImageAlt || blog.name;
 
   // SEO field fallbacks
-  const seoTitle = blog.metaTitle || blog.name;
-  const seoDesc = blog.metaDescription || blog.blogShortDescription;
+  const seoTitle = blog.metaTitle || "";
+  const seoDesc = blog.metaDescription || "";
   const seoKeywords = blog.metakeywords || blog.blogCategory;
   const publishedISO = (blog.blogpublisheddate || blog.createdAt);
 
   return {
-    title: `${seoTitle} | Zextons`,
+    title: seoTitle,
     description: seoDesc,
-    keywords: seoKeywords,
+    ...(seoKeywords ? { keywords: seoKeywords } : {}),
     robots: "index, follow, max-image-preview:large, max-snippet:-1",
     openGraph: {
       title: seoTitle,
@@ -264,10 +244,8 @@ export async function generateMetadata({
       type: "article",
       publishedTime: publishedISO,
       modifiedTime: blog.updatedAt,
-      authors: ["Zextons"],
-      siteName: "Zextons",
       locale: "en_GB",
-      url: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/${slug}`,
+      url: canonicalUrl,
       images: [{ url: ogImage, width: 1200, height: 630, alt: ogImageAlt }],
     },
     twitter: {
@@ -277,7 +255,7 @@ export async function generateMetadata({
       images: [ogImage],
     },
     alternates: {
-      canonical: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/${slug}`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -288,10 +266,11 @@ export default async function BlogPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const canonicalUrl = await getCanonical(`/blogs/${slug}`);
 
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog) {
-    const blogPostingLd = buildNewBlogBlogPostingJsonLd(newBlog, slug);
+    const blogPostingLd = buildNewBlogBlogPostingJsonLd(newBlog, slug, canonicalUrl);
     const metaSchemaRaw = newBlog.metaSchema;
     const metaSchemaList = Array.isArray(metaSchemaRaw)
       ? metaSchemaRaw.filter((x): x is string => typeof x === "string")
@@ -343,13 +322,7 @@ export default async function BlogPage({
     dateModified: dateModifiedISO,
     articleBody: staticContent.replace(/<[^>]*>/g, ""),
     wordCount: staticContent.split(/\s+/).length,
-    author: { "@type": "Organization", name: "Zextons", url: "https://zextons.co.uk" },
-    publisher: {
-      "@type": "Organization",
-      name: "Zextons",
-      logo: { "@type": "ImageObject", url: "https://zextons.co.uk/logo.png" },
-    },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `https://zextons.co.uk/blogs/${slug}` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
   };
 
   // Parse any backend-provided metaschemas (array of JSON strings)

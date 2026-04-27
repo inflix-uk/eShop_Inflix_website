@@ -45,7 +45,7 @@ interface Product {
   productName: string;
   variantImages?: { path?: string; url?: string }[];
   galleryImages?: { path?: string; url?: string }[];
-  productthumbnail?: string;
+  productthumbnail?: string | { path?: string; url?: string; filename?: string };
   selectedSim?: string;
 }
 
@@ -225,9 +225,29 @@ const NavbarCart = ({
         if (img.url) return img.url;
         if (img.path) return `${auth.ip}${img.path}`;
       }
-      // Check product thumbnail
+      // Check product thumbnail (legacy string = filename only; prefer full url/path from cart)
       if (product.productthumbnail) {
-        return `${auth.ip}uploads/products/${product.productthumbnail}`;
+        const t = product.productthumbnail;
+        if (typeof t === "string") {
+          const base = String(auth.ip || "").replace(/\/+$/, "");
+          const s = t.trim();
+          if (!s) return "/placeholder.png";
+          if (s.startsWith("http://") || s.startsWith("https://")) return s;
+          if (s.startsWith("/")) return `${base}${s}`;
+          return `${base}/uploads/products/${s}`;
+        }
+        if (t.url) return t.url;
+        if (t.path) {
+          const p = t.path.trim();
+          if (p.startsWith("http://") || p.startsWith("https://")) return p;
+          const base = String(auth.ip || "").replace(/\/+$/, "");
+          const seg = p.startsWith("/") ? p : `/${p}`;
+          const withUploads =
+            !seg.toLowerCase().startsWith("/uploads/") && seg.startsWith("/products/")
+              ? `/uploads${seg}`
+              : seg;
+          return `${base}${withUploads}`;
+        }
       }
       // Final fallback
       return "/placeholder.png";

@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
+import { SITE_USES_TRAILING_SLASH } from "./src/lib/siteTrailingSlash";
+
+/** Backend origin without trailing `/` — code uses `${NEXT_PUBLIC_API_URL}/path`. */
+function normalizePublicApiUrl(raw: string | undefined): string | undefined {
+  if (raw == null || raw === "") return undefined;
+  return raw.replace(/\/+$/, "");
+}
+
+const normalizedApiUrl = normalizePublicApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 const nextConfig: NextConfig = {
+  trailingSlash: SITE_USES_TRAILING_SLASH,
+  ...(normalizedApiUrl
+    ? { env: { NEXT_PUBLIC_API_URL: normalizedApiUrl } }
+    : {}),
   images: {
     minimumCacheTTL: 60,
     remotePatterns: [

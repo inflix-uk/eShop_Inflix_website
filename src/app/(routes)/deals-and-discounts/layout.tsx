@@ -3,7 +3,7 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
-import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
+import { getCanonical } from "@/lib/getCanonical";
 
 const SLUG = "deals-and-discounts";
 
@@ -42,8 +42,7 @@ async function getStaticMetaFallback(): Promise<StaticMetaRow | null> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const cms = await getPublishedCmsPage();
-  const baseUrl = getPublicSiteBaseUrl();
-  const pageUrl = `${baseUrl}/deals-and-discounts`;
+  const canonicalUrl = await getCanonical("/deals-and-discounts");
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
   if (cms) {
@@ -59,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
           ? `${apiUrl}/uploads/${cms.bannerImage.replace(/^\//, "")}`
           : apiUrl
             ? `${apiUrl}/uploads/web/Zextons.webp`
-            : `${baseUrl}/uploads/web/Zextons.webp`;
+            : "";
 
     const metadata: Metadata = {
       title: `${title} | Zextons Tech Store`,
@@ -68,7 +67,7 @@ export async function generateMetadata(): Promise<Metadata> {
       openGraph: {
         siteName: "Zextons",
         title,
-        url: pageUrl,
+        url: canonicalUrl,
         description,
         type: "website",
         images: [{ url: ogImage }],
@@ -81,8 +80,8 @@ export async function generateMetadata(): Promise<Metadata> {
         images: [{ url: ogImage }],
       },
       alternates: {
-        canonical: pageUrl,
-        languages: { "en-gb": pageUrl },
+        canonical: canonicalUrl,
+        languages: { "en-gb": canonicalUrl },
       },
     };
 
@@ -103,9 +102,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
-  const ogDefault = apiUrl
-    ? `${apiUrl}/uploads/web/Zextons.webp`
-    : `${baseUrl}/uploads/web/Zextons.webp`;
+  const ogDefault = apiUrl ? `${apiUrl}/uploads/web/Zextons.webp` : "";
 
   return {
     title: metaData.titleTag || "Deals and Discounts | Zextons Tech Store",
@@ -117,7 +114,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       siteName: "Zextons",
       title: metaData.titleTag || "Deals and Discounts",
-      url: pageUrl,
+      url: canonicalUrl,
       description:
         metaData.metaDescription ||
         "Latest deals and discounts at Zextons Tech Store",
@@ -134,8 +131,8 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [{ url: ogDefault }],
     },
     alternates: {
-      canonical: pageUrl,
-      languages: { "en-gb": pageUrl },
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
     },
   };
 }

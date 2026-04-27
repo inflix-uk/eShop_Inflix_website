@@ -1,5 +1,10 @@
 // Order Types for My Orders Module
 
+export interface OrderItemImageRef {
+  path?: string;
+  url?: string;
+}
+
 export interface OrderItem {
   _id: string;
   productId?: string;
@@ -8,8 +13,11 @@ export interface OrderItem {
   salePrice: number;
   productName: string;
   name: string;
-  variantImages?: { path: string }[];
-  productthumbnail?: { path: string };
+  variantImages?: OrderItemImageRef[];
+  /** Stored as `{ path }` on some flows, or plain filename string from cart for single-type products */
+  productthumbnail?: OrderItemImageRef | string;
+  metaImage?: OrderItemImageRef;
+  galleryImages?: OrderItemImageRef[];
   metaDescription?: string;
   SKU?: string;
   EIN?: string;

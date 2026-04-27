@@ -4,12 +4,18 @@ const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const UPSTREAM_URL = `${base}/site-theme/public`;
 const TIMEOUT_MS = 8000;
 
+/** Matches `DEFAULT_SITE_THEME` in `siteThemeUtils` — no storefront tint until CMS sets hex colors. */
+const NO_CMS_THEME_COLORS = {
+  primaryColor: "transparent",
+  secondaryColor: "transparent",
+} as const;
+
 export async function GET() {
   if (!base) {
     return NextResponse.json(
       {
         success: true,
-        data: { primaryColor: "#16a34a", secondaryColor: "#15803d" },
+        data: { ...NO_CMS_THEME_COLORS },
       },
       { status: 200 }
     );
@@ -29,7 +35,7 @@ export async function GET() {
       return NextResponse.json(
         {
           success: true,
-          data: { primaryColor: "#16a34a", secondaryColor: "#15803d" },
+          data: { ...NO_CMS_THEME_COLORS },
         },
         { status: 200 }
       );
@@ -46,7 +52,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: true,
-        data: { primaryColor: "#16a34a", secondaryColor: "#15803d" },
+        data: { ...NO_CMS_THEME_COLORS },
       },
       { status: 200 }
     );

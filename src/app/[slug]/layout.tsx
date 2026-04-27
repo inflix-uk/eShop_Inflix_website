@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getCanonical } from "@/lib/getCanonical";
 import {
   fetchFooterPageBySlug,
   getImageUrl,
@@ -77,8 +78,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
   const path = `/${decodedSlug}`;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
-  const pageUrl = `${baseUrl}/${decodedSlug}`;
+  const canonicalUrl = await getCanonical(`/${decodedSlug}`);
 
   const [staticMeta, page] = await Promise.all([
     fetchStaticMetaByPath(path),
@@ -91,8 +91,7 @@ export async function generateMetadata({
   // Primary source: Footer Page from admin (if published and has metaTitle)
   if (page?.publishStatus === "published" && page.metaTitle) {
     const title = page.metaTitle;
-    const description =
-      page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
+    const description = page.metaDescription || "";
 
     const metadata: Metadata = {
       title: title,
@@ -101,7 +100,7 @@ export async function generateMetadata({
       openGraph: {
         siteName: "Zextons",
         title: title,
-        url: pageUrl,
+        url: canonicalUrl,
         description: description,
         type: "website",
         images: page.bannerImage
@@ -118,8 +117,8 @@ export async function generateMetadata({
           : defaultOgImage(),
       },
       alternates: {
-        canonical: pageUrl,
-        languages: { "en-gb": pageUrl },
+        canonical: canonicalUrl,
+        languages: { "en-gb": canonicalUrl },
       },
     };
 
@@ -132,7 +131,6 @@ export async function generateMetadata({
 
   // Secondary source: Static Meta from admin (fallback when footer page has no metaTitle)
   if (staticMeta?.titleTag) {
-    const canonicalUrl = staticMeta.canonicalUrl?.trim() || pageUrl;
     const ogImages =
       page?.publishStatus === "published" && page.bannerImage
         ? [{ url: getImageUrl(page.bannerImage) }]
@@ -140,13 +138,13 @@ export async function generateMetadata({
 
     const metadata: Metadata = {
       title: staticMeta.titleTag,
-      description: staticMeta.metaDescription,
+      description: staticMeta.metaDescription || "",
       robots: "index, follow",
       openGraph: {
         siteName: "Zextons",
         title: staticMeta.titleTag,
         url: canonicalUrl,
-        description: staticMeta.metaDescription,
+        description: staticMeta.metaDescription || "",
         type: "website",
         images: ogImages,
       },
@@ -154,7 +152,7 @@ export async function generateMetadata({
         card: "summary_large_image",
         site: "@ZextonsTechStore",
         title: staticMeta.titleTag,
-        description: staticMeta.metaDescription,
+        description: staticMeta.metaDescription || "",
         images: ogImages,
       },
       alternates: {
@@ -170,18 +168,17 @@ export async function generateMetadata({
 
   // Tertiary: Footer page exists but no metaTitle — use page.title as fallback
   if (page?.publishStatus === "published") {
-    const title = page.title;
-    const description =
-      page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
+    const title = page.metaTitle || "";
+    const description = page.metaDescription || "";
 
     const metadata: Metadata = {
-      title: `${title} | Zextons Tech Store`,
+      title: title,
       description: description,
       robots: "index, follow",
       openGraph: {
         siteName: "Zextons",
         title: title,
-        url: pageUrl,
+        url: canonicalUrl,
         description: description,
         type: "website",
         images: page.bannerImage
@@ -198,8 +195,8 @@ export async function generateMetadata({
           : defaultOgImage(),
       },
       alternates: {
-        canonical: pageUrl,
-        languages: { "en-gb": pageUrl },
+        canonical: canonicalUrl,
+        languages: { "en-gb": canonicalUrl },
       },
     };
 
@@ -212,8 +209,8 @@ export async function generateMetadata({
 
   // Not found
   return {
-    title: "Page Not Found | Zextons Tech Store",
-    description: "The page you're looking for doesn't exist.",
+    title: "",
+    description: "",
     robots: "noindex, nofollow",
   };
 }

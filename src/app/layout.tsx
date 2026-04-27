@@ -30,8 +30,11 @@ import {
   getLogoSettingsPublic,
   type LogoSettings,
 } from "@/app/services/logoService";
-import FaviconRuntimeSync from "@/app/components/FaviconRuntimeSync";
 import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
+import { isBackendAvailable } from "@/app/lib/backendAvailability";
+import { BackendAvailabilityProvider } from "@/app/context/BackendAvailabilityContext";
+import { DEFAULT_SITE_THEME, resolveSiteTheme } from "@/app/lib/siteThemeUtils";
+import { cloneTypographyDefaults } from "@/app/lib/typographyThemeUtils";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -46,6 +49,7 @@ function buildStaticFaviconHref(branding: LogoSettings | null): string | null {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
+  const backendAvailable = await isBackendAvailable();
   let verificationCode: string | null = null;
   try {
     const siteScripts = await getSiteScriptsPublic();
@@ -76,7 +80,7 @@ export async function generateMetadata(): Promise<Metadata> {
     console.error("[Layout] Error resolving Google verification:", error);
   }
 
-  const siteBranding = await getLogoSettingsPublic();
+  const siteBranding = backendAvailable ? await getLogoSettingsPublic() : null;
   const faviconHrefRaw = siteBranding?.faviconUrl?.trim();
   const faviconVersion = siteBranding?.faviconVersion;
   const faviconHref =
@@ -104,23 +108,20 @@ export async function generateMetadata(): Promise<Metadata> {
         }
       : {};
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
   const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
 
   const metadata: Metadata = {
     robots: "index, follow",
+    // Do not set alternates.openGraph.url here: without a per-route path, every
+    // page would inherit the homepage canonical. Use getCanonical in each
+    // route's generateMetadata (see app/page.tsx for "/").
     openGraph: {
-      url: baseUrl,
       type: "website",
       images: [{ url: ogImage }],
     },
     twitter: {
       card: "summary_large_image",
       images: [{ url: ogImage }],
-    },
-    alternates: {
-      canonical: baseUrl,
-      languages: { "en-gb": baseUrl },
     },
     // Skip metadata.verification when GSC meta is injected via Site scripts head HTML (avoids duplicate tags)
     ...(verificationCode && {
@@ -139,20 +140,31 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const backendAvailable = await isBackendAvailable();
   const [siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding] =
     await Promise.all([
       getSiteScriptsPublic(),
-      getSiteThemePublic(),
+      backendAvailable
+        ? getSiteThemePublic()
+        : Promise.resolve({
+            colors: resolveSiteTheme(
+              DEFAULT_SITE_THEME.primaryColor,
+              DEFAULT_SITE_THEME.secondaryColor
+            ),
+            typography: cloneTypographyDefaults(),
+          }),
       getAnnouncementBannerPublic(),
       getSiteWideSchemaPublic(),
       getLogoSettingsPublic(),
     ]);
 
-  const ssrFaviconHref = buildStaticFaviconHref(siteBranding);
+  const effectiveBranding = backendAvailable ? siteBranding : null;
+  const ssrFaviconHref = buildStaticFaviconHref(effectiveBranding);
   const faviconHeadScriptLiteral = JSON.stringify(ssrFaviconHref);
   const combinedHeadScripts = combineHeadScripts(siteScripts);
   const combinedBodyStart = combineBodyStartScripts(siteScripts);
   const combinedBodyEnd = combineBodyEndScripts(siteScripts);
+  const backendAvailableLiteral = backendAvailable ? "true" : "false";
 
   return (
     <html
@@ -163,7 +175,7 @@ export default async function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var href=${faviconHeadScriptLiteral};var sel='link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"],link[rel="apple-touch-icon-precomposed"]';if(href){document.querySelectorAll(sel).forEach(function(n){n.remove();});["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l);});try{localStorage.setItem("favicon",href);}catch(e2){}}else{document.querySelectorAll(sel).forEach(function(n){n.remove();});try{localStorage.removeItem("favicon");}catch(e3){}}}catch(e){}})();`,
+            __html: `(function(){try{var backendUp=${backendAvailableLiteral};var href=${faviconHeadScriptLiteral};var sel='link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"],link[rel="apple-touch-icon-precomposed"],link[rel="mask-icon"]';document.querySelectorAll(sel).forEach(function(n){n.remove();});if(!backendUp||!href){["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href='data:,';document.head.appendChild(l);});return;}["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l);});}catch(e){}})();`,
           }}
         />
         <meta
@@ -256,18 +268,16 @@ export default async function RootLayout({
         className="bg-white font-sans antialiased"
         suppressHydrationWarning
       >
-        <FaviconRuntimeSync
-          ssrFaviconResolvedUrl={siteBranding?.faviconUrl?.trim() ?? null}
-          ssrFaviconVersion={siteBranding?.faviconVersion ?? null}
-        />
         <SiteScriptsRaw html={combinedBodyStart} />
         <StoreProvider>
           <AuthProvider>
-            <SiteBrandColors />
-            <AnnouncementBar initial={announcementBanner} />
-            {children}
-            <FooterShell />
-            <DeferredLayoutWidgets />
+            <BackendAvailabilityProvider backendAvailable={backendAvailable}>
+              {backendAvailable && <SiteBrandColors />}
+              {backendAvailable && <AnnouncementBar initial={announcementBanner} />}
+              {children}
+              {backendAvailable && <FooterShell />}
+              {backendAvailable && <DeferredLayoutWidgets />}
+            </BackendAvailabilityProvider>
           </AuthProvider>
         </StoreProvider>
         <SiteScriptsRaw html={combinedBodyEnd} />

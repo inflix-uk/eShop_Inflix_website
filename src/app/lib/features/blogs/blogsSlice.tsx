@@ -42,6 +42,9 @@ const blogSlice = createSlice({
       .addCase(fetchBlogs.pending, (state) => {
         state.isLoading = true;
         state.error = null; // Clear previous error on new request
+        // Drop stale list so client navigations (SPA) do not briefly show old
+        // posts after the DB was cleared — matches a hard refresh / empty initial state.
+        state.blogs = [];
       })
       .addCase(fetchBlogs.fulfilled, (state, action: PayloadAction<Blog[]>) => {
         state.isLoading = false;

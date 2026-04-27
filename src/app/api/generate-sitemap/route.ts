@@ -34,7 +34,7 @@ function extractPath(url: string): string {
 }
 
 async function generate() {
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://zextons.co.uk').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://aromadesire.com').replace(/\/$/, '');
   
   try {
     const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/create/sitemap`);
@@ -60,11 +60,17 @@ async function generate() {
     const stream = new SitemapStream({ hostname: baseUrl });
     const sitemap = await streamToPromise(Readable.from(links).pipe(stream));
 
-    // Write to the public folder (available at /sitemap.xml)
-    const outPath = `${process.cwd()}/public/sitemap.xml`;
+    // Do not write public/sitemap.xml — it conflicts with src/app/sitemap.ts (same URL).
+    const outPath = `${process.cwd()}/sitemap.generated.xml`;
     fs.writeFileSync(outPath, sitemap.toString());
 
-    return NextResponse.json({ ok: true, count: links.length, path: '/sitemap.xml', baseUrl });
+    return NextResponse.json({
+      ok: true,
+      count: links.length,
+      path: '/sitemap.xml',
+      baseUrl,
+      artifact: 'sitemap.generated.xml',
+    });
   } catch (error: any) {
     console.error('API generate-sitemap error:', error);
     return NextResponse.json(

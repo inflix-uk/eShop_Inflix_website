@@ -373,7 +373,7 @@ export default function AboutZextons() {
             </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <Link
-                href="/refund-and-return-policy"
+                href="/refund-policy"
                 className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl hover:shadow-md transition-all duration-200 border border-blue-100 hover:border-blue-300"
               >
                 <span className="text-2xl mr-3">↩️</span>

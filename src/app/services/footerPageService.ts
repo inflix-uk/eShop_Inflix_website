@@ -3,6 +3,8 @@
  * Handles fetching footer pages from the backend API
  */
 
+import { cache } from "react";
+
 // Get API base URL from environment variable
 // Make sure NEXT_PUBLIC_API_URL is set in your .env file
 const getApiBaseUrl = (): string => {
@@ -68,7 +70,7 @@ export interface FooterPageResponse {
  * @param slug - The URL-friendly identifier (e.g., "terms-and-conditions")
  * @returns Promise with the footer page data or null if not found
  */
-export async function fetchFooterPageBySlug(
+async function fetchFooterPageBySlugImpl(
   slug: string
 ): Promise<FooterPage | null> {
   try {
@@ -119,6 +121,9 @@ export async function fetchFooterPageBySlug(
     throw error;
   }
 }
+
+/** Dedupes within a single request (e.g. layout + generateMetadata). */
+export const fetchFooterPageBySlug = cache(fetchFooterPageBySlugImpl);
 
 /**
  * Fetches all footer pages from the API (useful for debugging)

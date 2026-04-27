@@ -1,37 +1,33 @@
 import type { Metadata } from "next";
-import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
+import { getCanonical } from "@/lib/getCanonical";
 
-const categoriesIndexUrl = `${getPublicSiteBaseUrl()}/categories`;
+export async function generateMetadata(): Promise<Metadata> {
+  const canonicalUrl = await getCanonical("/categories");
 
-export const metadata: Metadata = {
-  title: "Refurbished and Brand New Products | Explore All Categories | Zextons Tech Store",
-  description:
-    "Browse a wide range of refurbished and brand new products at Zextons Tech Store. Explore all categories and subcategories to find quality items at unbeatable prices. Shop now!",
-  keywords:
-    "refurbished products, brand new products, Zextons categories, tech store categories, electronics categories, product categories",
-  robots: "index, follow",
-  openGraph: {
-    siteName: "Zextons Tech Store",
-    title: "Refurbished and Brand New Products | Explore All Categories | Zextons Tech Store",
-    url: categoriesIndexUrl,
-    description:
-      "Browse a wide range of refurbished and brand new products at Zextons Tech Store. Explore all categories and subcategories to find quality items at unbeatable prices. Shop now!",
-    type: "website",
-    images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@ZextonsTechStore",
-    title: "Refurbished and Brand New Products | Explore All Categories | Zextons Tech Store",
-    description:
-      "Browse a wide range of refurbished and brand new products at Zextons Tech Store. Explore all categories and subcategories to find quality items at unbeatable prices. Shop now!",
-    images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-  },
-  alternates: {
-    canonical: categoriesIndexUrl,
-    languages: { "en-gb": categoriesIndexUrl },
-  },
-};
+  return {
+    title: "",
+    description: "",
+    robots: "index, follow",
+    openGraph: {
+      title: "",
+      description: "",
+      url: canonicalUrl,
+      type: "website",
+      images: [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "",
+      description: "",
+      images: [],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
+    },
+  };
+}
+
 export default async function CategoriesLayout({
   children,
 }: {

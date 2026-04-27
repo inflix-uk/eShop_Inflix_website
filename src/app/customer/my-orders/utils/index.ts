@@ -90,20 +90,69 @@ export const getOrderBorderStyle = (status: OrderStatus | string): string => {
   }
 };
 
+/** API origin without trailing slash (matches checkout / cart image logic). */
+function normalizeApiOrigin(raw: string): string {
+  return (raw || "").replace(/\/+$/, "");
+}
+
+function absoluteFromApiBase(base: string, path: string): string {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const origin = normalizeApiOrigin(base);
+  let p = path.startsWith("/") ? path : `/${path}`;
+  if (!p.toLowerCase().startsWith("/uploads/") && p.startsWith("/products/")) {
+    p = `/uploads${p}`;
+  }
+  return `${origin}${p}`;
+}
+
 /**
- * Get product image URL
+ * Resolve product image URL for order line items (handles cart + persisted order shapes).
  */
 export const getProductImageUrl = (item: OrderItem, baseUrl: string): string => {
+  const origin =
+    normalizeApiOrigin(baseUrl) ||
+    normalizeApiOrigin(process.env.NEXT_PUBLIC_API_URL || "");
+
   if (item.variantImages && item.variantImages.length > 0) {
-    return `${baseUrl}${item.variantImages[0].path}`;
+    const img = item.variantImages[0];
+    if (img.url) return img.url;
+    if (img.path) return absoluteFromApiBase(origin, img.path);
   }
+
+  if (item.galleryImages && item.galleryImages.length > 0) {
+    const img = item.galleryImages[0];
+    if (img.url) return img.url;
+    if (img.path) return absoluteFromApiBase(origin, img.path);
+  }
+
   if (item.productthumbnail) {
-    return `${baseUrl}${item.productthumbnail.path}`;
+    if (typeof item.productthumbnail === "string") {
+      const t = item.productthumbnail.trim();
+      if (!t) return "";
+      if (t.startsWith("http://") || t.startsWith("https://")) return t;
+      if (t.startsWith("/")) return absoluteFromApiBase(origin, t);
+      return absoluteFromApiBase(origin, `uploads/products/${t}`);
+    }
+    if (item.productthumbnail.url) return item.productthumbnail.url;
+    if (item.productthumbnail.path) {
+      return absoluteFromApiBase(origin, item.productthumbnail.path);
+    }
   }
+
+  if (item.metaImage?.url) return item.metaImage.url;
+  if (item.metaImage?.path) {
+    return absoluteFromApiBase(origin, item.metaImage.path);
+  }
+
   if (item.image) {
-    return `${baseUrl}${item.image}`;
+    if (item.image.startsWith("http://") || item.image.startsWith("https://")) {
+      return item.image;
+    }
+    return absoluteFromApiBase(origin, item.image);
   }
-  return '';
+
+  return "";
 };
 
 /**

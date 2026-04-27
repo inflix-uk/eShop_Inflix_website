@@ -341,7 +341,7 @@ export default function WarrantyPage() {
               <ul className="list-disc list-inside space-y-2 text-gray-700">
                 <li>
                   <Link
-                    href="/refund-and-return-policy"
+                    href="/refund-policy"
                     className="text-primary hover:underline font-semibold"
                   >
                     Returns & Refund Policy

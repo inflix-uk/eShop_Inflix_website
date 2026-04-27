@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { getCanonical } from "@/lib/getCanonical";
 import ProductPage from "@/app/(routes)/products/[...slug]/ProductPage";
 import Loading from "@/app/components/Loading";
 import VariantLinksSSR from "@/app/(routes)/products/components/VariantLinksSSR";
@@ -184,8 +185,8 @@ export async function generateMetadata({
 
     if (!product) {
       return {
-        title: "Product Not Found | Zextons Tech Store",
-        description: "The requested product could not be found. Browse our collection of refurbished and new tech products.",
+        title: "",
+        description: "",
         robots: {
           index: false,
           follow: false,
@@ -207,27 +208,14 @@ export async function generateMetadata({
       description = selectedVariant.metaDescription || '';
       keywords = selectedVariant.metaKeywords || '';
     } else {
-      // No variant selected - use base product Seo_Meta with fallbacks
-      const productCondition = product.condition?.toLowerCase().includes('new') ? 'New' : 'Refurbished';
+      // No variant selected - use base product Seo_Meta only (empty fallback)
       const metaTitle = product.Seo_Meta?.metaTitle;
       const metaDescription = product.Seo_Meta?.metaDescription;
       const metaKeywords = product.Seo_Meta?.metaKeywords;
 
-      title = metaTitle || `${product.name} ${productCondition} | ${product.brand || ''} | Zextons UK`.trim();
-
-      const cleanDescription = product.Product_description?.replace(/<[^>]*>/g, '').trim() || product.description || '';
-      description = metaDescription ||
-        (cleanDescription ? cleanDescription.substring(0, 155) + '...' :
-        `Buy ${productCondition} ${product.name} with 18-month warranty, free UK delivery & 30-day returns. Best prices guaranteed at Zextons.`);
-
-      keywords = metaKeywords || [
-        product.brand,
-        product.name,
-        product.category,
-        productCondition.toLowerCase(),
-        product.model,
-        'UK delivery'
-      ].filter(Boolean).join(', ');
+      title = metaTitle || '';
+      description = metaDescription || '';
+      keywords = metaKeywords || '';
     }
 
     // Use meta_Image if available, otherwise use Gallery_Images
@@ -236,17 +224,16 @@ export async function generateMetadata({
       : null;
     const galleryImages = product.Gallery_Images?.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`) || [];
     const images = metaImageUrl ? [metaImageUrl, ...galleryImages] : galleryImages;
-    const canonicalUrl = `https://zextons.co.uk/products/${fullSlugPath}`;
+    const canonicalUrl = await getCanonical(`/products/${fullSlugPath}`);
 
     return {
       title,
       description,
-      keywords,
+      ...(keywords ? { keywords } : {}),
       openGraph: {
         title,
         description,
         url: canonicalUrl,
-        siteName: "Zextons Tech Store",
         images: images.slice(0, 4).map((img: string) => ({
           url: img,
           width: 800,
@@ -261,7 +248,6 @@ export async function generateMetadata({
         title,
         description,
         images: images.slice(0, 1),
-        site: "@ZextonsTech",
       },
       alternates: {
         canonical: canonicalUrl,
@@ -281,8 +267,8 @@ export async function generateMetadata({
   } catch (error) {
     console.error('Error generating metadata:', error);
     return {
-      title: "Product | Zextons Tech Store",
-      description: "Discover amazing deals on refurbished and new tech products at Zextons.",
+      title: "",
+      description: "",
     };
   }
 

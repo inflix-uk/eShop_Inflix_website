@@ -1,4 +1,5 @@
 import { ProductData } from "../../../../../types";
+import { getCanonical } from "@/lib/getCanonical";
 
 interface ReviewData {
   averageRating: number;
@@ -6,241 +7,273 @@ interface ReviewData {
   reviews: any[];
 }
 
-export const generateOrganizationSchema = () => {
+export async function generateOrganizationSchema() {
+  const site = await getCanonical("");
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Zextons Tech Store",
-    "url": "https://zextons.co.uk",
-    "logo": "https://zextons.co.uk/logo.png",
+    "name": "Aroma Desire",
+    "url": site,
+    "logo": `${site}/logo.png`,
     "contactPoint": {
       "@type": "ContactPoint",
       "telephone": "+44-XXX-XXXX",
       "contactType": "customer service",
-      "availableLanguage": "English"
-    }
+      "availableLanguage": "English",
+    },
   };
-};
+}
 
-export const generateProductSchema = (
+export async function generateProductSchema(
   product: ProductData,
   slug: string,
   reviewData: ReviewData
-) => {
+) {
+  const site = await getCanonical("");
   const { averageRating, totalReviews, reviews } = reviewData;
 
-  // Get first variant for SKU/MPN/GTIN if not on product level
   const firstVariant = product.variantValues?.[0];
 
-  // Calculate min and max prices from variantValues
-  const prices = product.variantValues?.map((v: any) => parseFloat(v.salePrice) || v.Price).filter(Boolean) || [];
+  const prices =
+    product.variantValues?.map((v: any) => parseFloat(v.salePrice) || v.Price).filter(Boolean) || [];
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
   const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
 
-  // Check if any variant is in stock
   const hasStock = product.variantValues?.some((v: any) => v.Quantity > 0) || false;
+
+  const productPageUrl = await getCanonical(`/products/${slug}`);
 
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    "name": product.name,
-    "description": product.Product_description?.replace(/<[^>]*>/g, '').substring(0, 200) || product.description,
-    "image": product.Gallery_Images?.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`) || [],
-    "sku": firstVariant?.SKU ,
-    "mpn": firstVariant?.MPN || undefined,
-    "gtin": firstVariant?.EIN || undefined,
-    "productID": product._id,
-    "productGroupID": product._id,
-    ...(product.brand ? {
-      "brand": {
-        "@type": "Brand",
-        "name": product.brand
-      }
-    } : {}),
-    "manufacturer": {
+    name: product.name,
+    description:
+      product.Product_description?.replace(/<[^>]*>/g, "").substring(0, 200) || product.description,
+    image:
+      product.Gallery_Images?.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`) ||
+      [],
+    sku: firstVariant?.SKU,
+    mpn: firstVariant?.MPN || undefined,
+    gtin: firstVariant?.EIN || undefined,
+    productID: product._id,
+    productGroupID: product._id,
+    ...(product.brand
+      ? {
+          brand: {
+            "@type": "Brand",
+            name: product.brand,
+          },
+        }
+      : {}),
+    manufacturer: {
       "@type": "Organization",
-      "name": product.brand || "Original Manufacturer"
+      name: product.brand || "Original Manufacturer",
     },
-    "category": product.category || "Electronics",
-    ...(product.variantValues && product.variantValues.length > 0 ? {
-      "hasVariant": product.variantValues.map((variant: any) => ({
-        "@type": "Product",
-        "name": variant.name || `${product.name} - ${variant.name}`,
-        "description": product.Product_description?.replace(/<[^>]*>/g, '').substring(0, 200) || product.description || `${product.name} in ${variant.name}`,
-        "image": variant.variantImages?.length > 0
-          ? variant.variantImages.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`)
-          : product.Gallery_Images?.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`) || [],
-        "sku": variant.SKU || variant._id,
-        "mpn": variant.MPN || undefined,
-        "gtin": variant.EIN || undefined,
-        "productGroupID": product._id,
-        "offers": {
-          "@type": "Offer",
-          "price": (variant.salePrice || variant.Price)?.toString(),
-          "priceCurrency": "GBP",
-          "availability": variant.Quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-          "itemCondition": variant.name?.toLowerCase().includes('new') || variant.name?.toLowerCase().includes('brand-new') ?
-            "https://schema.org/NewCondition" : "https://schema.org/RefurbishedCondition",
-          "shippingDetails": {
-            "@type": "OfferShippingDetails",
-            "shippingRate": {
-              "@type": "MonetaryAmount",
-              "value": "0",
-              "currency": "GBP"
-            },
-            "shippingDestination": {
-              "@type": "DefinedRegion",
-              "addressCountry": "GB"
-            },
-            "deliveryTime": {
-              "@type": "ShippingDeliveryTime",
-              "handlingTime": {
-                "@type": "QuantitativeValue",
-                "minValue": 0,
-                "maxValue": 1,
-                "unitCode": "DAY"
+    category: product.category || "Electronics",
+    ...(product.variantValues && product.variantValues.length > 0
+      ? {
+          hasVariant: product.variantValues.map((variant: any) => ({
+            "@type": "Product",
+            name: variant.name || `${product.name} - ${variant.name}`,
+            description:
+              product.Product_description?.replace(/<[^>]*>/g, "").substring(0, 200) ||
+              product.description ||
+              `${product.name} in ${variant.name}`,
+            image:
+              variant.variantImages?.length > 0
+                ? variant.variantImages.map(
+                    (img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`
+                  )
+                : product.Gallery_Images?.map(
+                    (img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`
+                  ) || [],
+            sku: variant.SKU || variant._id,
+            mpn: variant.MPN || undefined,
+            gtin: variant.EIN || undefined,
+            productGroupID: product._id,
+            offers: {
+              "@type": "Offer",
+              price: (variant.salePrice || variant.Price)?.toString(),
+              priceCurrency: "GBP",
+              availability:
+                variant.Quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+              itemCondition:
+                variant.name?.toLowerCase().includes("new") ||
+                variant.name?.toLowerCase().includes("brand-new")
+                  ? "https://schema.org/NewCondition"
+                  : "https://schema.org/RefurbishedCondition",
+              shippingDetails: {
+                "@type": "OfferShippingDetails",
+                shippingRate: {
+                  "@type": "MonetaryAmount",
+                  value: "0",
+                  currency: "GBP",
+                },
+                shippingDestination: {
+                  "@type": "DefinedRegion",
+                  addressCountry: "GB",
+                },
+                deliveryTime: {
+                  "@type": "ShippingDeliveryTime",
+                  handlingTime: {
+                    "@type": "QuantitativeValue",
+                    minValue: 0,
+                    maxValue: 1,
+                    unitCode: "DAY",
+                  },
+                  transitTime: {
+                    "@type": "QuantitativeValue",
+                    minValue: 1,
+                    maxValue: 2,
+                    unitCode: "DAY",
+                  },
+                },
               },
-              "transitTime": {
-                "@type": "QuantitativeValue",
-                "minValue": 1,
-                "maxValue": 2,
-                "unitCode": "DAY"
-              }
-            }
-          },
-          "hasMerchantReturnPolicy": {
-            "@type": "MerchantReturnPolicy",
-            "applicableCountry": "GB",
-            "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-            "merchantReturnDays": 30,
-            "returnMethod": "https://schema.org/ReturnByMail",
-            "returnFees": "https://schema.org/FreeReturn"
-          }
+              hasMerchantReturnPolicy: {
+                "@type": "MerchantReturnPolicy",
+                applicableCountry: "GB",
+                returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+                merchantReturnDays: 30,
+                returnMethod: "https://schema.org/ReturnByMail",
+                returnFees: "https://schema.org/FreeReturn",
+              },
+            },
+          })),
         }
-      }))
-    } : {}),
-    "offers": {
+      : {}),
+    offers: {
       "@type": "AggregateOffer" as const,
-      "url": `https://zextons.co.uk/products/${slug}`,
-      "offerCount": product.variantValues?.length || 1,
-      "lowPrice": minPrice,
-      "highPrice": maxPrice,
-      "priceCurrency": "GBP",
-      "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      "availability": hasStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      "itemCondition": product.variantValues?.[0]?.name?.toLowerCase().includes("new") ? "https://schema.org/NewCondition" : "https://schema.org/RefurbishedCondition",
-      "seller": {
+      url: productPageUrl,
+      offerCount: product.variantValues?.length || 1,
+      lowPrice: minPrice,
+      highPrice: maxPrice,
+      priceCurrency: "GBP",
+      priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      availability: hasStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition:
+        product.variantValues?.[0]?.name?.toLowerCase().includes("new")
+          ? "https://schema.org/NewCondition"
+          : "https://schema.org/RefurbishedCondition",
+      seller: {
         "@type": "Organization",
-        "name": "Zextons Tech Store",
-        "url": "https://zextons.co.uk",
-        "logo": "https://zextons.co.uk/logo.png"
+        name: "Aroma Desire",
+        url: site,
+        logo: `${site}/logo.png`,
       },
-      "shippingDetails": {
+      shippingDetails: {
         "@type": "OfferShippingDetails",
-        "shippingRate": {
+        shippingRate: {
           "@type": "MonetaryAmount",
-          "value": "0",
-          "currency": "GBP"
+          value: "0",
+          currency: "GBP",
         },
-        "shippingDestination": {
+        shippingDestination: {
           "@type": "DefinedRegion",
-          "addressCountry": "GB"
+          addressCountry: "GB",
         },
-        "deliveryTime": {
+        deliveryTime: {
           "@type": "ShippingDeliveryTime",
-          "handlingTime": {
+          handlingTime: {
             "@type": "QuantitativeValue",
-            "minValue": 0,
-            "maxValue": 1,
-            "unitCode": "DAY"
+            minValue: 0,
+            maxValue: 1,
+            unitCode: "DAY",
           },
-          "transitTime": {
+          transitTime: {
             "@type": "QuantitativeValue",
-            "minValue": 1,
-            "maxValue": 2,
-            "unitCode": "DAY"
-          }
-        }
+            minValue: 1,
+            maxValue: 2,
+            unitCode: "DAY",
+          },
+        },
       },
-      "hasMerchantReturnPolicy": {
+      hasMerchantReturnPolicy: {
         "@type": "MerchantReturnPolicy",
-        "applicableCountry": "GB",
-        "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-        "merchantReturnDays": 30,
-        "returnMethod": "https://schema.org/ReturnByMail",
-        "returnFees": "https://schema.org/FreeReturn"
+        applicableCountry: "GB",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 30,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/FreeReturn",
       },
-      "warranty": {
+      warranty: {
         "@type": "WarrantyPromise",
-        "durationOfWarranty": {
+        durationOfWarranty: {
           "@type": "QuantitativeValue",
-          "value": 18,
-          "unitCode": "MON"
+          value: 18,
+          unitCode: "MON",
         },
-        "warrantyScope": product.variantValues?.[0]?.name?.toLowerCase().includes('new') ?
-          "https://schema.org/NewCondition" : "https://schema.org/RefurbishedCondition"
-      }
-    },
-    ...(averageRating > 0 && totalReviews > 0 ? {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": averageRating,
-        "reviewCount": totalReviews,
-        "bestRating": "5",
-        "worstRating": "1"
+        warrantyScope:
+          product.variantValues?.[0]?.name?.toLowerCase().includes("new")
+            ? "https://schema.org/NewCondition"
+            : "https://schema.org/RefurbishedCondition",
       },
-      "review": reviews.map((review: any) => ({
-        "@type": "Review",
-        "author": {
-          "@type": "Person",
-          "name": review.name || "Anonymous"
-        },
-        "datePublished": new Date(review.DateTime || review.createdAt).toISOString().split('T')[0],
-        "reviewBody": review.comment,
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": review.rating,
-          "bestRating": "5",
-          "worstRating": "1"
+    },
+    ...(averageRating > 0 && totalReviews > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: averageRating,
+            reviewCount: totalReviews,
+            bestRating: "5",
+            worstRating: "1",
+          },
+          review: reviews.map((review: any) => ({
+            "@type": "Review",
+            author: {
+              "@type": "Person",
+              name: review.name || "Anonymous",
+            },
+            datePublished: new Date(review.DateTime || review.createdAt).toISOString().split("T")[0],
+            reviewBody: review.comment,
+            reviewRating: {
+              "@type": "Rating",
+              ratingValue: review.rating,
+              bestRating: "5",
+              worstRating: "1",
+            },
+          })),
         }
-      }))
-    } : {}),
-    "url": `https://zextons.co.uk/products/${slug}`
+      : {}),
+    url: productPageUrl,
   };
-};
+}
 
-export const generateBreadcrumbSchema = (
-  product: ProductData,
-  slug: string
-) => {
+export async function generateBreadcrumbSchema(product: ProductData, slug: string) {
+  const site = await getCanonical("");
+  const productsUrl = await getCanonical("/products");
+  const categoryUrl = await getCanonical(
+    `/categories/${encodeURIComponent(product.category || "electronics")}`
+  );
+  const productUrl = await getCanonical(`/products/${slug}`);
+
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": [
+    itemListElement: [
       {
         "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://zextons.co.uk"
+        position: 1,
+        name: "Home",
+        item: site,
       },
       {
         "@type": "ListItem",
-        "position": 2,
-        "name": "Products",
-        "item": "https://zextons.co.uk/products"
+        position: 2,
+        name: "Products",
+        item: productsUrl,
       },
       {
         "@type": "ListItem",
-        "position": 3,
-        "name": product.category || "Electronics",
-        "item": `https://zextons.co.uk/categories/${encodeURIComponent(product.category || 'electronics')}`
+        position: 3,
+        name: product.category || "Electronics",
+        item: categoryUrl,
       },
       {
         "@type": "ListItem",
-        "position": 4,
-        "name": product.name,
-        "item": `https://zextons.co.uk/products/${slug}`
-      }
-    ]
+        position: 4,
+        name: product.name,
+        item: productUrl,
+      },
+    ],
   };
-};
+}

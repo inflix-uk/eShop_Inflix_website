@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getCanonical } from "@/lib/getCanonical";
+import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 import {
   fetchFooterPageBySlug,
   type FooterPage,
@@ -39,9 +41,7 @@ export async function generateMetadata({
   const title = page.metaTitle || page.title;
   const description =
     page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
-  // Get base URL from environment variable
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:4000";
-  const pageUrl = `${baseUrl}/footer-pages/${slug}`;
+  const canonicalUrl = await getCanonical(`/footer-pages/${slug}`);
 
   // Get API URL for image construction
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -53,7 +53,7 @@ export async function generateMetadata({
     openGraph: {
       siteName: "Zextons",
       title: title,
-      url: pageUrl,
+      url: canonicalUrl,
       description: description,
       type: "website",
       images: page.bannerImage
@@ -82,8 +82,8 @@ export async function generateMetadata({
         : [{ url: `${apiUrl}/uploads/web/Zextons.webp` }],
     },
     alternates: {
-      canonical: pageUrl,
-      languages: { "en-gb": pageUrl },
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
     },
   };
 
@@ -111,17 +111,17 @@ export default async function FooterPageLayout({
     console.error("Error fetching page for layout:", error);
   }
 
+  const jsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
+
   return (
     <>
-      {/* Render meta schemas if available */}
-      {page?.metaSchema &&
-        page.metaSchema.map((schema, index) => (
-          <script
-            key={index}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: schema }}
-          />
-        ))}
+      {jsonLdStrings.map((json, index) => (
+        <script
+          key={index}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: json }}
+        />
+      ))}
       {children}
     </>
   );

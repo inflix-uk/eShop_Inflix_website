@@ -35,8 +35,12 @@ export const addToCart = (
       salePrice: updatedPrice,
       selectedSim: selectedSim, // Include the selected SIM option
       productthumbnail:
-        product?.productType?.type === "single"
-          ? product.thumbnail_image?.filename || ""
+        product?.productType?.type === "single" && product.thumbnail_image
+          ? {
+              url: product.thumbnail_image.url,
+              path: product.thumbnail_image.path,
+              filename: product.thumbnail_image.filename,
+            }
           : undefined,
       name: variant.name || "", // Include name from variant
       // Store gallery images as fallback when variant has no images

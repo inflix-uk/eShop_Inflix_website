@@ -1,24 +1,33 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDisabledMarketingSlug } from "@/app/lib/disabledMarketingRoutes";
+import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const url = request.nextUrl.clone();
+  const pathname = url.pathname;
+
+  // Ignore Next internals, API routes, and static assets/files.
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.includes(".")
+  ) {
+    return NextResponse.next();
+  }
+
+  // Align with getCanonical / next.config trailingSlash: lowercase + trailing slash policy
+  const normalized = normalizeSitePathname(pathname);
+
+  if (normalized !== pathname) {
+    url.pathname = normalized;
+    return NextResponse.redirect(url, 301);
+  }
 
   if (isDisabledMarketingSlug(pathname)) {
     return NextResponse.rewrite(
       new URL("/__disabled-marketing-route", request.url)
     );
-  }
-
-  // Enforce lowercase URLs for /categories/ routes
-  if (pathname.startsWith("/categories/")) {
-    const lowercased = pathname.toLowerCase();
-    if (pathname !== lowercased) {
-      const url = request.nextUrl.clone();
-      url.pathname = lowercased;
-      return NextResponse.redirect(url, 301);
-    }
   }
 
   // Redirect old /subcategory/ URLs to new /categories/ structure
@@ -40,7 +49,8 @@ export async function middleware(request: NextRequest) {
 
         if (parentCategory) {
           const url = request.nextUrl.clone();
-          url.pathname = `/categories/${parentCategory.toLowerCase()}/${subcategorySlug.toLowerCase()}`;
+          const base = `/categories/${parentCategory.toLowerCase()}/${subcategorySlug.toLowerCase()}`;
+          url.pathname = normalizeSitePathname(base);
           return NextResponse.redirect(url, 301);
         }
       }
@@ -54,29 +64,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/subcategory/:path*",
-    "/categories/:path*",
-    "/subscribe-newsletter",
-    "/subscribe-newsletter/:path*",
-    "/why-buying-a-refurbished-iphone-is-a-good-idea",
-    "/why-buying-a-refurbished-iphone-is-a-good-idea/:path*",
-    "/buy-now-pay-later",
-    "/buy-now-pay-later/:path*",
-    "/customer-reviews",
-    "/customer-reviews/:path*",
-    "/recycle-mobile-phone",
-    "/recycle-mobile-phone/:path*",
-    "/Sustainability",
-    "/Sustainability/:path*",
-    "/sustainability",
-    "/sustainability/:path*",
-    "/18-months-warranty",
-    "/18-months-warranty/:path*",
-    "/faqs",
-    "/faqs/:path*",
-    "/about-zextons",
-    "/about-zextons/:path*",
-    "/deals-and-discounts",
-    "/deals-and-discounts/:path*",
+    // Apply middleware broadly, excluding Next internals/API/static files.
+    "/((?!api|_next|.*\\..*).*)",
   ],
 };

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import PropTypes from "prop-types";
 import ClientBlogPage from "./ClientBlogPage";
 import { getFullImageUrl } from "./blogUtils";
+import { getCanonical } from "@/lib/getCanonical";
 
 // Server-side data fetching function
 async function getBlogPostBySlugWithoutCache(slug) {
@@ -17,16 +18,15 @@ async function getBlogPostBySlugWithoutCache(slug) {
   }
 }
 
-// Generate metadata for SEO
+// Generate metadata for SEO (CMS fields only; no hardcoded brand copy)
 export async function generateMetadata({ params }) {
-  const { slug } = params;
+  const { slug } = await params;
 
-  // Validate slug exists
   if (!slug || slug.trim() === "") {
     return {
-      title: 'Invalid Blog URL - Zextons',
-      description: 'The requested blog URL is invalid.',
-      robots: 'noindex, nofollow'
+      title: "",
+      description: "",
+      robots: "noindex, nofollow",
     };
   }
 
@@ -34,34 +34,63 @@ export async function generateMetadata({ params }) {
 
   if (!blog) {
     return {
-      title: 'Blog Post Not Found - Zextons',
-      description: 'The requested blog post could not be found.',
-      robots: 'noindex, nofollow'
+      title: "",
+      description: "",
+      robots: "noindex, nofollow",
     };
   }
 
+  const canonicalUrl = await getCanonical(`/blogs/new/${slug}`);
+  const metaTitle =
+    typeof blog.metaTitle === "string" ? blog.metaTitle.trim() : "";
+  const displayTitle = metaTitle || "";
+  const metaDesc =
+    typeof blog.metaDescription === "string"
+      ? blog.metaDescription.trim()
+      : "";
+  const description = metaDesc || "";
+  const banner =
+    typeof blog.bannerImage === "string" ? blog.bannerImage : "";
+  const featured =
+    typeof blog.featuredImage === "string" ? blog.featuredImage : "";
+  const rawImg = banner || featured;
+  const ogImage = rawImg ? getFullImageUrl(rawImg) : undefined;
+  const keywords =
+    Array.isArray(blog.metaTags) && blog.metaTags.length
+      ? blog.metaTags
+          .filter((t) => typeof t === "string")
+          .join(", ")
+      : undefined;
+
   return {
-    title: `${blog.title} - Zextons`,
-    description: blog.excerpt || 'Read our latest blog post on Zextons',
+    title: displayTitle,
+    description,
+    ...(keywords ? { keywords } : {}),
+    robots: "index, follow, max-image-preview:large, max-snippet:-1",
     openGraph: {
-      title: blog.title,
-      description: blog.excerpt || 'Read our latest blog post on Zextons',
-      images: blog.bannerImage ? [getFullImageUrl(blog.bannerImage)] : [],
-      type: 'article',
+      title: displayTitle,
+      description,
+      type: "article",
       publishedTime: blog.publishDate,
       modifiedTime: blog.updatedAt,
-      tags: blog.tags || [],
-      url: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/new/${slug}`
+      url: canonicalUrl,
+      images: ogImage ? [ogImage] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: displayTitle,
+      description,
+      images: ogImage ? [ogImage] : [],
     },
     alternates: {
-      canonical: `${process.env.NEXT_PUBLIC_BASE_URL}/blogs/new/${slug}`,
-    }
+      canonical: canonicalUrl,
+    },
   };
 }
 
 // Main Component
 export default async function BlogPreviewPage({ params }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   // Validate slug exists
   if (!slug || slug.trim() === "") {
@@ -75,27 +104,35 @@ export default async function BlogPreviewPage({ params }) {
     notFound();
   }
   
-  // Add structured data for SEO
+  const pageUrl = await getCanonical(`/blogs/new/${slug}`);
+  const metaTitle =
+    typeof blog.metaTitle === "string" ? blog.metaTitle.trim() : "";
+  const headline = metaTitle || (typeof blog.title === "string" ? blog.title : "");
+  const metaDesc =
+    typeof blog.metaDescription === "string"
+      ? blog.metaDescription.trim()
+      : "";
+  const description = metaDesc || (typeof blog.excerpt === "string" ? blog.excerpt : "");
+  const banner =
+    typeof blog.bannerImage === "string" ? blog.bannerImage : "";
+  const featured =
+    typeof blog.featuredImage === "string" ? blog.featuredImage : "";
+  const imagePath = banner || featured;
+  const imageUrl = imagePath ? getFullImageUrl(imagePath) : undefined;
+
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-    "headline": blog.title,
-    "datePublished": blog.publishDate,
-    "dateModified": blog.updatedAt,
-    "author": {
-      "@type": "Organization",
-      "name": "Zextons"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Zextons",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://zextons.co.uk/logo.png"
-      }
-    },
-    "description": blog.excerpt || ""
+    headline,
+    description,
+    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+    url: pageUrl,
+    datePublished: blog.publishDate,
+    dateModified: blog.updatedAt,
   };
+  if (imageUrl) {
+    structuredData.image = imageUrl;
+  }
 
   return (
     <>

@@ -3,13 +3,13 @@
  * Fetches the website logo from the backend API
  */
 
-// Get API base URL from environment variable
+import { cache } from "react";
+
+// Origin only — paths are joined as `${base}/get/logo` (avoid `//` after host).
 const getApiBaseUrl = (): string => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) {
-    return `${process.env.NEXT_PUBLIC_API_URL}`;
-  }
-  return apiUrl;
+  if (!apiUrl) return "";
+  return apiUrl.replace(/\/+$/, "");
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -130,10 +130,24 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
 }
 
 /**
+ * Strips legacy stock “Zextons” web image when the admin API still points the favicon at it.
+ * Otherwise non-HTML routes (e.g. `/sitemap.xml`) pick it up via `/favicon.ico` / metadata icons.
+ */
+function sanitizePublicFaviconUrl(url: string | null): string | null {
+  if (!url || url.trim() === "") return null;
+  const pathOnly = url.split("?")[0].toLowerCase();
+  if (/\/uploads\/web\/zextons\.(webp|png|jpg|jpeg|ico)$/i.test(pathOnly)) {
+    return null;
+  }
+  return url;
+}
+
+/**
  * Public logo + favicon settings for metadata and branding.
  * Returns resolved URLs (or null) even when only one of logo/favicon is set.
+ * Cached per request so `generateMetadata` and root layout share one upstream response (avoids mismatched favicon tags).
  */
-export async function getLogoSettingsPublic(): Promise<LogoSettings | null> {
+async function fetchLogoSettingsPublic(): Promise<LogoSettings | null> {
   try {
     const endpoints = [
       `${API_BASE_URL}/get/logo/public`,
@@ -158,7 +172,8 @@ export async function getLogoSettingsPublic(): Promise<LogoSettings | null> {
         const logoPath = data.data.logoUrl?.trim();
         const faviconPath = data.data.faviconUrl?.trim();
         const logoUrl = logoPath ? getLogoUrl(logoPath) : null;
-        const faviconUrl = faviconPath ? getLogoUrl(faviconPath) : null;
+        const rawFavicon = faviconPath ? getLogoUrl(faviconPath) : null;
+        const faviconUrl = sanitizePublicFaviconUrl(rawFavicon);
         const faviconVersion =
           data.data.faviconVersion ??
           (data.data.updatedAt
@@ -181,3 +196,5 @@ export async function getLogoSettingsPublic(): Promise<LogoSettings | null> {
     return null;
   }
 }
+
+export const getLogoSettingsPublic = cache(fetchLogoSettingsPublic);

@@ -11,20 +11,20 @@ export const getSeoMetaData = (
   if (!productMetaData || !productType) {
     console.warn("Product metadata or product type is missing.");
     return {
-      metaTitle: "Default Title",
-      metaDescription: "Default Description",
+      metaTitle: "",
+      metaDescription: "",
       metaKeywords: "",
       metaSchemas: [],
       metaImage: "",
     };
   }
 
-  const defaultTitle = `Buy ${response.name} at Zextons`;
-  const defaultDescription = `Get ${response.name} in excellent condition`;
+  const defaultTitle = "";
+  const defaultDescription = "";
 
   let metaTitle = defaultTitle;
   let metaDescription = defaultDescription;
-  let metaKeywords = response.name || "";
+  let metaKeywords = "";
   let metaSchemas = [];
   let metaImage = "";
 
@@ -51,7 +51,7 @@ export const getSeoMetaData = (
     if (activeVariant) {
       metaTitle = activeVariant.metaTitle || defaultTitle;
       metaDescription = activeVariant.metaDescription || defaultDescription;
-      metaKeywords = activeVariant.metaKeywords || response.name;
+      metaKeywords = activeVariant.metaKeywords || "";
       metaSchemas = activeVariant.metaSchemas || [];
       metaImage = activeVariant.metaImage?.path || "";
     } else {
@@ -60,7 +60,7 @@ export const getSeoMetaData = (
   } else if (productType === "single") {
     metaTitle = productMetaData.metaTitle || defaultTitle;
     metaDescription = productMetaData.metaDescription || defaultDescription;
-    metaKeywords = productMetaData.metaKeywords || response.name;
+    metaKeywords = productMetaData.metaKeywords || "";
     metaSchemas = productMetaData.metaSchemas || [];
     metaImage = response.meta_Image?.path || "";
   }
