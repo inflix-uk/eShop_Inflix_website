@@ -5,7 +5,7 @@
 const apiBase = (): string =>
   (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
-export const DEFAULT_HEADER_SUPPORT_PHONE = "0333 344 8541";
+export const DEFAULT_HEADER_SUPPORT_PHONE = "";
 
 export async function fetchNavbarHeaderPublic(): Promise<{
   supportPhone: string;

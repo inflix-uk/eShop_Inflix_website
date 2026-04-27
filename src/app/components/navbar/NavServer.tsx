@@ -100,15 +100,19 @@ export default function NavServer({ categories }: NavServerProps) {
         {/* <li>
           <Link href="/faqs">FAQs</Link>
         </li> */}
+        {/* Route disabled: /terms-and-conditions (see DISABLED_FOOTER_PAGE_SLUGS in app/[slug]/page.tsx)
         <li>
           <Link href="/terms-and-conditions">Terms</Link>
         </li>
+        */}
         <li>
           <Link href="/privacy-policy">Privacy</Link>
         </li>
+        {/* Route disabled: /refund-and-return-policy (see DISABLED_FOOTER_PAGE_SLUGS in app/[slug]/page.tsx)
         <li>
           <Link href="/refund-and-return-policy">Returns</Link>
         </li>
+        */}
         <li>
           <Link href="/shipping-policy">Shipping</Link>
         </li>

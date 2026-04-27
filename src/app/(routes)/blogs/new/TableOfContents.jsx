@@ -61,7 +61,9 @@ const TableOfContents = () => {
       <div
         className={`${isTocVisible ? "block" : "hidden"} md:block bg-white shadow-lg p-4 mb-6 rounded-lg border border-gray-200`}
       >
-        <h2 className="font-bold text-xl mb-4">Table of Contents</h2>
+        <p className="m-0 font-bold text-xl mb-4 text-gray-900">
+          Table of Contents
+        </p>
         <ul className="space-y-2">
           {headings.map((heading, index) => (
             <li key={index} className={`pl-${(heading.level - 1) * 3} text-xs`}>

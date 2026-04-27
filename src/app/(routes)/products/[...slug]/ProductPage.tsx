@@ -28,6 +28,7 @@ import ProductsYouMayLike from "@/app/(routes)/products/components/ProductsYouMa
 import ProductSummary from "@/app/(routes)/products/components/ProductSummary";
 import ProductDescription from "@/app/(routes)/products/components/ProductDescription";
 import DialogList from "@/app/(routes)/products/components/DialogList";
+import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
 import { useParams } from "next/navigation";
 import {
   CartItem,
@@ -128,7 +129,11 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
   } | null>(null);
 
   const breadcrumb = [
-    { name: product?.name, link: `/products/${productName}`, current: true },
+    {
+      name: product?.name,
+      link: normalizeSitePathname(`/products/${productName}`),
+      current: true,
+    },
   ];
   const today = new Date();
   // Get the current time
@@ -387,6 +392,14 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     });
     return variant;
   };
+
+  useEffect(() => {
+    document.documentElement.classList.add("has-product-sticky-buy-bar");
+    return () => {
+      document.documentElement.classList.remove("has-product-sticky-buy-bar");
+    };
+  }, []);
+
   useEffect(() => {
     if (
       product &&
@@ -671,34 +684,6 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
   }, [openCart]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 
-  // Function to update product URL based on selected options
-  // Function to generate a title based on variant information
-  const generateVariantTitle = (
-    product: ProductData,
-    variant: SelectedVariant,
-    options: Record<string, string>
-  ) => {
-    if (!product || !variant) return "";
-
-    // Extract variant components
-    const storage = (options as { storage: string })["storage"] || "";
-    const color = (options as { color: string })["color"] || "";
-    const condition = (options as { condition: string })["condition"] || "";
-
-    // Create a formatted title
-    let title = product.name || "";
-
-    // Add variant details to the title
-    const variantDetails = [condition, color, storage]
-      .filter(Boolean)
-      .join(" - ");
-    if (variantDetails) {
-      title = `${title} - ${variantDetails}`;
-    }
-
-    return title;
-  };
-
   const updateProductUrl = useCallback(
     (selectedVariant: any, currentOptions: Record<string, string>) => {
       if (!product || !product.producturl) return;
@@ -722,10 +707,9 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
       const baseSlug = product.producturl?.replace(/-\d{13}$/, "") ?? product.producturl;
 
       if (!hasAllRequiredVariants) {
-        const expectedUrl = `/products/${baseSlug}`;
-        if (location.pathname !== expectedUrl) {
+        const expectedUrl = normalizeSitePathname(`/products/${baseSlug}`);
+        if (normalizeSitePathname(location.pathname) !== expectedUrl) {
           window.history.replaceState({}, "", expectedUrl);
-          updateCanonicalUrl(baseSlug);
         }
         return;
       }
@@ -752,104 +736,65 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
           .join("-");
       }
 
-      const expectedUrl = `/products/${baseSlug}/${variantName}`;
+      const expectedUrl = normalizeSitePathname(
+        `/products/${baseSlug}/${variantName}`
+      );
 
-      if (location.pathname !== expectedUrl) {
+      if (normalizeSitePathname(location.pathname) !== expectedUrl) {
         window.history.replaceState({}, "", expectedUrl);
-        updateCanonicalUrl(`${baseSlug}/${variantName}`);
       }
     },
     [product]
   );
-
-  // Function to update canonical URL tag
-  const updateCanonicalUrl = (productUrlWithVariant: string) => {
-    // Find existing canonical link or create a new one
-    let canonicalLink = document.querySelector(
-      'link[rel="canonical"]'
-    ) as HTMLLinkElement;
-
-    if (!canonicalLink) {
-      canonicalLink = document.createElement("link");
-      canonicalLink.rel = "canonical";
-      document.head.appendChild(canonicalLink);
-    }
-
-    // Update the href attribute with the new URL
-    const fullCanonicalUrl = `${window.location.origin}/products/${productUrlWithVariant}`;
-    canonicalLink.href = fullCanonicalUrl;
-  };
 
   // Initial URL update on component mount and when product/variant changes
   useEffect(() => {
     if (product && selectedVariant && selectedOptions) {
       updateProductUrl(selectedVariant, selectedOptions);
 
-      // Update page metadata when variant changes
-      // Create a title based on variant information if metaTitle is not available
-      const variantTitle =
-        selectedVariant.metaTitle ||
-        generateVariantTitle(product, selectedVariant, selectedOptions);
-      if (variantTitle) {
-        document.title = variantTitle;
+      // Sync document meta with CMS only (same rules as server generateMetadata)
+      const pathParts = window.location.pathname
+        .replace(/^\/products\//, "")
+        .split("/")
+        .filter(Boolean);
+      const isVariantUrl = pathParts.length > 1;
+      const cmsTitle = isVariantUrl
+        ? String(selectedVariant.metaTitle || "")
+        : String(product.Seo_Meta?.metaTitle || "");
+      const cmsDescription = isVariantUrl
+        ? String(selectedVariant.metaDescription || "")
+        : String(product.Seo_Meta?.metaDescription || "");
+      const cmsKeywords = isVariantUrl
+        ? String(selectedVariant.metaKeywords || "")
+        : String(product.Seo_Meta?.metaKeywords || "");
 
-        // Also update the title meta tag
-        let metaTitleTag = document.querySelector('meta[property="og:title"]');
-        if (!metaTitleTag) {
-          metaTitleTag = document.createElement("meta");
-          metaTitleTag.setAttribute("property", "og:title");
-          document.head.appendChild(metaTitleTag);
-        }
-        metaTitleTag.setAttribute("content", variantTitle);
+      document.title = cmsTitle;
 
-        // Update the h1 title in the DOM if it exists
-        const titleElements = document.querySelectorAll("h1.product-title");
-        if (titleElements.length > 0) {
-          titleElements.forEach((el) => {
-            el.textContent = variantTitle;
-          });
-        }
+      let metaTitleTag = document.querySelector('meta[property="og:title"]');
+      if (!metaTitleTag) {
+        metaTitleTag = document.createElement("meta");
+        metaTitleTag.setAttribute("property", "og:title");
+        document.head.appendChild(metaTitleTag);
       }
+      metaTitleTag.setAttribute("content", cmsTitle);
 
-      // Update meta description
       let metaDescription = document.querySelector('meta[name="description"]');
       if (!metaDescription) {
         metaDescription = document.createElement("meta");
         metaDescription.setAttribute("name", "description");
         document.head.appendChild(metaDescription);
       }
-      if (selectedVariant.metaDescription) {
-        metaDescription.setAttribute(
-          "content",
-          selectedVariant.metaDescription
-        );
-      }
+      metaDescription.setAttribute("content", cmsDescription);
 
-      // Update meta keywords
       let metaKeywords = document.querySelector('meta[name="keywords"]');
       if (!metaKeywords) {
         metaKeywords = document.createElement("meta");
         metaKeywords.setAttribute("name", "keywords");
         document.head.appendChild(metaKeywords);
       }
-      if (selectedVariant.metaKeywords) {
-        metaKeywords.setAttribute("content", selectedVariant.metaKeywords);
-      }
+      metaKeywords.setAttribute("content", cmsKeywords);
     }
   }, [product, selectedVariant, selectedOptions, updateProductUrl]);
-
-  // Set canonical URL on initial page load
-  useEffect(() => {
-    if (product && product.producturl) {
-      // Get current URL path without domain
-      const currentPath = window.location.pathname;
-      const productSlug =
-        currentPath.split("/products/")[1] || (product.producturl?.replace(/-\d{13}$/, "") ?? "");
-
-      // Update canonical URL with current path
-      updateCanonicalUrl(productSlug);
-    }
-  }, [product]);
 
   const addToCart = async (
     variant: { [x: string]: string; _id: string } | null

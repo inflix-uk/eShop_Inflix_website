@@ -312,73 +312,73 @@ export default function ImagePart({
         className="flex flex-col-reverse xl:flex-row lg:sticky top-28"
       >
         {/* Image selector */}
-        <div className="mx-auto mt-2 max-w-2xl md:w-fit w-full">
-          {/* Scrollable container for more than 4 images on mobile/tablet */}
-          <div className={`${images?.length > 4 ? 'xl:block max-h-[420px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
-            <TabList className={`grid xl:grid-cols-1 md:gap-6 gap-2 mt-4 px-4 justify-end ${
-              images?.length > 4 
-                ? 'grid-cols-4 xl:grid-cols-1' 
-                : 'grid-cols-4 xl:grid-cols-1'
-            }`}>
-              {/* Show first 4 images in grid on mobile when more than 4 images */}
-              {images?.length > 4 ? (
-                <>
-                  {/* Mobile/Tablet: Horizontal scrollable thumbnails */}
-                  <div className="xl:hidden col-span-4 flex gap-4 overflow-x-auto pt-4 pb-4 px-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ minHeight: '115px' }}>
-                    {images?.map(
-                      (
-                        image: { filename?: string; id?: string; path?: string; altText?: string },
-                        index: number
-                      ) => (
-                        <Tab
-                          key={image?.filename || image?.id || index}
-                          className={`tab-rotate-on-load relative flex-shrink-0 w-[80px] h-[95px] cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-2 ${
-                            currentIndex === index
-                              ? "ring-green-500 ring-2 ring-offset-2"
-                              : "ring-1 ring-gray-200"
-                          }`}
-                          onClick={() => setCurrentIndex(index)}
-                        >
-                          {() => (
-                            <>
-                              <span className="sr-only">{image?.altText || image?.filename}</span>
-                              <span className="absolute inset-0 overflow-hidden rounded-md">
-                                <Image
-                                  src={getImageUrl(image)}
-                                  alt={getImageAlt(image, index)}
-                                  className="object-contain object-center"
-                                  fill
-                                  sizes="80px"
-                                  placeholder="blur"
-                                  blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
-                                  priority={index === 0}
-                                  quality={75}
-                                  loading={index === 0 ? "eager" : "lazy"}
-                                />
-                              </span>
-                              <span
-                                className={
-                                  currentIndex === index
-                                    ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                                    : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                                }
-                                aria-hidden="true"
-                              />
-                            </>
-                          )}
-                        </Tab>
-                      )
-                    )}
-                  </div>
-                  {/* Desktop: Vertical thumbnails (hidden on mobile) */}
-                  {images?.map(
+        <div className="mx-auto mt-2 w-full max-w-2xl md:w-fit xl:mx-0 xl:shrink-0">
+          {/* Many thumbnails: one padded scroll area (no clipping vs scrollbar); xl = narrow fixed-width rail */}
+          <div
+            className={
+              images?.length > 4
+                ? [
+                    "rounded-xl border border-gray-200/90 bg-gray-50/60 shadow-sm",
+                    "max-h-[min(28rem,52vh)] overflow-y-auto overflow-x-hidden overscroll-y-contain",
+                    "p-2.5 sm:p-3",
+                    "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent",
+                    "xl:w-[8.25rem] xl:max-h-[min(420px,72vh)] xl:p-2 xl:[scrollbar-gutter:stable]",
+                  ].join(" ")
+                : ""
+            }
+          >
+            <TabList
+              className={
+                images?.length > 4
+                  ? "mt-0 grid grid-cols-4 gap-x-2 gap-y-3 justify-items-center sm:gap-x-3 xl:flex xl:w-full xl:flex-col xl:items-center xl:gap-4 xl:px-1 xl:py-1"
+                  : "mt-4 grid grid-cols-4 gap-2 px-4 md:gap-6 xl:grid-cols-1 xl:justify-end"
+              }
+            >
+              {images?.length > 4
+                ? images?.map(
                     (
                       image: { filename?: string; id?: string; path?: string; altText?: string },
                       index: number
                     ) => (
                       <Tab
-                        key={`desktop-${image?.filename || image?.id || index}`}
-                        className={`tab-rotate-on-load relative hidden xl:flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
+                        key={image?.filename || image?.id || index}
+                        className={`tab-rotate-on-load relative flex h-[95px] w-[80px] shrink-0 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-2 xl:my-1 xl:h-24 xl:w-20 ${
+                          currentIndex === index
+                            ? "ring-2 ring-green-500 ring-offset-2 ring-offset-white"
+                            : "ring-1 ring-gray-200 ring-offset-2 ring-offset-white"
+                        }`}
+                        onClick={() => setCurrentIndex(index)}
+                      >
+                        {() => (
+                          <>
+                            <span className="sr-only">{image?.altText || image?.filename}</span>
+                            <span className="absolute inset-0 overflow-hidden rounded-md">
+                              <Image
+                                src={getImageUrl(image)}
+                                alt={getImageAlt(image, index)}
+                                className="object-contain object-center"
+                                fill
+                                sizes="(max-width: 1279px) 80px, 5rem"
+                                placeholder="blur"
+                                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+                                priority={index === 0}
+                                quality={75}
+                                loading={index === 0 ? "eager" : "lazy"}
+                              />
+                            </span>
+                          </>
+                        )}
+                      </Tab>
+                    )
+                  )
+                : images?.map(
+                    (
+                      image: { filename?: string; id?: string; path?: string; altText?: string },
+                      index: number
+                    ) => (
+                      <Tab
+                        key={image?.filename || image?.id || index}
+                        className={`tab-rotate-on-load relative flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
                           currentIndex === index
                             ? "ring-green-500 ring-2 ring-offset-2"
                             : ""
@@ -394,7 +394,7 @@ export default function ImagePart({
                                 alt={getImageAlt(image, index)}
                                 className="object-contain object-center"
                                 fill
-                                sizes="5rem"
+                                sizes="(min-width: 768px) 5rem, 25vw"
                                 placeholder="blur"
                                 blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
                                 priority={index === 0}
@@ -415,54 +415,6 @@ export default function ImagePart({
                       </Tab>
                     )
                   )}
-                </>
-              ) : (
-                /* 4 or fewer images - original grid layout */
-                images?.map(
-                  (
-                    image: { filename?: string; id?: string; path?: string; altText?: string },
-                    index: number
-                  ) => (
-                    <Tab
-                      key={image?.filename || image?.id || index}
-                      className={`tab-rotate-on-load relative flex md:w-20 h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
-                        currentIndex === index
-                          ? "ring-green-500 ring-2 ring-offset-2"
-                          : ""
-                      }`}
-                      onClick={() => setCurrentIndex(index)}
-                    >
-                      {() => (
-                        <>
-                          <span className="sr-only">{image?.altText || image?.filename}</span>
-                          <span className="absolute inset-0 overflow-hidden rounded-md">
-                            <Image
-                              src={getImageUrl(image)}
-                              alt={getImageAlt(image, index)}
-                              className="object-contain object-center"
-                              fill
-                              sizes="(min-width: 768px) 5rem, 25vw"
-                              placeholder="blur"
-                              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
-                              priority={index === 0}
-                              quality={75}
-                              loading={index === 0 ? "eager" : "lazy"}
-                            />
-                          </span>
-                          <span
-                            className={
-                              currentIndex === index
-                                ? `ring-green-500 pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                                : `ring-transparent pointer-events-none absolute inset-0 rounded-md ring-2 ring-offset-2`
-                            }
-                            aria-hidden="true"
-                          />
-                        </>
-                      )}
-                    </Tab>
-                  )
-                )
-              )}
             </TabList>
           </div>
         </div>

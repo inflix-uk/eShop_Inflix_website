@@ -1,56 +1,12 @@
 import type { Metadata } from "next";
+import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
+import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
+import { fetchFooterPageBySlug } from "@/app/services/footerPageService";
 
-async function getMetaData() {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const res = await fetch(
-      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/privacy-policy")}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch {
-    return null;
-  }
-}
+const FOOTER_PAGE_SLUG = "privacy-policy";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const metaData = await getMetaData();
-
-  if (!metaData) {
-    return {
-      title: "Privacy Policy | Zextons Tech Store",
-      description: "Privacy policy for Zextons Tech Store",
-      robots: "index, follow",
-    };
-  }
-
-  return {
-    title: metaData.titleTag,
-    description: metaData.metaDescription,
-    keywords: metaData.metaKeywords,
-    robots: "index, follow",
-    openGraph: {
-      siteName: "Zextons",
-      title: metaData.titleTag,
-      url: "https://zextons.co.uk/privacy-policy",
-      description: metaData.metaDescription,
-      type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: metaData.titleTag,
-      description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-    },
-    alternates: {
-      canonical: "https://zextons.co.uk/privacy-policy",
-      languages: { "en-gb": "https://zextons.co.uk/privacy-policy" },
-    },
-  };
+  return metadataForFooterPolicyPage("/privacy-policy", FOOTER_PAGE_SLUG);
 }
 
 export default async function PrivacyandPolicyLayout({
@@ -58,15 +14,22 @@ export default async function PrivacyandPolicyLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const metaData = await getMetaData();
+  let page = null;
+  try {
+    page = await fetchFooterPageBySlug(FOOTER_PAGE_SLUG);
+  } catch {
+    /* ignore */
+  }
+
+  const jsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
 
   return (
     <>
-      {metaData?.metaSchemas?.map((schema: string, index: number) => (
+      {jsonLdStrings.map((json, index) => (
         <script
           key={index}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: schema }}
+          dangerouslySetInnerHTML={{ __html: json }}
         />
       ))}
       {children}

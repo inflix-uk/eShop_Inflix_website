@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
+import { getCanonical } from "@/lib/getCanonical";
 
 function toOriginalCase(slug: string) {
   return slug
@@ -47,54 +47,39 @@ export async function generateMetadata({
 
   if (!response) {
     return {
-      title: subcategory.replace(/-/g, " "),
+      title: "",
+      description: "",
     };
   }
   const { metaTitle, metaDescription, metaKeywords, banner } = response;
-  const subcategoryPageUrl = `${getPublicSiteBaseUrl()}/categories/${slug}/${subcategory}`;
+  const canonicalUrl = await getCanonical(`/categories/${slug}/${subcategory}`);
+  const bannerUrl = banner?.path
+    ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
+    : undefined;
+  const kw = metaKeywords || "";
 
   return {
-    title:
-      metaTitle ||
-      `Buy Affordable and Cheap Deals on ${subcategory} Tech Products, at Zextons`,
+    title: metaTitle || "",
     description: metaDescription || "",
-    keywords: metaKeywords || "",
+    ...(kw ? { keywords: kw } : {}),
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons Tech Store",
-      title:
-        metaTitle ||
-        `Buy Affordable and Cheap Deals on ${subcategory} Tech Products, at Zextons`,
-      url: subcategoryPageUrl,
-      description: metaDescription,
+      title: metaTitle || "",
+      url: canonicalUrl,
+      description: metaDescription || "",
       type: "website",
-      images: [
-        {
-          url: banner?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title:
-        metaTitle ||
-        `Buy Affordable and Cheap Deals on ${subcategory} Tech Products, at Zextons`,
-      description: metaDescription,
-      images: [
-        {
-          url: banner?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      title: metaTitle || "",
+      description: metaDescription || "",
+      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
     },
     alternates: {
-      canonical: subcategoryPageUrl,
+      canonical: canonicalUrl,
       languages: {
-        "en-gb": subcategoryPageUrl,
+        "en-gb": canonicalUrl,
       },
     },
   };

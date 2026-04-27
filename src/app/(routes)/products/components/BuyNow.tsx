@@ -55,7 +55,7 @@ export default function BuyNow({
   };
   return (
     <>
-      <div className="fixed bottom-0 w-full shadow-2xl p-4 bg-white z-0 border-t border-gray-300">
+      <div className="fixed bottom-0 left-0 right-0 z-30 w-full border-t border-gray-300 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
         <div className="max-w-7xl mx-auto flex lg:flex-row flex-col md:justify-between justify-center items-center">
           {/* Delivery Information */}
           <div className="lg:flex hidden flex-row gap-3 items-center">

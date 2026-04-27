@@ -49,9 +49,8 @@ export const updateProductUrl = (
       console.log("Not all variants selected - updating URL to base:", expectedUrl);
       try {
         window.history.replaceState({}, "", expectedUrl);
-        updateCanonicalUrl(baseSlug);
       } catch (e) {
-        console.warn("Failed to update URL/canonical:", e);
+        console.warn("Failed to update URL:", e);
       }
     }
     return;
@@ -69,29 +68,8 @@ export const updateProductUrl = (
     console.log("Updating URL to:", expectedUrl);
     try {
       window.history.replaceState({}, "", expectedUrl);
-      // Update canonical URL
-      updateCanonicalUrl(`${baseSlug}/${variantName}`);
     } catch (e) {
-      console.warn("Failed to update URL/canonical:", e);
+      console.warn("Failed to update URL:", e);
     }
   }
-};
-
-/**
- * Update canonical URL tag in document head
- */
-export const updateCanonicalUrl = (productUrlWithVariant: string): void => {
-  if (typeof document === "undefined" || typeof window === "undefined") return;
-  // Find existing canonical link or create a new one
-  let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-  
-  if (!canonicalLink) {
-    canonicalLink = document.createElement('link');
-    canonicalLink.rel = 'canonical';
-    document.head.appendChild(canonicalLink);
-  }
-  
-  // Update the href attribute with the new URL
-  const fullCanonicalUrl = `${window.location.origin}/products/${productUrlWithVariant}`;
-  canonicalLink.href = fullCanonicalUrl;
 };

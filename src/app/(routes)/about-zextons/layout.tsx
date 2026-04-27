@@ -1,44 +1,52 @@
 import type { Metadata } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { getCanonical } from "@/lib/getCanonical";
 
-export const metadata: Metadata = {
-  title:
-    "About Zextons Tech Store - Your Trusted Source for Refurbished & New Tech in the UK",
-  description:
-    "At Zextons, we believe everyone deserves access to premium technology without overpaying or harming the planet. For over 15 years, we've been delivering refurbished and brand-new tech that combines quality, affordability, and sustainability.",
-  keywords:
-    "about Zextons, Zextons Tech Store, refurbished tech UK, refurbished phones, refurbished laptops, refurbished tablets, refurbished gaming consoles, sustainable technology, eco-friendly tech, quality assurance, 18-month warranty, bulk recycling, business clients, individual customers",
-  robots: "index, follow",
-  openGraph: {
-    siteName: "Zextons Tech Store",
-    title:
-      "About Zextons Tech Store - Your Trusted Source for Refurbished & New Tech in the UK",
-    url: "https://zextons.co.uk/about-zextons",
-    description:
-      "Learn about Zextons Tech Store - your trusted source for refurbished and new tech in the UK. We make premium technology accessible, affordable, and sustainable for everyone.",
-    type: "website",
-    images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@ZextonsTechStore",
+export async function generateMetadata(): Promise<Metadata> {
+  const canonicalUrl = await getCanonical("/about-zextons");
+
+  return {
     title:
       "About Zextons Tech Store - Your Trusted Source for Refurbished & New Tech in the UK",
     description:
-      "At Zextons, we make premium technology accessible, affordable, and sustainable. Discover our mission, quality promise, and comprehensive range of refurbished and new tech products.",
-    images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-  },
-  alternates: {
-    canonical: "https://zextons.co.uk/about-zextons",
-    languages: { "en-gb": "https://zextons.co.uk/about-zextons" },
-  },
-};
+      "At Zextons, we believe everyone deserves access to premium technology without overpaying or harming the planet. For over 15 years, we've been delivering refurbished and brand-new tech that combines quality, affordability, and sustainability.",
+    keywords:
+      "about Zextons, Zextons Tech Store, refurbished tech UK, refurbished phones, refurbished laptops, refurbished tablets, refurbished gaming consoles, sustainable technology, eco-friendly tech, quality assurance, 18-month warranty, bulk recycling, business clients, individual customers",
+    robots: "index, follow",
+    openGraph: {
+      siteName: "Zextons Tech Store",
+      title:
+        "About Zextons Tech Store - Your Trusted Source for Refurbished & New Tech in the UK",
+      url: canonicalUrl,
+      description:
+        "Learn about Zextons Tech Store - your trusted source for refurbished and new tech in the UK. We make premium technology accessible, affordable, and sustainable for everyone.",
+      type: "website",
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@ZextonsTechStore",
+      title:
+        "About Zextons Tech Store - Your Trusted Source for Refurbished & New Tech in the UK",
+      description:
+        "At Zextons, we make premium technology accessible, affordable, and sustainable. Discover our mission, quality promise, and comprehensive range of refurbished and new tech products.",
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
+    },
+  };
+}
 
-export default function AboutUsLayout({
+export default async function AboutUsLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const origin = await getCanonical("");
+  const logoUrl = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
+
   return (
     <>
       <script
@@ -49,8 +57,8 @@ export default function AboutUsLayout({
             "@type": "Corporation",
             name: "Zextons Tech Store",
             alternateName: "Zextons",
-            url: "https://zextons.co.uk/",
-            logo: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
+            url: origin.endsWith("/") ? origin : `${origin}/`,
+            logo: logoUrl,
             description:
               "Your trusted source for refurbished and new tech in the UK. We make premium technology accessible, affordable, and sustainable for everyone.",
             foundingDate: "2009",

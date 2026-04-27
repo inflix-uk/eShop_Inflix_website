@@ -43,6 +43,11 @@ import {
   getHomeNavLinksPublic,
   type HomeNavLink,
 } from "./services/homeNavLinksService";
+import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
+function isAxiosNotFound(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
 import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
 
@@ -146,6 +151,7 @@ export default function HomeClient({
   );
   const [showThankYou, setShowThankYou] = useState(false);
   const [showConsent, setShowConsent] = useState<boolean>(false);
+  const backendAvailable = useBackendAvailability();
   const [mounted, setMounted] = useState(false);
   const category = "";
 
@@ -216,7 +222,9 @@ export default function HomeClient({
       );
       return response.data.products;
     } catch (error) {
-      console.error("Error fetching latest products:", error);
+      if (!isAxiosNotFound(error)) {
+        console.error("Error fetching latest products:", error);
+      }
       return [];
     }
   }, []);
@@ -229,7 +237,9 @@ export default function HomeClient({
       );
       return response.data.products || [];
     } catch (error) {
-      console.error(`Error fetching ${categoryName} products:`, error);
+      if (!isAxiosNotFound(error)) {
+        console.error(`Error fetching ${categoryName} products:`, error);
+      }
       return [];
     }
   }, []);
@@ -504,9 +514,9 @@ export default function HomeClient({
   useEffect(() => {
     if (mounted) {
       const consent = localStorage.getItem("cookieConsent");
-      setShowConsent(!consent || consent === "rejected");
+      setShowConsent(backendAvailable && (!consent || consent === "rejected"));
     }
-  }, [mounted]);
+  }, [mounted, backendAvailable]);
 
   /* useEffect(() => {
     if (prefetched) return;

@@ -1,87 +1,57 @@
 import { ProductData, SelectedVariant } from "../../../../../types";
 
 /**
- * Generate variant title for metadata
- */
-export const generateVariantTitle = (
-  product: ProductData, 
-  variant: SelectedVariant, 
-  options: Record<string, string>
-): string => {
-  if (!product || !variant) return '';
-  
-  // Extract variant components
-  const storage = (options as { storage: string })["storage"] || "";
-  const color = (options as { color: string })["color"] || "";
-  const condition = (options as { condition: string })["condition"] || "";
-  
-  // Create a formatted title
-  let title = product.name || "";
-  
-  // Add variant details to the title
-  const variantDetails = [condition, color, storage].filter(Boolean).join(" - ");
-  if (variantDetails) {
-    title = `${title} - ${variantDetails}`;
-  }
-  
-  return title;
-};
-
-/**
- * Update page metadata based on selected variant
+ * Update page metadata from CMS fields only (aligned with `products/[...slug]/page.tsx` generateMetadata).
  */
 export const updatePageMetadata = (
   product: ProductData,
   selectedVariant: SelectedVariant,
-  options: Record<string, string>
+  _options: Record<string, string>
 ): void => {
   if (!product || !selectedVariant) return;
   if (typeof document === "undefined" || typeof window === "undefined") return;
-  
-  // Create a title based on variant information if metaTitle is not available
-  const variantTitle = selectedVariant.metaTitle || generateVariantTitle(product, selectedVariant, options);
-  if (variantTitle) {
-    document.title = variantTitle;
-    
-    // Update the title meta tag
-    let metaTitleTag = document.querySelector('meta[property="og:title"]');
-    if (!metaTitleTag) {
-      metaTitleTag = document.createElement('meta');
-      metaTitleTag.setAttribute('property', 'og:title');
-      document.head.appendChild(metaTitleTag);
-    }
-    metaTitleTag.setAttribute('content', variantTitle);
-    
-    // Update the h1 title in the DOM if it exists
-    const titleElements = document.querySelectorAll('h1.product-title');
-    if (titleElements.length > 0) {
-      titleElements.forEach(el => {
-        el.textContent = variantTitle;
-      });
-    }
+
+  const pathParts = window.location.pathname
+    .replace(/^\/products\//, "")
+    .split("/")
+    .filter(Boolean);
+  const isVariantUrl = pathParts.length > 1;
+
+  const cmsTitle = isVariantUrl
+    ? String(selectedVariant.metaTitle || "")
+    : String(product.Seo_Meta?.metaTitle || "");
+  const cmsDescription = isVariantUrl
+    ? String(selectedVariant.metaDescription || "")
+    : String(product.Seo_Meta?.metaDescription || "");
+  const cmsKeywords = isVariantUrl
+    ? String(selectedVariant.metaKeywords || "")
+    : String(product.Seo_Meta?.metaKeywords || "");
+
+  document.title = cmsTitle;
+
+  let metaTitleTag = document.querySelector('meta[property="og:title"]');
+  if (!metaTitleTag) {
+    metaTitleTag = document.createElement("meta");
+    metaTitleTag.setAttribute("property", "og:title");
+    document.head.appendChild(metaTitleTag);
   }
-  
-  // Update meta description
+  metaTitleTag.setAttribute("content", cmsTitle);
+
   let metaDescription = document.querySelector('meta[name="description"]');
   if (!metaDescription) {
-    metaDescription = document.createElement('meta');
-    metaDescription.setAttribute('name', 'description');
+    metaDescription = document.createElement("meta");
+    metaDescription.setAttribute("name", "description");
     document.head.appendChild(metaDescription);
   }
-  if (selectedVariant.metaDescription) {
-    metaDescription.setAttribute('content', selectedVariant.metaDescription);
-  }
-  
-  // Update meta keywords
+  metaDescription.setAttribute("content", cmsDescription);
+
   let metaKeywords = document.querySelector('meta[name="keywords"]');
   if (!metaKeywords) {
-    metaKeywords = document.createElement('meta');
-    metaKeywords.setAttribute('name', 'keywords');
+    metaKeywords = document.createElement("meta");
+    metaKeywords.setAttribute("name", "keywords");
     document.head.appendChild(metaKeywords);
   }
-  if (selectedVariant.metaKeywords) {
-    metaKeywords.setAttribute('content', selectedVariant.metaKeywords);
-  }
+  metaKeywords.setAttribute("content", cmsKeywords);
 };
 
 /**

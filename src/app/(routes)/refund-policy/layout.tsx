@@ -1,49 +1,13 @@
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
+import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
+import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
+import { fetchFooterPageBySlug } from "@/app/services/footerPageService";
 
-async function getMetaData() {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return null;
-    const res = await fetch(
-      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/refund-policy")}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch {
-    return null;
-  }
-}
+const FOOTER_PAGE_SLUG = "refund-policy";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const metaData = await getMetaData();
-
-  if (!metaData) {
-    return {
-      title: "Refund Policy",
-      description: "Refund policy",
-      robots: "index, follow",
-    };
-  }
-
-  return {
-    title: metaData.titleTag,
-    description: metaData.metaDescription,
-    keywords: metaData.metaKeywords,
-    robots: "index, follow",
-    openGraph: {
-      title: metaData.titleTag,
-      description: metaData.metaDescription,
-      type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: metaData.titleTag,
-      description: metaData.metaDescription,
-    },
-  };
+  return metadataForFooterPolicyPage("/refund-policy", FOOTER_PAGE_SLUG);
 }
 
 export default async function RefundPolicyLayout({
@@ -51,16 +15,23 @@ export default async function RefundPolicyLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const metaData = await getMetaData();
+  let page = null;
+  try {
+    page = await fetchFooterPageBySlug(FOOTER_PAGE_SLUG);
+  } catch {
+    /* ignore */
+  }
+
+  const jsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
 
   return (
     <>
       <SpeedInsights />
-      {metaData?.metaSchemas?.map((schema: string, index: number) => (
+      {jsonLdStrings.map((json, index) => (
         <script
           key={index}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: schema }}
+          dangerouslySetInnerHTML={{ __html: json }}
         />
       ))}
       {children}

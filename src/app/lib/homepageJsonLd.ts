@@ -67,14 +67,29 @@ export function metaSchemaEntryToJsonLdString(raw: string): string | null {
 /**
  * Fallback when admin Meta Schema has no valid entries.
  * WebSite only — root layout already injects Organization JSON-LD.
+ * @param siteUrl — absolute origin for this request (e.g. from {@link getCanonical} with path "").
  */
-export function getDefaultHomepageJsonLdString(): string {
+export function getDefaultHomepageJsonLdString(siteUrl: string): string {
   return JSON.stringify({
     "@context": SCHEMA_CONTEXT,
     "@type": "WebSite",
     name: "Zextons Tech Store",
-    url: "https://zextons.co.uk/",
+    url: siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`,
     description:
       "Refurbished and new mobile phones in the UK. Shop with warranty and fast delivery.",
   });
+}
+
+/**
+ * CMS "meta schema" rows may paste full `<script type="application/ld+json">…</script>`.
+ * Feeding that into another `<script>` breaks HTML parsing and causes hydration mismatches.
+ * Returns JSON-only strings safe for `dangerouslySetInnerHTML` inside `application/ld+json`.
+ */
+export function normalizeMetaSchemaJsonLdStrings(
+  entries: string[] | undefined
+): string[] {
+  if (!entries?.length) return [];
+  return entries
+    .map((e) => metaSchemaEntryToJsonLdString(e))
+    .filter((s): s is string => Boolean(s));
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getCanonical } from "@/lib/getCanonical";
 
 async function getMetaData() {
   try {
@@ -17,12 +18,15 @@ async function getMetaData() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const metaData = await getMetaData();
+  const canonicalUrl = await getCanonical("/subscribe-newsletter");
 
   if (!metaData) {
     return {
       title: "Subscribe Newsletter | Zextons Tech Store",
       description: "Subscribe to Zextons newsletter for exclusive offers",
       robots: "index, follow",
+      alternates: { canonical: canonicalUrl, languages: { "en-gb": canonicalUrl } },
+      openGraph: { url: canonicalUrl },
     };
   }
 
@@ -34,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       siteName: "Zextons",
       title: metaData.titleTag,
-      url: "https://zextons.co.uk/subscribe-newsletter",
+      url: canonicalUrl,
       description: metaData.metaDescription,
       type: "website",
       images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
@@ -47,8 +51,8 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/subscribe-newsletter",
-      languages: { "en-gb": "https://zextons.co.uk/subscribe-newsletter" },
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
     },
   };
 }

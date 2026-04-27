@@ -8,8 +8,11 @@ import Fade from "embla-carousel-fade";
 import {
   type Banner,
   type InlineBannerBlockPayload,
+  type HeroSocialSettings,
   bannersFromInlinePayload,
   buildHeroBannersFromApiPayload,
+  emptyHeroSocial,
+  extractHeroSocialFromActiveBannersPayload,
 } from "@/app/lib/homepageBannerShared";
 
 export type { InlineBannerBlockPayload } from "@/app/lib/homepageBannerShared";
@@ -126,6 +129,112 @@ function mobileStackClass(pos: HAlign): string {
   return "items-center";
 }
 
+function HeroSocialOverlay({
+  embedded,
+  social,
+}: {
+  embedded: boolean;
+  social: HeroSocialSettings;
+}) {
+  if (embedded) return null;
+  const heading = social.followHeading?.trim() ?? "";
+  const entries: {
+    href: string;
+    label: string;
+    key: string;
+    children: React.ReactNode;
+  }[] = [];
+  if (social.facebookUrl?.trim()) {
+    entries.push({
+      href: social.facebookUrl.trim(),
+      label: "Facebook",
+      key: "facebook",
+      children: (
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+      ),
+    });
+  }
+  if (social.twitterUrl?.trim()) {
+    entries.push({
+      href: social.twitterUrl.trim(),
+      label: "Twitter / X",
+      key: "twitter",
+      children: (
+        <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
+      ),
+    });
+  }
+  if (social.youtubeUrl?.trim()) {
+    entries.push({
+      href: social.youtubeUrl.trim(),
+      label: "YouTube",
+      key: "youtube",
+      children: (
+        <>
+          <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
+          <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
+        </>
+      ),
+    });
+  }
+  if (social.instagramUrl?.trim()) {
+    entries.push({
+      href: social.instagramUrl.trim(),
+      label: "Instagram",
+      key: "instagram",
+      children: (
+        <>
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+        </>
+      ),
+    });
+  }
+  if (!heading && entries.length === 0) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-[12] hidden sm:block">
+      <div className="pointer-events-auto absolute top-2 right-2 sm:top-4 sm:right-4 text-white">
+        {heading ? (
+          <div className="mb-1 text-xs font-medium sm:text-sm">{heading}</div>
+        ) : null}
+        {entries.length > 0 ? (
+          <div className="flex gap-1 sm:gap-2">
+            {entries.map((item) => (
+              <a
+                key={item.key}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-white p-1 text-primary"
+                aria-label={`Open ${item.label} (new tab)`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  {item.children}
+                </svg>
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 type BlackFridayBannerProps = {
   /**
    * When set, uses these slides only (no API). Used by homepage/blog Banners widgets.
@@ -138,12 +247,15 @@ type BlackFridayBannerProps = {
   embedded?: boolean;
   /** Server-prefetched slides (ISR); skips client fetch when provided (including `[]`). */
   serverBanners?: Banner[];
+  /** Hero “Follow us” links from Admin → Banners (same payload as `heroSocial` on `/get/banners/active`). */
+  heroSocial?: HeroSocialSettings;
 };
 
 const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
   inlineBanners: inlineBannersProp,
   embedded = false,
   serverBanners,
+  heroSocial: heroSocialProp,
 }) => {
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [Fade()]);
@@ -157,6 +269,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     return serverBanners === undefined;
   });
   const [error, setError] = useState<string | null>(null);
+  const [heroSocialState, setHeroSocialState] = useState<HeroSocialSettings>(
+    () => heroSocialProp ?? emptyHeroSocial()
+  );
+
+  useEffect(() => {
+    setHeroSocialState(heroSocialProp ?? emptyHeroSocial());
+  }, [heroSocialProp]);
 
   const inlineBannersList = useMemo((): Banner[] | null => {
     if (inlineBannersProp === undefined) return null;
@@ -175,9 +294,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     if (inlineBannersProp !== undefined) return;
     if (serverBanners === undefined) return;
     setBanners(serverBanners);
+    setHeroSocialState(heroSocialProp ?? emptyHeroSocial());
     setLoading(false);
     setError(null);
-  }, [inlineBannersProp, serverBanners]);
+  }, [inlineBannersProp, serverBanners, heroSocialProp]);
 
   // Fetch banners from API (homepage hero only) when not inline and no server payload
   useEffect(() => {
@@ -205,6 +325,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
 
         const data: unknown = await response.json();
         setBanners(buildHeroBannersFromApiPayload(data, API_BASE_URL));
+        setHeroSocialState(extractHeroSocialFromActiveBannersPayload(data));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load banners");
         setBanners([]);
@@ -590,7 +711,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                 }}
                               >
                                 {banner.content.price}
-                              </p>
+                              </p> 
                             )}
                             {banner.content.warranty && (
                               <div
@@ -699,123 +820,6 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       <div className="w-6/12 lg:w-6/12" aria-hidden />
                     </div>
                   )
-                )}
-
-                {/* Social Media - Fixed at top right (full hero only) */}
-                {!embedded && (
-                <div className="absolute top-2 sm:top-4 right-2 sm:right-4 text-white hidden sm:block">
-                  <div className="text-xs sm:text-sm font-medium mb-1">
-                    Follow Us Now
-                  </div>
-                  <div className="flex gap-1 sm:gap-2">
-                    <a
-                      href="https://www.facebook.com/zextonstechstore"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white rounded-full p-1 text-primary"
-                      aria-label="Visit Zextons Facebook Page"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-                      </svg>
-                    </a>
-                    <a
-                      href="https://twitter.com/zextons_uk"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white rounded-full p-1 text-primary"
-                      aria-label="Follow Zextons on Twitter"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
-                      </svg>
-                    </a>
-                    <a
-                      href="https://www.youtube.com/channel/UCb5pBW9HkmUo7CjszeJwqqQ"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white rounded-full p-1 text-primary"
-                      aria-label="Visit Zextons YouTube Channel"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
-                      </svg>
-                    </a>
-                    <a
-                      href="https://www.instagram.com/zextons.co.uk/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white rounded-full p-1 text-primary"
-                      aria-label="Follow Zextons on Instagram"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <rect
-                          x="2"
-                          y="2"
-                          width="20"
-                          height="20"
-                          rx="5"
-                          ry="5"
-                        ></rect>
-                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                      </svg>
-                    </a>
-                  </div>
-                </div>
                 )}
 
                 {/* Mobile: full banners — vertically centered in slide; horizontal alignment from CMS */}
@@ -979,6 +983,8 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
           })}
         </div>
       </div>
+
+      <HeroSocialOverlay embedded={embedded} social={heroSocialState} />
 
       {/* Bottom gradient so dots + CTAs read on light photography */}
       <div

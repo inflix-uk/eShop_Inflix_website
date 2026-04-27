@@ -253,7 +253,8 @@ export interface CartItem {
   productId: string;
   salePrice: number;
   selectedSim: string;
-  productthumbnail?: string;
+  /** Single-type products: prefer full object (url/path) from API; legacy carts may store filename string only. */
+  productthumbnail?: string | { filename?: string; path?: string; url?: string };
   name: string;
   variantImages?: { filename?: string; path?: string; url?: string }[];
   galleryImages?: { filename?: string; path?: string; url?: string }[];

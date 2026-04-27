@@ -141,7 +141,25 @@ export default function ProductCart({
                                         }
                                         // Check product thumbnail
                                         if (prod.productthumbnail) {
-                                          return `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${prod.productthumbnail}`;
+                                          const t = prod.productthumbnail;
+                                          const api = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+                                          if (typeof t === "string") {
+                                            const s = t.trim();
+                                            if (s.startsWith("http")) return s;
+                                            if (s.startsWith("/")) return `${api}${s}`;
+                                            return `${api}/uploads/products/${s}`;
+                                          }
+                                          if (t.url) return t.url;
+                                          if (t.path) {
+                                            const p = t.path.trim();
+                                            if (p.startsWith("http")) return p;
+                                            const seg = p.startsWith("/") ? p : `/${p}`;
+                                            const withUploads =
+                                              !seg.toLowerCase().startsWith("/uploads/") && seg.startsWith("/products/")
+                                                ? `/uploads${seg}`
+                                                : seg;
+                                            return `${api}${withUploads}`;
+                                          }
                                         }
                                         // Final fallback
                                         return "/placeholder.png";

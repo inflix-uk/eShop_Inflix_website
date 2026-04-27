@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPublicSiteBaseUrl } from "@/app/lib/publicSiteUrl";
+import { getCanonical } from "@/lib/getCanonical";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -49,49 +49,41 @@ export async function generateMetadata({
 
   if (!category) {
     return {
-      title: categoryName.replace(/-/g, " "),
+      title: "",
+      description: "",
     };
   }
 
   const { slug } = await params;
-  const categoryPageUrl = `${getPublicSiteBaseUrl()}/categories/${slug}`;
+  const canonicalUrl = await getCanonical(`/categories/${slug}`);
+
+  const metaKeywords = category?.metaKeywords || "";
+  const bannerUrl = category?.bannerImage?.path
+    ? `${process.env.NEXT_PUBLIC_API_URL}/${category.bannerImage.path}`
+    : undefined;
 
   return {
-    title: category?.metaTitle,
-    description: category?.metaDescription,
-    keywords: category?.metaKeywords || "",
+    title: category?.metaTitle || "",
+    description: category?.metaDescription || "",
+    ...(metaKeywords ? { keywords: metaKeywords } : {}),
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons Tech Store",
-      title: category?.metaTitle,
-      url: categoryPageUrl,
-      description: category?.metaDescription,
+      title: category?.metaTitle || "",
+      url: canonicalUrl,
+      description: category?.metaDescription || "",
       type: "website",
-      images: [
-        {
-          url: category?.bannerImage?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${category.bannerImage.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: category?.metaTitle,
-      description: category?.metaDescription,
-      images: [
-        {
-          url: category?.bannerImage?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${category.bannerImage.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      title: category?.metaTitle || "",
+      description: category?.metaDescription || "",
+      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
     },
     alternates: {
-      canonical: categoryPageUrl,
+      canonical: canonicalUrl,
       languages: {
-        "en-gb": categoryPageUrl,
+        "en-gb": canonicalUrl,
       },
     },
   };

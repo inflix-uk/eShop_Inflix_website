@@ -19,12 +19,22 @@
   }
 }
 
+/* Product PDP: fixed `BuyNow` bar — extra scroll space so footer content isn’t hidden behind it */
+html.has-product-sticky-buy-bar #site-footer {
+  padding-bottom: calc(10rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  html.has-product-sticky-buy-bar #site-footer {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 :root {
-  --primary: #16a34a;
-  --secondary: #15803d;
+  --primary: transparent;
+  --secondary: transparent;
   /* Space-separated RGB for Tailwind opacity modifiers (primary/secondary, green-*) */
-  --primary-rgb: 22 163 74;
-  --secondary-rgb: 21 128 61;
+  --primary-rgb: 0 0 0;
+  --secondary-rgb: 0 0 0;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

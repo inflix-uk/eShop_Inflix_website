@@ -1,13 +1,11 @@
-import { CMS_REVALIDATE_SECONDS } from "./cmsCacheConfig";
 import {
   CMS_UPSTREAM_TIMEOUT_MS,
   combineAbortSignals,
 } from "./cmsTimedFetch";
-import { memoryJsonCacheGet, memoryJsonCacheSet } from "./memoryJsonCache";
 
 /**
- * Server-side fetch with Next.js Data Cache (ISR-style) + optional memory layer.
- * Do not use from Client Components — `next.revalidate` is ignored in the browser.
+ * Server-side fetch without stale cache fallback.
+ * Do not use from Client Components.
  */
 export async function cmsServerFetch(
   url: string,
@@ -25,7 +23,7 @@ export async function cmsServerFetch(
   try {
     return await fetch(url, {
       ...restInit,
-      next: { revalidate: CMS_REVALIDATE_SECONDS },
+      cache: "no-store",
       signal,
     });
   } finally {
@@ -37,10 +35,6 @@ export async function cmsServerFetchJson<T = unknown>(
   url: string,
   init?: RequestInit
 ): Promise<T> {
-  const memKey = `json:${init?.method ?? "GET"}:${url}`;
-  const cached = memoryJsonCacheGet<T>(memKey);
-  if (cached !== undefined) return cached;
-
   const res = await cmsServerFetch(url, {
     ...init,
     headers: {
@@ -56,6 +50,5 @@ export async function cmsServerFetchJson<T = unknown>(
   }
 
   const parsed = JSON.parse(trimmed) as T;
-  memoryJsonCacheSet(memKey, parsed);
   return parsed;
 }

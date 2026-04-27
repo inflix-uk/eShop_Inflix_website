@@ -16,6 +16,7 @@ import {
 } from "@/app/services/navbarHeaderPublicService";
 
 import { useAppDispatch, useAppSelector } from "@/app/lib/hooks";
+import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 import NavbarCart from "@/app/components/navbar/NavbarCart";
 import { RootState as StoreRootState } from "@/app/lib/store";
 import Image from "next/image";
@@ -26,12 +27,12 @@ import { NavbarCustomLinkItem } from "./NavbarCustomLinkItem";
 
 interface NavbarCategorySliceState {
   items: NavbarItem[];
-  isLoading: boolean;
   error: string | null;
 }
 
 export default function Nav() {
   const auth = useAuth();
+  const backendAvailable = useBackendAvailability();
   const dispatch = useAppDispatch();
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
@@ -45,7 +46,7 @@ export default function Nav() {
     DEFAULT_HEADER_SUPPORT_PHONE
   );
 
-  const { items, isLoading } = useAppSelector(
+  const { items } = useAppSelector(
     (state: StoreRootState & { navbarCategory: NavbarCategorySliceState }) =>
       state.navbarCategory
   );
@@ -64,11 +65,17 @@ export default function Nav() {
     [sortedNavItems]
   );
 
-  useEffect(() => {
-    dispatch(fetchNavbarCategory() as never);
-  }, [dispatch]);
+  const hasNavContent = useMemo(() => {
+    return Boolean(logoUrl) || Boolean(supportPhone) || sortedNavItems.length > 0;
+  }, [logoUrl, supportPhone, sortedNavItems.length]);
 
   useEffect(() => {
+    if (!backendAvailable) return;
+    dispatch(fetchNavbarCategory() as never);
+  }, [dispatch, backendAvailable]);
+
+  useEffect(() => {
+    if (!backendAvailable) return;
     const fetchLogo = async () => {
       try {
         const logoData = await getLogo();
@@ -85,12 +92,13 @@ export default function Nav() {
       }
     };
 
-    fetchLogo();
-  }, []);
+    void fetchLogo();
+  }, [backendAvailable]);
 
   useEffect(() => {
+    if (!backendAvailable) return;
     let cancelled = false;
-    fetchNavbarHeaderPublic().then((data) => {
+    void fetchNavbarHeaderPublic().then((data) => {
       if (!cancelled && data.supportPhone) {
         setSupportPhone(data.supportPhone);
       }
@@ -98,7 +106,7 @@ export default function Nav() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [backendAvailable]);
 
   useEffect(() => {
     const updateCartCount = () => {
@@ -153,6 +161,11 @@ export default function Nav() {
     return "/customer/dashboard";
   }, [auth.user]);
 
+  /* No shell/skeleton while categories load — same idea as footer (nothing until CMS has something). */
+  if (!hasNavContent) {
+    return null;
+  }
+
   return (
     <>
       <div
@@ -200,15 +213,17 @@ export default function Nav() {
                 <NavbarSearch />
               </div>
               <div className="lg:flex hidden items-center space-x-2">
-                <div className="md:flex hidden flex-col">
-                  <span className="text-gray-700 text-xs">Need Help?</span>
-                  <a
-                    href={`tel:${supportPhone.replace(/[^\d+]/g, "")}`}
-                    className="text-gray-700 font-bold hover:text-gray-900 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-                  >
-                    {supportPhone}
-                  </a>
-                </div>
+                {supportPhone && (
+                  <div className="md:flex hidden flex-col">
+                    <span className="text-gray-700 text-xs">Need Help?</span>
+                    <a
+                      href={`tel:${supportPhone.replace(/[^\d+]/g, "")}`}
+                      className="text-gray-700 font-bold hover:text-gray-900 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+                    >
+                      {supportPhone}
+                    </a>
+                  </div>
+                )}
                 <Link href={determineDestination} aria-label="Go to profile">
                   <div className="flex items-center space-x-2 cursor-pointer">
                     <svg
@@ -313,14 +328,7 @@ export default function Nav() {
         </div>
       </div>
 
-      {isLoading && sortedNavItems.length === 0 && (
-        <div className="bg-primary text-white py-3 md:px-5 lg:flex hidden">
-          <ul className="flex flex-wrap justify-between space-x-4 px-1 mx-auto max-w-7xl">
-            <li>Loading...</li>
-          </ul>
-        </div>
-      )}
-      {!isLoading && sortedNavItems.length > 0 && (
+      {sortedNavItems.length > 0 && (
         <div className="bg-primary text-white py-3 md:px-5 lg:flex hidden">
           <ul className="flex flex-wrap justify-between space-x-4 px-1 mx-auto max-w-7xl">
             {visibleNavItems.map((item, i) => {

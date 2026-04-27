@@ -2,6 +2,7 @@ import "./globals.css";
 import HeroSlider2 from "./components/HeroSlider2";
 import Nav from "./components/navbar/Nav";
 import HomeClient from "./HomeClient";
+import BlogsCard from "./components/blogs/BlogsCard";
 import { Metadata } from "next";
 import {
   getHomepageFeatures,
@@ -18,6 +19,8 @@ import {
   metaSchemaEntryToJsonLdString,
 } from "./lib/homepageJsonLd";
 import HomepageFeatureIcon from "./components/HomepageFeatureIcon";
+import { getCanonical } from "@/lib/getCanonical";
+import { isBackendAvailable } from "@/app/lib/backendAvailability";
 
 export const revalidate = 30;
 
@@ -36,20 +39,8 @@ async function getMetaData() {
   }
 }
 
-// Default features shown when API fails or returns no data
-const DEFAULT_FEATURES: HomepageFeature[] = [
-  { _id: "1", title: "Fully Tested Devices", subtitle: "Buy with confidence" },
-  {
-    _id: "2",
-    title: "18 Months Warranty",
-    subtitle: "On all refurbished devices",
-  },
-  { _id: "3", title: "Free & Fast Delivery", subtitle: "For all orders" },
-  { _id: "4", title: "30 Days Free Return", subtitle: "100% Refund" },
-];
-
-const HOME_FALLBACK_TITLE = "Zextons Tech Store";
-const HOME_FALLBACK_DESCRIPTION = "Buy refurbished and new phones in the UK";
+const HOME_FALLBACK_TITLE = "";
+const HOME_FALLBACK_DESCRIPTION = "";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [metaData, homepageSeo] = await Promise.all([
@@ -74,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
     keywordsFromCms ?? metaData?.metaKeywords;
 
   const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://zextons.co.uk";
+  const canonicalUrl = await getCanonical("/");
 
   return {
     title,
@@ -84,7 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       siteName: title,
       title,
-      url: baseUrl,
+      url: canonicalUrl,
       description,
       type: "website",
       images: [{ url: ogImage }],
@@ -96,14 +87,26 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [{ url: ogImage }],
     },
     alternates: {
-      canonical: baseUrl,
-      languages: { "en-gb": baseUrl },
+      canonical: canonicalUrl,
+      languages: { "en-gb": canonicalUrl },
     },
   };
 }
 
 export default async function Home() {
-  const [homepageSeo, heroBanners, cmsBundle, features] = await Promise.all([
+  const backendAvailable = await isBackendAvailable();
+  if (!backendAvailable) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 min-h-[50vh] flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-semibold text-gray-900 mb-3">Server is unavailable</h1>
+          <p className="text-gray-600">Backend/database is down. No storefront content can be rendered.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const [homepageSeo, heroPayload, cmsBundle, features] = await Promise.all([
     getHomepagePublicSeo(),
     getHomepageHeroBannersCached(),
     getHomeServerCmsBundle(),
@@ -112,17 +115,18 @@ export default async function Home() {
       return [] as HomepageFeature[];
     }),
   ]);
-  const displayFeatures =
-    features.length > 0 ? features : DEFAULT_FEATURES;
+  const displayFeatures = features;
+  const { banners: heroBanners, heroSocial } = heroPayload;
 
   const adminJsonLdStrings = (homepageSeo?.metaSchema ?? [])
     .map((entry) => metaSchemaEntryToJsonLdString(entry))
     .filter((s): s is string => s != null && s.length > 0);
 
+  const canonicalUrl = await getCanonical("/");
   const homepageJsonLdToRender =
     adminJsonLdStrings.length > 0
       ? adminJsonLdStrings
-      : [getDefaultHomepageJsonLdString()];
+      : [getDefaultHomepageJsonLdString(canonicalUrl)];
 
   return (
     <>
@@ -139,7 +143,7 @@ export default async function Home() {
         </nav>
       </header>
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}
-      <HeroSlider2 serverBanners={heroBanners} />
+      <HeroSlider2 serverBanners={heroBanners} heroSocial={heroSocial} />
       {displayFeatures.length > 0 && (
         <div className="bg-white text-black py-3 border-b border-gray-100 shadow-lg">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-between sm:items-center">            {displayFeatures.map((feature) => {
@@ -171,6 +175,10 @@ export default async function Home() {
           </div>
         </div>
       )}
+
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <BlogsCard />
+      </section>
 
       <HomeClient cmsPrefetch={cmsBundle} />
     </>

@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://zextons.co.uk';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://aromadesire.com';
 
 const fetchUrls = async () => {
     try {
@@ -38,8 +38,9 @@ const generateSitemap = async () => {
     
     try {
         const sitemap = await streamToPromise(Readable.from(links).pipe(stream));
-        fs.writeFileSync('./public/sitemap.xml', sitemap.toString());
-        console.log(`Sitemap generated successfully with ${links.length} URLs for ${BASE_URL}!`);
+        // Root file only — public/sitemap.xml conflicts with src/app/sitemap.ts in Next.js
+        fs.writeFileSync('./sitemap.generated.xml', sitemap.toString());
+        console.log(`Sitemap written to ./sitemap.generated.xml (${links.length} URLs). Live URL: ${BASE_URL}/sitemap.xml`);
     } catch (err) {
         console.error('Error generating sitemap:', err);
     }

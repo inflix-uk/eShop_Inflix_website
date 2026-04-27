@@ -1,9 +1,9 @@
 /** Fallbacks aligned with `globals.css` and `/api/site-theme` route. */
 export const DEFAULT_SITE_THEME = {
-  primaryColor: "#16a34a",
-  secondaryColor: "#15803d",
-  primaryRgb: "22 163 74",
-  secondaryRgb: "21 128 61",
+  primaryColor: "transparent",
+  secondaryColor: "transparent",
+  primaryRgb: "0 0 0",
+  secondaryRgb: "0 0 0",
 } as const;
 
 export function hexToRgbSpaceSeparated(hex: string): string | null {

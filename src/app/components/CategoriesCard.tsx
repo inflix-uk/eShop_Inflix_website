@@ -290,11 +290,7 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
                     target.style.display = "none";
                   }}
                 />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
-                  No image
-                </div>
-              )}
+              ) : null}
             </div>
             <div className="flex xs:flex-nowrap flex-wrap justify-between items-center md:mt-5">
               <span className="transition ease-in-out delay-100 relative z-10 text-gray-900 bg-white border border-gray-300 focus:outline-none group-hover:bg-gray-900 group-hover:text-white focus:ring-4 focus:ring-gray-100 font-medium rounded-lg text-sm px-5 md:py-2.5 py-1.5">

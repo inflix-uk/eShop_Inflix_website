@@ -277,3 +277,41 @@ export function bannersFromInlinePayload(
       banner.srcSmall !== ""
   );
 }
+
+/** Hero “Follow us” row (Admin → Banners → Hero social links). */
+export interface HeroSocialSettings {
+  followHeading: string;
+  facebookUrl: string;
+  twitterUrl: string;
+  youtubeUrl: string;
+  instagramUrl: string;
+}
+
+export function emptyHeroSocial(): HeroSocialSettings {
+  return {
+    followHeading: "",
+    facebookUrl: "",
+    twitterUrl: "",
+    youtubeUrl: "",
+    instagramUrl: "",
+  };
+}
+
+export function extractHeroSocialFromActiveBannersPayload(
+  data: unknown
+): HeroSocialSettings {
+  const empty = emptyHeroSocial();
+  if (!data || typeof data !== "object") return empty;
+  const heroSocial = (data as { heroSocial?: unknown }).heroSocial;
+  if (!heroSocial || typeof heroSocial !== "object") return empty;
+  const o = heroSocial as Record<string, unknown>;
+  const pick = (k: keyof HeroSocialSettings) =>
+    typeof o[k] === "string" ? (o[k] as string).trim() : "";
+  return {
+    followHeading: pick("followHeading"),
+    facebookUrl: pick("facebookUrl"),
+    twitterUrl: pick("twitterUrl"),
+    youtubeUrl: pick("youtubeUrl"),
+    instagramUrl: pick("instagramUrl"),
+  };
+}

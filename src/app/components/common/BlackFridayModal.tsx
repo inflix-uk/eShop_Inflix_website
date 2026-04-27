@@ -640,13 +640,6 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
             >
               Privacy Policy
             </Link>{" "}
-            and{" "}
-            <Link
-              href="/terms-and-conditions"
-              className="underline hover:text-gray-600"
-            >
-              Terms
-            </Link>{" "}
             for more details.
           </p>
         </div>

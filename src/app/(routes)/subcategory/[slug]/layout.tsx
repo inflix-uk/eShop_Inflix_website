@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getCanonical } from "@/lib/getCanonical";
+
 // Function to fetch subcategory data dynamically
 async function getSubCategoryData(subcategoryName: string) {
   try {
@@ -38,25 +40,18 @@ export async function generateMetadata({
     throw new Error("Failed to fetch subcategory data.");
   }
   const { metaTitle, metaDescription, metaKeywords, banner } = response;
+  const canonicalUrl = await getCanonical(`/subcategory/${subCategoryName}`);
 
   return {
-    title:
-      metaTitle ||
-      `Buy Affordable and Cheap Deals on ${
-        (await params).slug
-      } Tech Products, at Zextons`,
+    title: metaTitle || "",
     description: metaDescription || "",
     keywords: metaKeywords || "",
     robots: "index, follow",
     openGraph: {
       siteName: "Zextons Tech Store",
-      title:
-        metaTitle ||
-        `Buy Affordable and Cheap Deals on ${
-          (await params).slug
-        } Tech Products, at Zextons`,
-      url: `https://zextons.co.uk/subcategory/${(await params).slug}`,
-      description: metaDescription,
+      title: metaTitle || "",
+      url: canonicalUrl,
+      description: metaDescription || "",
       type: "website",
       images: [
         {
@@ -69,12 +64,8 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       site: "@ZextonsTechStore",
-      title:
-        metaTitle ||
-        `Buy Affordable and Cheap Deals on ${
-          (await params).slug
-        } Tech Products, at Zextons`,
-      description: metaDescription,
+      title: metaTitle || "",
+      description: metaDescription || "",
       images: [
         {
           url: banner?.path
@@ -84,9 +75,9 @@ export async function generateMetadata({
       ],
     },
     alternates: {
-      canonical: `https://zextons.co.uk/subcategory/${(await params).slug}`,
+      canonical: canonicalUrl,
       languages: {
-        "en-gb": `https://zextons.co.uk/subcategory/${(await params).slug}`,
+        "en-gb": canonicalUrl,
       },
     },
   };

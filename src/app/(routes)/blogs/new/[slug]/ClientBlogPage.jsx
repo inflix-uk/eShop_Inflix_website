@@ -325,46 +325,6 @@ export default function ClientBlogPage({ blog }) {
           </svg>
         </button>
 
-        {/* Mobile/Tablet TOC Overlay */}
-        {showTOC && (
-          <div className="fixed inset-0 z-40 xl:hidden">
-            {/* Backdrop */}
-            <div 
-              className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
-              onClick={toggleTOC}
-            ></div>
-            
-            {/* TOC Panel */}
-            <div className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl transform transition-transform">
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Table of Contents</h3>
-                <button
-                  onClick={toggleTOC}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  aria-label="Close Table of Contents"
-                >
-                  <svg 
-                    className="w-5 h-5 text-gray-500" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M6 18L18 6M6 6l12 12" 
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto h-full pb-20">
-                <TableOfContents />
-              </div>
-            </div>
-          </div>
-        )}
-
         <main className="py-2 sm:py-5">
           <div className="container mx-auto py-4 sm:py-8 max-w-[1600px] px-3 sm:px-4 min-w-0">
             <div className="max-w-[1500px] mx-auto min-w-0">
@@ -385,14 +345,8 @@ export default function ClientBlogPage({ blog }) {
                     </div>
                   )}
                   
-                  <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 relative min-w-0">
-                    {/* Desktop TOC - Only visible on xl screens */}
-                    <aside className="hidden xl:block w-72 min-w-[16rem] max-w-xs shrink-0 bg-white border border-gray-200 rounded-lg shadow p-4 h-fit sticky top-8 self-start">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Table of Contents</h3>
-                      <TableOfContents />
-                    </aside>
-                    
-                    {/* Blog Content - Responsive */}
+                  <div className="flex flex-col xl:flex-row-reverse gap-4 sm:gap-6 relative min-w-0">
+                    {/* Blog content first in DOM for correct heading outline (H1 before TOC chrome); xl:flex-row-reverse keeps TOC visually on the left */}
                     <div id="blog-content" className="flex-1 min-w-0 mx-2 sm:mx-0 relative" style={contentBlockStyles}>
                       {/* Initial TOC Button Placeholder - helps with positioning */}
                       <div className="xl:hidden h-12 w-full mb-4 relative">
@@ -739,6 +693,13 @@ export default function ClientBlogPage({ blog }) {
                         </div>
                       )}
                     </div>
+
+                    <aside
+                      className="hidden xl:block w-72 min-w-[16rem] max-w-xs shrink-0 bg-white border border-gray-200 rounded-lg shadow p-4 h-fit sticky top-8 self-start"
+                      aria-label="Table of contents"
+                    >
+                      <TableOfContents />
+                    </aside>
                   </div>
                 </>
               ) : (
@@ -747,6 +708,44 @@ export default function ClientBlogPage({ blog }) {
             </div>
           </div>
         </main>
+
+        {/* After <main> in DOM so article headings precede TOC when overlay is open (SEO / outline order) */}
+        {showTOC && (
+          <div className="fixed inset-0 z-40 xl:hidden">
+            <div
+              className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+              onClick={toggleTOC}
+            ></div>
+
+            <div className="absolute left-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl transform transition-transform">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <p className="m-0 text-lg font-semibold text-gray-900">Table of Contents</p>
+                <button
+                  onClick={toggleTOC}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="Close Table of Contents"
+                >
+                  <svg
+                    className="w-5 h-5 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto h-full pb-20">
+                <TableOfContents />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -4,9 +4,6 @@ import type React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/app/context/Auth";
-import Zextons from "@/app/assets/ZEXTONS-LOGO-WHITE1.png";
-import Ecologi from "@/app/assets/ecologinewlogo.png";
-import PaymentLogos from "../PaymentLogos";
 import NewsletterSignupWidget from "@/app/(routes)/blogs/new/[slug]/NewsletterSignupWidget";
 import type {
   FooterLink,
@@ -180,6 +177,16 @@ const getImageUrl = (path: string | undefined, backendUrl: string): string => {
   return `${cleanBackendUrl}/uploads/${path}`;
 };
 
+/** True only when CMS has a non-empty image path (API often sends `{}` for an unset logo). */
+function footerLogoImagePath(
+  logo: FooterSettings["section1"]["logo"] | undefined
+): string {
+  if (!logo) return "";
+  const raw =
+    typeof logo === "string" ? logo : (logo.image ?? "").toString();
+  return raw.trim();
+}
+
 /** One pattern for all main footer columns: tight vertical stack */
 const footerCol =
   "flex min-w-0 w-full flex-col gap-2 self-start";
@@ -343,6 +350,33 @@ const Footer: React.FC<FooterProps> = ({
     return { before, label, url, isHttpUrl };
   }, [footer.bottomBar, copyrightYear]);
 
+  const hasFooterContent = useMemo(() => {
+    const hasSection1 =
+      Boolean(footer.section1?.description?.trim()) ||
+      Boolean(footerLogoImagePath(footer.section1?.logo)) ||
+      (footer.section1?.socialMedia?.length ?? 0) > 0;
+    // Match JSX: these blocks only render when the column title is set.
+    const hasSection2 = Boolean(footer.section2?.title?.trim());
+    const hasSection3 = Boolean(footer.section3?.title?.trim());
+    const hasNewsletter =
+      footer.sectionNewsletter?.isEnabled === true &&
+      Boolean(
+        footer.sectionNewsletter?.heading?.trim() ||
+          footer.sectionNewsletter?.description?.trim() ||
+          footer.sectionNewsletter?.buttonLabel?.trim()
+      );
+    const hasBottomBar =
+      Boolean(bottomBarDisplay.before.trim()) || Boolean(bottomBarDisplay.label.trim());
+
+    return (
+      hasSection1 ||
+      hasSection2 ||
+      hasSection3 ||
+      hasNewsletter ||
+      hasBottomBar
+    );
+  }, [footer, bottomBarDisplay]);
+
   // Handle image error
   const handleImageError = useCallback((imagePath: string) => {
     setImageErrors((prev) => new Set(prev).add(imagePath));
@@ -418,11 +452,7 @@ const Footer: React.FC<FooterProps> = ({
 
   // Get logo URL - handle both string and object formats
   const logoUrl = useMemo(() => {
-    if (!footer.section1?.logo) return null;
-    const logoPath =
-      typeof footer.section1.logo === "string"
-        ? footer.section1.logo
-        : footer.section1.logo.image;
+    const logoPath = footerLogoImagePath(footer.section1?.logo);
     if (!logoPath) return null;
     const url = getImageUrl(logoPath, getBackendUrl());
     if (url && url.includes("localhost") && !siteHostIsLocal) {
@@ -458,34 +488,45 @@ const Footer: React.FC<FooterProps> = ({
   const socialMedia = footer.section1?.socialMedia || [];
   const newsletterDefaults = DEFAULT_FOOTER.sectionNewsletter!;
   const sectionNewsletter = footer.sectionNewsletter;
-  const showFooterNewsletter = sectionNewsletter?.isEnabled !== false;
+  const newsletterHeading =
+    sectionNewsletter?.heading?.trim() || newsletterDefaults.heading || "";
+  const newsletterDescription =
+    sectionNewsletter?.description?.trim() ||
+    newsletterDefaults.description ||
+    "";
+  const newsletterPlaceholder =
+    sectionNewsletter?.placeholder?.trim() ||
+    newsletterDefaults.placeholder ||
+    "";
+  const newsletterButtonLabel =
+    sectionNewsletter?.buttonLabel?.trim() ||
+    newsletterDefaults.buttonLabel ||
+    "";
+  const newsletterImageUrl =
+    sectionNewsletter?.imageUrl?.trim() || newsletterDefaults.imageUrl || "";
+  const showFooterNewsletter =
+    sectionNewsletter?.isEnabled === true &&
+    Boolean(newsletterHeading || newsletterDescription || newsletterButtonLabel);
+
+  if (
+    isLoading &&
+    initialFooterSettings === undefined &&
+    !hasFooterContent
+  ) {
+    return null;
+  }
+
+  if (!isLoading && !hasFooterContent) {
+    return null;
+  }
 
   return (
     <footer
+      id="site-footer"
       className="bg-[#212121] py-5 text-gray-400 md:py-6"
       aria-label="Footer"
     >
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-5 sm:px-6 md:pb-0 md:pt-6 lg:px-8">
-        {isLoading ? (
-          <div
-            className="grid grid-cols-1 items-start gap-3 md:grid-cols-4 md:gap-4"
-            aria-label="Footer Sections"
-          >
-            {[1, 2, 3, 4].map((i) => (
-              <section key={i} className={`${footerCol} animate-pulse`}>
-                <div className="mb-0 h-5 w-3/4 rounded bg-gray-700" />
-                <div className="flex flex-col gap-1">
-                  {[1, 2, 3, 4].map((j) => (
-                    <div
-                      key={j}
-                      className="h-3.5 w-full rounded bg-gray-700"
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : (
           <div
             className="grid grid-cols-1 items-start gap-3 md:grid-cols-4 md:gap-4"
             aria-label="Footer Sections"
@@ -514,17 +555,7 @@ const Footer: React.FC<FooterProps> = ({
                     }}
                     unoptimized={logoUrl.startsWith("http://localhost")}
                   />
-                ) : (
-                  <Image
-                    src={Zextons}
-                    alt="Zextons Tech Store Logo"
-                    width={180}
-                    height={80}
-                    className="block h-20 w-[180px] max-w-full object-contain object-center md:object-left"
-                    sizes="180px"
-                    loading="lazy"
-                  />
-                )}
+                ) : null}
               </Link>
 
               {footer.section1?.description?.trim() ? (
@@ -589,30 +620,11 @@ const Footer: React.FC<FooterProps> = ({
                 className={`${footerCol} min-w-0 max-w-full overflow-hidden md:col-span-1`}
               >
                 <NewsletterSignupWidget
-                  heading={
-                    sectionNewsletter?.heading?.trim() ||
-                    newsletterDefaults.heading ||
-                    "Stay in the loop"
-                  }
-                  description={
-                    sectionNewsletter?.description?.trim() ||
-                    newsletterDefaults.description ||
-                    ""
-                  }
-                  placeholder={
-                    sectionNewsletter?.placeholder?.trim() ||
-                    newsletterDefaults.placeholder
-                  }
-                  buttonLabel={
-                    sectionNewsletter?.buttonLabel?.trim() ||
-                    newsletterDefaults.buttonLabel ||
-                    "Subscribe"
-                  }
-                  imageUrl={
-                    sectionNewsletter?.imageUrl?.trim() ||
-                    newsletterDefaults.imageUrl ||
-                    ""
-                  }
+                  heading={newsletterHeading}
+                  description={newsletterDescription}
+                  placeholder={newsletterPlaceholder}
+                  buttonLabel={newsletterButtonLabel}
+                  imageUrl={newsletterImageUrl}
                   subscribeMode="footer_cms"
                 />
               </section>
@@ -738,7 +750,6 @@ const Footer: React.FC<FooterProps> = ({
               </div>
             </div> */}
           </div>
-        )}
       </div>
       <div className="mt-4 border-t border-gray-700 pt-3">
         <p className="text-center text-gray-400 text-sm">

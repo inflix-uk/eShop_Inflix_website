@@ -2,9 +2,25 @@
 "use client";
 import React, { useState, useEffect, FC, useCallback } from "react";
 import { TrashIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
 import { Coupon, ProductItem } from "../../../../../types";
 import Image from "next/image";
+
+function checkoutApiOrigin(): string {
+  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+}
+
+/** Join API origin + stored path; map `products/...` to `/uploads/products/...` for local Express static. */
+function checkoutResolveApiPath(path?: string | null): string {
+  if (!path) return "";
+  const p = path.trim();
+  if (p.startsWith("http://") || p.startsWith("https://")) return p;
+  const origin = checkoutApiOrigin();
+  let seg = p.startsWith("/") ? p : `/${p}`;
+  if (!seg.toLowerCase().startsWith("/uploads/") && seg.startsWith("/products/")) {
+    seg = `/uploads${seg}`;
+  }
+  return `${origin}${seg}`;
+}
 
 interface ShippingMethod {
   _id: string;
@@ -195,24 +211,26 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                     if (product.variantImages && product.variantImages.length > 0) {
                       const img = product.variantImages[0] as { path?: string; url?: string };
                       if (img.url) return img.url;
-                      if (img.path) return `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`;
+                      if (img.path) return checkoutResolveApiPath(img.path);
                     }
                     // Check gallery images as fallback
                     const productAny = product as any;
                     if (productAny.galleryImages && productAny.galleryImages.length > 0) {
                       const img = productAny.galleryImages[0] as { path?: string; url?: string };
                       if (img.url) return img.url;
-                      if (img.path) return `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`;
+                      if (img.path) return checkoutResolveApiPath(img.path);
                     }
                     // Check product thumbnail
                     if (product.productthumbnail) {
                       if (typeof product.productthumbnail === 'string') {
-                        return `${process.env.NEXT_PUBLIC_API_URL}/uploads/products/${product.productthumbnail}`;
+                        return checkoutResolveApiPath(
+                          `uploads/products/${String(product.productthumbnail).trim()}`
+                        );
                       }
                       const thumb = product.productthumbnail as { url?: string; path?: string };
                       if (thumb.url) return thumb.url;
                       if (thumb.path) {
-                        return `${process.env.NEXT_PUBLIC_API_URL}/${thumb.path}`;
+                        return checkoutResolveApiPath(thumb.path);
                       }
                     }
                     // Final fallback
@@ -448,11 +466,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
               >
                 <p className="text-black">
                   I have read and accept the{" "}
-                  <Link href="/terms-and-conditions">
-                    <b className="text-primary hover:underline cursor-pointer">
-                      Terms and Conditions
-                    </b>
-                  </Link>
+                  <b className="text-primary">Terms and Conditions</b>
                 </p>
               </label>
             </div>
