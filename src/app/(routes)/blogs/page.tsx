@@ -1,8 +1,5 @@
 "use client";
 import Nav from "@/app/components/navbar/Nav";
-
-
-import TopBar from "@/app/topbar/page";
 import React, { useEffect, useState } from "react";
 import { Blog } from "../../../../types";
 import BlogCard from "@/app/components/blogs/BlogCard";
@@ -89,7 +86,6 @@ export default function Blogs() {
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-      <TopBar />
       <Nav />
       <BreadCrumb breadcrumb={breadCrumb} />
 

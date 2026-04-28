@@ -2,7 +2,6 @@ import "./globals.css";
 import HeroSlider2 from "./components/HeroSlider2";
 import Nav from "./components/navbar/Nav";
 import HomeClient from "./HomeClient";
-import BlogsCard from "./components/blogs/BlogsCard";
 import { Metadata } from "next";
 import {
   getHomepageFeatures,
@@ -175,10 +174,6 @@ export default async function Home() {
           </div>
         </div>
       )}
-
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <BlogsCard />
-      </section>
 
       <HomeClient cmsPrefetch={cmsBundle} />
     </>

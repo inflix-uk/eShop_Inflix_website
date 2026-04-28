@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "@/app/topbar/page": ["./src/app/components/topbar/TopBar.tsx"],
       "@/*": ["./src/*"]
     }
   },

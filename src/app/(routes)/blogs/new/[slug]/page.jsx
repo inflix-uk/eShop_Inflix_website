@@ -1,6 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import PropTypes from "prop-types";
-import ClientBlogPage from "./ClientBlogPage";
 import { getFullImageUrl } from "./blogUtils";
 import { getCanonical } from "@/lib/getCanonical";
 
@@ -16,6 +15,30 @@ async function getBlogPostBySlugWithoutCache(slug) {
     console.error('Error getting blog post:', error);
     return null;
   }
+}
+
+function toCategorySlug(value) {
+  if (!value || typeof value !== "string") return "general";
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function getCategoryName(blog) {
+  if (typeof blog?.blogCategory === "string" && blog.blogCategory.trim()) {
+    return blog.blogCategory;
+  }
+  if (Array.isArray(blog?.categories) && blog.categories.length > 0) {
+    const first = blog.categories[0];
+    if (typeof first === "string" && first.trim()) return first;
+    if (first && typeof first === "object" && typeof first.name === "string" && first.name.trim()) {
+      return first.name;
+    }
+  }
+  return "general";
 }
 
 // Generate metadata for SEO (CMS fields only; no hardcoded brand copy)
@@ -40,7 +63,8 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const canonicalUrl = await getCanonical(`/blogs/new/${slug}`);
+  const categorySlug = toCategorySlug(getCategoryName(blog));
+  const canonicalUrl = await getCanonical(`/blogs/${categorySlug}/${slug}`);
   const metaTitle =
     typeof blog.metaTitle === "string" ? blog.metaTitle.trim() : "";
   const displayTitle = metaTitle || "";
@@ -104,45 +128,9 @@ export default async function BlogPreviewPage({ params }) {
     notFound();
   }
   
-  const pageUrl = await getCanonical(`/blogs/new/${slug}`);
-  const metaTitle =
-    typeof blog.metaTitle === "string" ? blog.metaTitle.trim() : "";
-  const headline = metaTitle || (typeof blog.title === "string" ? blog.title : "");
-  const metaDesc =
-    typeof blog.metaDescription === "string"
-      ? blog.metaDescription.trim()
-      : "";
-  const description = metaDesc || (typeof blog.excerpt === "string" ? blog.excerpt : "");
-  const banner =
-    typeof blog.bannerImage === "string" ? blog.bannerImage : "";
-  const featured =
-    typeof blog.featuredImage === "string" ? blog.featuredImage : "";
-  const imagePath = banner || featured;
-  const imageUrl = imagePath ? getFullImageUrl(imagePath) : undefined;
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline,
-    description,
-    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
-    url: pageUrl,
-    datePublished: blog.publishDate,
-    dateModified: blog.updatedAt,
-  };
-  if (imageUrl) {
-    structuredData.image = imageUrl;
-  }
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
-      <ClientBlogPage blog={blog} />
-    </>
-  );
+  const categorySlug = toCategorySlug(getCategoryName(blog));
+  redirect(`/blogs/${categorySlug}/${slug}`);
+  return null;
 }
 
 BlogPreviewPage.propTypes = {

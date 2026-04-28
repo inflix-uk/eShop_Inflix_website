@@ -1,3 +1,5 @@
+import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
+
 const SLUGS_WITHOUT_TOPBAR = new Set([
   "about-us",
   "refund-policy",
@@ -7,8 +9,9 @@ const SLUGS_WITHOUT_TOPBAR = new Set([
 export function slugHidesTopBar(slug: string): boolean {
   if (!slug) return false;
   try {
-    return SLUGS_WITHOUT_TOPBAR.has(
-      decodeURIComponent(slug).toLowerCase().trim()
+    const normalized = decodeURIComponent(slug).toLowerCase().trim();
+    return (
+      SLUGS_WITHOUT_TOPBAR.has(normalized) || isDisabledRootSlug(normalized)
     );
   } catch {
     return false;

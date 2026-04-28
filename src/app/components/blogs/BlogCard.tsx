@@ -11,6 +11,15 @@ function plainExcerpt(raw: string | undefined): string {
     .trim();
 }
 
+function toCategorySlug(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
 export default function BlogCard(
   props: (Blog | any) & { carouselSlide?: boolean }
 ) {
@@ -78,6 +87,7 @@ export default function BlogCard(
   );
 
   const categoryLabel = (category && String(category).trim()) || "Blog";
+  const categorySlug = toCategorySlug((category && String(category).trim()) || "general");
 
   const slideClass = carouselSlide
     ? "embla__slide mr-3 flex min-w-0 shrink-0 flex-[0_0_calc((100%-0.75rem)/2)] sm:flex-[0_0_calc((100%-1rem)/2)] lg:flex-[0_0_calc((100%-3rem)/3)] px-1"
@@ -86,7 +96,7 @@ export default function BlogCard(
   return (
     <div key={blog._id} className={slideClass}>
       <Link
-        href={`/blogs/${slug}`}
+        href={`/blogs/${categorySlug}/${slug}`}
         className="block h-full min-w-0 w-full max-w-full"
       >
         <div className="w-full min-w-0 max-w-full py-1.5 sm:py-5">

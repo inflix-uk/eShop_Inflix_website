@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCanonical } from "@/lib/getCanonical";
+import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -58,9 +59,8 @@ export async function generateMetadata({
   const canonicalUrl = await getCanonical(`/categories/${slug}`);
 
   const metaKeywords = category?.metaKeywords || "";
-  const bannerUrl = category?.bannerImage?.path
-    ? `${process.env.NEXT_PUBLIC_API_URL}/${category.bannerImage.path}`
-    : undefined;
+  const bannerUrl =
+    resolveCategoryImageSrc(category?.bannerImage) ?? undefined;
 
   return {
     title: category?.metaTitle || "",

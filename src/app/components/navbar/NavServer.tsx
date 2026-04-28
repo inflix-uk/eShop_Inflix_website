@@ -89,9 +89,6 @@ export default function NavServer({ categories }: NavServerProps) {
           <Link href="/deals-and-discounts">Deals</Link>
         </li>
         */}
-        <li>
-          <Link href="/contact-us">Contact</Link>
-        </li>
         {/* Route disabled (404): /about-zextons
         <li>
           <Link href="/about-zextons">About</Link>
@@ -100,7 +97,7 @@ export default function NavServer({ categories }: NavServerProps) {
         {/* <li>
           <Link href="/faqs">FAQs</Link>
         </li> */}
-        {/* Route disabled: /terms-and-conditions (see DISABLED_FOOTER_PAGE_SLUGS in app/[slug]/page.tsx)
+        {/* Route disabled: /terms-and-conditions (see `disabledRootSlugs.ts`)
         <li>
           <Link href="/terms-and-conditions">Terms</Link>
         </li>
@@ -108,7 +105,7 @@ export default function NavServer({ categories }: NavServerProps) {
         <li>
           <Link href="/privacy-policy">Privacy</Link>
         </li>
-        {/* Route disabled: /refund-and-return-policy (see DISABLED_FOOTER_PAGE_SLUGS in app/[slug]/page.tsx)
+        {/* Route disabled: /refund-and-return-policy (see `disabledRootSlugs.ts`)
         <li>
           <Link href="/refund-and-return-policy">Returns</Link>
         </li>
