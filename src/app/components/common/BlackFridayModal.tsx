@@ -4,12 +4,10 @@ import { useEffect, useState, FC, FormEvent } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { useAuth } from "@/app/context/Auth";
-import FridaySaleModalBannerImage from "@/app/assets/FridaySaleModalBannerImage.png";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   fetchDealsModalPublic,
-  DEALS_MODAL_STATIC_DEFAULTS,
   type DealsModalPublicFields,
 } from "@/app/services/dealsModalPublicService";
 
@@ -43,8 +41,9 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
   const pathname = usePathname();
   const [hasMounted, setHasMounted] = useState(false);
 
-  const [cfg, setCfg] = useState<DealsModalPublicFields>(DEALS_MODAL_STATIC_DEFAULTS);
-  /** When CMS turns the feature off, skip auto-popup only; FAB + manual open still use static defaults. */
+  const [cfg, setCfg] = useState<DealsModalPublicFields | null>(null);
+  const [missingConfig, setMissingConfig] = useState(false);
+  /** When CMS turns the feature off, skip auto-popup only. */
   const [cmsAllowsAutoOpen, setCmsAllowsAutoOpen] = useState(true);
 
   useEffect(() => {
@@ -56,13 +55,17 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
     (async () => {
       const res = await fetchDealsModalPublic();
       if (cancelled) return;
-      if (res === null) return;
+      if (res === null) {
+        setMissingConfig(true);
+        return;
+      }
       if ("enabled" in res && res.enabled === false) {
         setCmsAllowsAutoOpen(false);
         return;
       }
       setCmsAllowsAutoOpen(true);
-      setCfg({ ...DEALS_MODAL_STATIC_DEFAULTS, ...(res as DealsModalPublicFields) });
+      setMissingConfig(false);
+      setCfg(res as DealsModalPublicFields);
     })();
     return () => {
       cancelled = true;
@@ -116,10 +119,10 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
     return false;
   });
   const [isCodeCopied, setIsCodeCopied] = useState(false);
-  const discountCode = cfg.discountCode;
+  const discountCode = cfg?.discountCode ?? "";
 
   const [timeLeft, setTimeLeft] = useState(() =>
-    calculateTimeLeftForEnd(DEALS_MODAL_STATIC_DEFAULTS.countdownEndsAt)
+    calculateTimeLeftForEnd(new Date().toISOString())
   );
 
   const auth = useAuth();
@@ -131,11 +134,9 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
+    if (!cfg) return;
     let modalTimer: ReturnType<typeof setTimeout> | undefined;
-    const delayMs =
-      Number.isFinite(cfg.openDelayMs) && cfg.openDelayMs >= 0
-        ? cfg.openDelayMs
-        : DEALS_MODAL_STATIC_DEFAULTS.openDelayMs;
+    const delayMs = Number.isFinite(cfg.openDelayMs) && cfg.openDelayMs >= 0 ? cfg.openDelayMs : 0;
     if (
       cmsAllowsAutoOpen &&
       !isPermanentlyDismissed &&
@@ -151,22 +152,24 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
       if (modalTimer) clearTimeout(modalTimer);
     };
   }, [
+    cfg,
     cmsAllowsAutoOpen,
     isPermanentlyDismissed,
     hasBeenShown,
     isCollapsed,
-    cfg.openDelayMs,
+    cfg?.openDelayMs,
   ]);
 
   // Countdown: own effect so CMS `countdownEndsAt` updates apply immediately and
   // do not reset the auto-open delay timer.
   useEffect(() => {
-    const endsAt = cfg.countdownEndsAt || DEALS_MODAL_STATIC_DEFAULTS.countdownEndsAt;
+    if (!cfg) return;
+    const endsAt = cfg.countdownEndsAt;
     const tick = () => setTimeLeft(calculateTimeLeftForEnd(endsAt));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [cfg.countdownEndsAt]);
+  }, [cfg]);
 
   useEffect(() => {
     const checkCart = () => {
@@ -283,7 +286,7 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
       });
       if (response.status === 200) {
         setEmail(""); // Clear email field after successful subscription
-        setSuccess(cfg.successSubscribeMessage);
+        setSuccess(cfg?.successSubscribeMessage || "You have successfully subscribed!");
         // Save to localStorage that email was submitted
         if (typeof window !== "undefined") {
           localStorage.setItem("blackFridayEmailSubmitted", "true");
@@ -307,13 +310,18 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
 
   if (!hasMounted) return null;
   if (isPermanentlyDismissed) return null;
+  if (!cfg) {
+    return missingConfig ? (
+      <div className="fixed bottom-6 left-4 z-[10050] rounded-md bg-amber-100 px-3 py-2 text-xs font-medium text-amber-900 shadow">
+        Deals modal is not configured. Please configure it from admin settings.
+      </div>
+    ) : null;
+  }
 
   const showHotUkDealsButton =
     !isOnCheckoutPage && !isCartOpen && !isOpen;
 
-  const triggerLabel =
-    cfg.collapsedBannerText?.trim() ||
-    DEALS_MODAL_STATIC_DEFAULTS.collapsedBannerText;
+  const triggerLabel = cfg.collapsedBannerText?.trim();
 
   const dealsUi = (
     <>
@@ -328,7 +336,7 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
             onClick={handleExpand}
             className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-2.5 sm:px-4 sm:py-3 font-bold text-left text-xs sm:text-sm uppercase tracking-wide hover:from-orange-600 hover:to-red-600 focus-visible:outline focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-orange-400 transition-colors min-w-0 min-h-[44px] flex-1 sm:min-h-0"
           >
-            {triggerLabel}
+            {triggerLabel || "Deals"}
           </button>
           <button
             type="button"
@@ -627,13 +635,7 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
 
           {/* Privacy Policy Text */}
           <p className="relative z-10 text-[9px] sm:text-[10px] md:text-xs text-gray-600 leading-relaxed">
-            By submitting this form, you consent to receive informational (e.g.,
-            order updates, verification requests) and/or promotional texts
-            (e.g., special offers or cart reminders) from Zextons, which may
-            include automated messages. Consent is not a condition of purchase.
-            Standard message and data rates may apply. Message frequency varies.
-            You can unsubscribe at any time by replying STOP or clicking the
-            unsubscribe link (where available). See our{" "}
+            {cfg.privacyDisclaimerText}{" "}
             <Link
               href="/privacy-policy"
               className="underline hover:text-gray-600"
@@ -646,7 +648,7 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
 
         {/* Right Section - Image Background */}
         <div className="hidden md:flex w-full md:w-2/5 relative items-stretch justify-center overflow-hidden min-h-[280px]">
-          {/* Background Image — CMS URL or default bundled asset */}
+          {/* Background Image — CMS URL */}
           {cfg.bannerImageUrl?.trim() ? (
             <Image
               src={cfg.bannerImageUrl.trim()}
@@ -661,12 +663,9 @@ const BlackFridayModal: FC<BlackFridayModalProps> = ({ mode }) => {
               }
             />
           ) : (
-            <Image
-              src={FridaySaleModalBannerImage}
-              alt={cfg.rightPanelImageAlt}
-              className="w-full h-full object-fit"
-              priority
-            />
+            <div className="flex h-full w-full items-center justify-center bg-gray-900 px-4 text-center text-sm font-medium text-white">
+              Please upload a deals modal banner image from admin settings.
+            </div>
           )}
 
           {/* Close button - positioned in top right */}

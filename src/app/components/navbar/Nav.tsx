@@ -161,7 +161,7 @@ export default function Nav() {
     return "/customer/dashboard";
   }, [auth.user]);
 
-  /* No shell/skeleton while categories load — same idea as footer (nothing until CMS has something). */
+  /* Keep navbar fully CMS/backoffice driven: render nothing when content is missing. */
   if (!hasNavContent) {
     return null;
   }

@@ -24,6 +24,7 @@ export type DealsModalPublicFields = {
   discountViewDescription: string;
   discountViewLabel: string;
   discountViewThankYou: string;
+  privacyDisclaimerText: string;
   copyCodeButtonText: string;
   copiedButtonText: string;
   rightPanelImageAlt: string;
@@ -57,6 +58,8 @@ export const DEALS_MODAL_STATIC_DEFAULTS: DealsModalPublicFields = {
     "Use this code at checkout to claim your exclusive discount!",
   discountViewLabel: "Use Discount Code:",
   discountViewThankYou: "Thank you for subscribing! Enjoy your savings.",
+  privacyDisclaimerText:
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Please review our",
   copyCodeButtonText: "Copy Code",
   copiedButtonText: "Copied!",
   rightPanelImageAlt: "Hot UK Deals",

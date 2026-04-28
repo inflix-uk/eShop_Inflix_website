@@ -1,7 +1,7 @@
 import { cache } from "react";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import TableOfContentsWrapper from "./TableOfContentsWrapper";
 import DateDisplay from "./DateDisplay";
 import Nav from "@/app/components/navbar/Nav";
@@ -32,8 +32,48 @@ interface BlogData {
   metaImageAlt?: string;
 }
 
+function toCategorySlug(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function getNewBlogCategorySlugs(post: Record<string, unknown>): string[] {
+  const names: string[] = [];
+  if (typeof post.blogCategory === "string" && post.blogCategory.trim()) {
+    names.push(post.blogCategory);
+  }
+  if (Array.isArray(post.categories) && post.categories.length > 0) {
+    for (const entry of post.categories) {
+      if (typeof entry === "string" && entry.trim()) {
+        names.push(entry);
+      } else if (
+        entry &&
+        typeof entry === "object" &&
+        "name" in entry &&
+        typeof entry.name === "string" &&
+        entry.name.trim()
+      ) {
+        names.push(entry.name);
+      }
+    }
+  }
+  const slugs = Array.from(
+    new Set(names.map((name) => toCategorySlug(name)).filter(Boolean))
+  );
+  return slugs.length > 0 ? slugs : ["general"];
+}
+
+function getLegacyBlogCategorySlugs(blog: BlogData): string[] {
+  const primary = toCategorySlug(blog.blogCategory || "general");
+  return primary ? [primary] : ["general"];
+}
+
 /** New admin blog posts (NewBlog model) — same API as /blogs/new/[slug] */
-const fetchNewBlogBySlug = cache(async (slug: string): Promise<Record<string, unknown> | null> => {
+const fetchNewBlogBySlug = async (slug: string): Promise<Record<string, unknown> | null> => {
   const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   if (!base || !slug) return null;
   try {
@@ -58,7 +98,7 @@ const fetchNewBlogBySlug = cache(async (slug: string): Promise<Record<string, un
   } catch {
     return null;
   }
-});
+};
 
 export const dynamic = "force-dynamic";
 
@@ -157,12 +197,23 @@ function buildNewBlogBlogPostingJsonLd(
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; category?: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const canonicalUrl = await getCanonical(`/blogs/${slug}`);
+  const { slug, category } = await params;
+  const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
+  const canonicalUrl = await getCanonical(routePath);
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog && typeof newBlog.title === "string") {
+    if (category) {
+      const allowedCategorySlugs = getNewBlogCategorySlugs(newBlog);
+      if (!allowedCategorySlugs.includes(category)) {
+        return {
+          title: "",
+          description: "",
+          robots: "noindex, nofollow",
+        };
+      }
+    }
     const metaTitle =
       typeof newBlog.metaTitle === "string" ? newBlog.metaTitle.trim() : "";
     const displayTitle = metaTitle || "";
@@ -219,6 +270,16 @@ export async function generateMetadata({
       robots: "noindex, nofollow",
     };
   }
+  if (category) {
+    const allowedCategorySlugs = getLegacyBlogCategorySlugs(blog);
+    if (!allowedCategorySlugs.includes(category)) {
+      return {
+        title: "",
+        description: "",
+        robots: "noindex, nofollow",
+      };
+    }
+  }
 
   const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}`;
   const rawOgImage = (blog.metaImage && blog.metaImage) || blog.blogImage;
@@ -263,13 +324,24 @@ export async function generateMetadata({
 export default async function BlogPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string; category?: string }>;
 }) {
-  const { slug } = await params;
-  const canonicalUrl = await getCanonical(`/blogs/${slug}`);
+  const { slug, category } = await params;
+  const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
+  const canonicalUrl = await getCanonical(routePath);
 
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog) {
+    const allowedCategorySlugs = getNewBlogCategorySlugs(newBlog);
+    const canonicalCategorySlug = allowedCategorySlugs[0];
+    if (!category) {
+      redirect(`/blogs/${canonicalCategorySlug}/${slug}`);
+    }
+    if (category) {
+      if (!allowedCategorySlugs.includes(category)) {
+        notFound();
+      }
+    }
     const blogPostingLd = buildNewBlogBlogPostingJsonLd(newBlog, slug, canonicalUrl);
     const metaSchemaRaw = newBlog.metaSchema;
     const metaSchemaList = Array.isArray(metaSchemaRaw)
@@ -301,6 +373,16 @@ export default async function BlogPage({
 
   const blog = await getLegacyBlog(slug);
   if (!blog) notFound();
+  const legacyCategorySlug = getLegacyBlogCategorySlugs(blog)[0];
+  if (!category) {
+    redirect(`/blogs/${legacyCategorySlug}/${slug}`);
+  }
+  if (category) {
+    const allowedCategorySlugs = getLegacyBlogCategorySlugs(blog);
+    if (!allowedCategorySlugs.includes(category)) {
+      notFound();
+    }
+  }
 
   const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}`;
   const heroImage = blog.blogImage.startsWith("http")

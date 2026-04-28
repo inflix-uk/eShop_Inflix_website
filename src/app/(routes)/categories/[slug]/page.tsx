@@ -7,6 +7,7 @@ import ProductList from "./ProductList";
 // import TopBar from "@/app/topbar/page";
 import Nav from "@/app/components/navbar/Nav";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
+import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -71,6 +72,8 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
+  const bannerSrc = resolveCategoryImageSrc(categoryData.bannerImage);
+
   return (
     <>
       <header className="relative">
@@ -94,10 +97,10 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         </nav>
 
         <div className="relative mb-5">
-          {categoryData.bannerImage?.path ? (
+          {bannerSrc ? (
             <Image
               className="rounded-xl w-full"
-              src={`${process.env.NEXT_PUBLIC_API_URL}/${categoryData.bannerImage.path}`}
+              src={bannerSrc}
               alt={`${categoryName} Banner`}
               width={1920}
               height={500}

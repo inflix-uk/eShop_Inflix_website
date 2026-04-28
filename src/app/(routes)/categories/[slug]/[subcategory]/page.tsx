@@ -7,26 +7,12 @@ import Image from "next/image";
 import SubCategoryContent from "./SubCategoryContent";
 import ProductList from "./ProductList";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
+import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join("-");
-}
-
-/** Prefer full blob/API URL; avoid prefixing API base onto Vercel blob pathnames. */
-function subcategoryBannerSrc(banner: {
-  url?: string;
-  path?: string;
-} | null): string | null {
-  if (!banner) return null;
-  const u = typeof banner.url === "string" ? banner.url.trim() : "";
-  if (u) return u;
-  const p = typeof banner.path === "string" ? banner.path.trim() : "";
-  if (!p) return null;
-  if (/^https?:\/\//i.test(p)) return p;
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  return `${base}/${p.replace(/^\//, "")}`;
 }
 
 async function getSubCategoryData(subCategoryName: string) {
@@ -87,7 +73,7 @@ export default async function SubCategoryPage({
   if (!categoryData) {
     notFound();
   }
-  const bannerSrc = subcategoryBannerSrc(categoryData.banner);
+  const bannerSrc = resolveCategoryImageSrc(categoryData.banner);
   return (
     <>
       <header className="relative">
