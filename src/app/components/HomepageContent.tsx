@@ -50,7 +50,9 @@ function ImageBlock({
             alt={block.content.alt || block.content.heading || "Image"}
             fill
             className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1200px"
+            sizes="(max-width: 768px) 100vw, 50vw"
+            quality={70}
+            loading="lazy"
             unoptimized={imageUrl.startsWith("http://localhost")}
           />
         </div>

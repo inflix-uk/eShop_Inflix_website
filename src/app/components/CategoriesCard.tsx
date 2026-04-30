@@ -237,11 +237,21 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
       <Link href={shopLink} className="block h-full">
         <div className="relative overflow-hidden rounded-lg shadow-xl p-2 sm:p-3 md:p-5 mb-2 md:mb-0 cursor-pointer transition-all duration-[1200ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] hover:scale-[1.03] hover:shadow-card-shadow group h-full">
           {bgUrl ? (
-            <div
-              className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-[1400ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:scale-110"
-              style={{ backgroundImage: `url(${bgUrl})` }}
-              aria-hidden
-            />
+            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+              <Image
+                src={bgUrl}
+                alt=""
+                fill
+                className="object-cover object-center transition-transform duration-[1400ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] group-hover:scale-110"
+                sizes={
+                  cardCount <= 1
+                    ? "(max-width: 768px) 100vw, min(1280px, 100vw)"
+                    : `(max-width: 768px) 100vw, ${Math.ceil(100 / cardCount)}vw`
+                }
+                loading="lazy"
+                unoptimized={bgUrl.startsWith("http://localhost")}
+              />
+            </div>
           ) : null}
           {card.overlayColor?.trim() ? (
             <div

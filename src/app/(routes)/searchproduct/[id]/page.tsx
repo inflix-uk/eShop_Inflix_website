@@ -13,6 +13,12 @@ import ProductCardWithStock from "@/app/components/ProductCardWithStock";
 import { SortOptions } from "@/app/components/SortOptions";
 import SidebarCommon from "@/app/components/SidebarCommon";
 import axios from "axios";
+import { fetchNavbarHeaderPublic } from "@/app/services/navbarHeaderPublicService";
+
+function telHref(phone: string): string | null {
+  const digits = phone.replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : null;
+}
 
 export default function SearchPage() {
   const auth = useAuth();
@@ -42,13 +48,25 @@ export default function SearchPage() {
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
   const productsPerPage = 50;
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = useMemo(() => {
     return filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
   }, [filteredProducts, indexOfFirstProduct, indexOfLastProduct]);
-  // Fetch subcategory products
+  useEffect(() => {
+    let cancelled = false;
+    void fetchNavbarHeaderPublic().then((data) => {
+      if (cancelled) return;
+      setSupportEmail(data.supportEmail?.trim() ?? "");
+      setSupportPhone(data.supportPhone?.trim() ?? "");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const getSearchedProduct = () => {
@@ -78,6 +96,7 @@ export default function SearchPage() {
     getSearchedProduct(); // Call the function to fetch products for the category
   }, [encodedTerm, auth.ip]);
   const noProducts = filteredProducts.length === 0;
+  const supportPhoneHref = telHref(supportPhone);
   return (
     <>
       <header className="relative">
@@ -131,48 +150,54 @@ export default function SearchPage() {
                   <p className="text-base md:text-lg lg:text-xl text-gray-600 mb-8">
                     Contact us — we might have it in stock!
                   </p>
-                  <div className="space-y-4">
-                    <a
-                      href="mailto:hello@zextons.co.uk"
-                      className="flex items-center justify-center gap-3 text-base md:text-lg text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
-                    >
-                      <svg
-                        className="w-5 h-5 md:w-6 md:h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <span>hello@zextons.co.uk</span>
-                    </a>
-                    <a
-                      href="tel:03333448541"
-                      className="flex items-center justify-center gap-3 text-base md:text-lg text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
-                    >
-                      <svg
-                        className="w-5 h-5 md:w-6 md:h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                        />
-                      </svg>
-                      <span>0333 344 8541</span>
-                    </a>
-                  </div>
+                  {(supportEmail || supportPhoneHref) && (
+                    <div className="space-y-4">
+                      {supportEmail ? (
+                        <a
+                          href={`mailto:${supportEmail}`}
+                          className="flex items-center justify-center gap-3 text-base md:text-lg text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
+                        >
+                          <svg
+                            className="w-5 h-5 md:w-6 md:h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span>{supportEmail}</span>
+                        </a>
+                      ) : null}
+                      {supportPhoneHref ? (
+                        <a
+                          href={supportPhoneHref}
+                          className="flex items-center justify-center gap-3 text-base md:text-lg text-primary hover:text-primary/80 transition-colors duration-200 font-medium"
+                        >
+                          <svg
+                            className="w-5 h-5 md:w-6 md:h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                            />
+                          </svg>
+                          <span>{supportPhone}</span>
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

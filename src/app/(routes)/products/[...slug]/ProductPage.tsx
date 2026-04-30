@@ -81,8 +81,10 @@ import {
 } from "../services/cartService";
 import { checkStockAvailability } from "@/utils/stockApi";
 import { toast } from "react-toastify";
+import { useAuth } from "@/app/context/Auth";
 
 export default function ProductPage({ product, initialVariantSlug }: { product: ProductData; initialVariantSlug?: string }) {
+  const auth = useAuth();
   const { slug } = useParams();
   // slug is now an array: [productUrl] or [productUrl, variantSlug]
   const slugArray = Array.isArray(slug) ? slug : [slug];
@@ -127,6 +129,8 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     availableQuantity: number;
     inStock: boolean;
   } | null>(null);
+  const [groupOverridePrice, setGroupOverridePrice] = useState<number | null>(null);
+  const [isGroupPriceLoading, setIsGroupPriceLoading] = useState<boolean>(false);
 
   const breadcrumb = [
     {
@@ -399,6 +403,55 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
       document.documentElement.classList.remove("has-product-sticky-buy-bar");
     };
   }, []);
+
+  useEffect(() => {
+    const pricingGroupId = auth?.user?.pricingGroup
+      ? String(auth.user.pricingGroup)
+      : "";
+    if (!pricingGroupId || !product?._id) {
+      setGroupOverridePrice(null);
+      setIsGroupPriceLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchGroupOverride = async () => {
+      setIsGroupPriceLoading(true);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/products?groupId=${encodeURIComponent(
+            pricingGroupId
+          )}`
+        );
+        const body = await res.json();
+        const list = Array.isArray(body?.products) ? body.products : [];
+        const matched = list.find(
+          (item: any) => String(item?._id) === String(product._id)
+        );
+        const override = Number(matched?.groupPrice);
+        if (!cancelled) {
+          setGroupOverridePrice(
+            Number.isFinite(override) && override > 0 ? override : null
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setGroupOverridePrice(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsGroupPriceLoading(false);
+        }
+      }
+    };
+
+    void fetchGroupOverride();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.user?.pricingGroup, product?._id]);
+
+  const shouldDeferPriceRender = Boolean(auth?.user?.pricingGroup) && isGroupPriceLoading;
 
   useEffect(() => {
     if (
@@ -889,11 +942,18 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
   const batteryPrice = batteryJson?.batteryPrice
     ? parseFloat(batteryJson.batteryPrice)
     : 0;
-  const standardBatteryPrice = selectedVariant && selectedVariant.salePrice != null && !isNaN(Number(selectedVariant.salePrice))
-    ? parseFloat(selectedVariant.salePrice).toFixed(2)
-    : product?.variantValues && product.variantValues.length > 0 && product.variantValues[0]?.salePrice != null
-    ? parseFloat(product?.variantValues[0]?.salePrice).toFixed(2)
-    : "0.00";
+  const standardBatteryPrice =
+    groupOverridePrice !== null
+      ? groupOverridePrice.toFixed(2)
+      : selectedVariant &&
+        selectedVariant.salePrice != null &&
+        !isNaN(Number(selectedVariant.salePrice))
+      ? parseFloat(selectedVariant.salePrice).toFixed(2)
+      : product?.variantValues &&
+        product.variantValues.length > 0 &&
+        product.variantValues[0]?.salePrice != null
+      ? parseFloat(product?.variantValues[0]?.salePrice).toFixed(2)
+      : "0.00";
 
   const initialBatteryOption = `£${standardBatteryPrice}`;
   const [updatedPrice, setUpdatedPrice] = useState<number>(
@@ -945,9 +1005,12 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     setSelectedBatteryOption(selectedOption);
     const selectedVariantId = selectedVariant?._id;
     if (selectedOption === `£${batteryPrice.toFixed(2)}`) {
-      const standardPrice = selectedVariant?.salePrice
-        ? parseFloat(selectedVariant.salePrice)
-        : 0;
+      const standardPrice =
+        groupOverridePrice !== null
+          ? groupOverridePrice
+          : selectedVariant?.salePrice
+          ? parseFloat(selectedVariant.salePrice)
+          : 0;
       const newPrice = standardPrice + parseFloat(batteryPrice.toFixed(2));
       setUpdatedPrice(newPrice);
 
@@ -1043,6 +1106,8 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
                 averageRating={averageRating}
                 selectedOptions={selectedOptions}
                 selectedVariant={selectedVariant}
+                groupOverridePrice={groupOverridePrice}
+                suppressPrice={shouldDeferPriceRender}
               />
 
               <DeliverySection
@@ -1187,6 +1252,8 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
         updatedPrice={updatedPrice}
         checkingStock={checkingStock}
         stockData={stockData}
+        groupOverridePrice={groupOverridePrice}
+        suppressPrice={shouldDeferPriceRender}
       />
 
       <ProductCart

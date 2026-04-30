@@ -12,25 +12,43 @@ import Sidebar from "@/app/components/Sidebar";
 import SortMenu from "@/app/components/SortMenu";
 import TopBar from "@/app/topbar/page";
 import Nav from "@/app/components/navbar/Nav";
+import { useAuth } from "@/app/context/Auth";
 export default function ShopAll() {
   const dispatch = useAppDispatch();
+  const auth = useAuth();
   const { products } = useAppSelector((state: RootState) => state.products);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
   const productsPerPage = 50;
-  const fetchOnceRef = useRef(false);
+  const lastFetchedGroupIdRef = useRef<string | null>(null);
+  const pricingGroupId = auth?.user?.pricingGroup
+    ? String(auth.user.pricingGroup)
+    : null;
 
   useEffect(() => {
-    if (products.length > 0) {
-      setFilteredProducts(products);
-      return;
+    const shouldRefetch =
+      lastFetchedGroupIdRef.current !== pricingGroupId || products.length === 0;
+
+    console.log("[pricing-debug] ShopAll pricing scope", {
+      userId: auth?.user?._id ?? null,
+      pricingGroupId,
+      productsCount: products.length,
+      lastFetchedGroupId: lastFetchedGroupIdRef.current,
+      shouldRefetch,
+    });
+
+    if (shouldRefetch) {
+      lastFetchedGroupIdRef.current = pricingGroupId;
+      dispatch(
+        fetchProducts(pricingGroupId ? { groupId: pricingGroupId } : undefined)
+      );
     }
-    if (!fetchOnceRef.current) {
-      fetchOnceRef.current = true;
-      dispatch(fetchProducts());
-    }
-  }, [dispatch, products]);
+  }, [dispatch, pricingGroupId, products.length]);
+
+  useEffect(() => {
+    setFilteredProducts(products);
+  }, [products]);
 
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;

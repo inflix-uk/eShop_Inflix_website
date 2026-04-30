@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import PropTypes from "prop-types";
+import Link from "next/link";
 import TableOfContents from "../TableOfContents";
 import TopBar from "@/app/topbar/page";
 import Nav from "@/app/components/navbar/Nav";
@@ -184,6 +185,36 @@ const formatDate = (dateString) => {
   });
 };
 
+const getPersonData = (person) => {
+  if (!person) return null;
+  if (typeof person === "string") {
+    return { name: person };
+  }
+  if (typeof person === "object") {
+    return {
+      name: person.name || person.fullName || "",
+      designation: person.designation || "",
+      image: person.image || person.profileImage || "",
+      bio: person.bio || person.description || "",
+    };
+  }
+  return null;
+};
+
+const slugify = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
+const getPersonDetailsHref = (person, roleLabel) => {
+  const role = roleLabel === "reviewer" ? "reviewer" : "author";
+  const personSlug = slugify(person?.name || role);
+  return `/profiles/${role}/${personSlug}`;
+};
+
 // Status badge
 const StatusBadge = ({ status }) => {
   const statusStyles = {
@@ -282,6 +313,12 @@ export default function ClientBlogPage({ blog }) {
     setShowTOC(!showTOC);
   };
 
+  const author = getPersonData(blog?.author);
+  const reviewer = getPersonData(blog?.reviewer);
+  const showPeopleSection =
+    (author && author.name) || (reviewer && reviewer.name);
+  const endCards = [author, reviewer].filter((person) => person && person.name);
+
   return (
     <>
       <TopBar />
@@ -360,37 +397,112 @@ export default function ClientBlogPage({ blog }) {
                         {blog.title}
                       </h1>
                       
-                      {/* Meta information - Responsive layout */}
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-                        {blog.updatedAt && (
-                          <div className="flex flex-wrap">
-                            <span className="font-medium mr-1">Last updated:</span>
-                            <span>{formatDate(blog.updatedAt)}</span>
-                          </div>
-                        )}
-                        {blog.publishDate && (
-                          <div className="flex flex-wrap">
-                            <span className="font-medium mr-1">Publish Date:</span>
-                            <span>{formatDate(blog.publishDate)}</span>
-                          </div>
-                        )}
-                        {blog.tags?.length > 0 && (
-                          <div className="flex flex-wrap">
-                            <span className="font-medium mr-1">Tags:</span>
-                            <span className="break-words">{blog.tags.join(", ")}</span>
-                          </div>
-                        )}
-                        {blog.categories?.length > 0 && (
-                          <div className="flex flex-wrap">
-                            <span className="font-medium mr-1">Categories:</span>
-                            <span className="break-words">
-                              {blog.categories.map((cat) =>
-                                typeof cat === "object" ? cat.name : cat
-                              ).join(", ")}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+{/* Meta Section */}
+{showPeopleSection && (
+  <div className="mb-6 space-y-5 border-b border-gray-100 pb-4">
+
+    {/* Author + Reviewer Row */}
+    <div className="flex flex-wrap items-center gap-6 sm:gap-10">
+
+      {/* Author */}
+      {author?.name ? (
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border border-gray-200">
+            {author.image ? (
+              <img
+                src={getFullImageUrl(author.image) || author.image}
+                alt={author.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-semibold">
+                {(author.name || "A").charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+              Author
+            </p>
+            <p className="text-sm font-semibold text-gray-900 truncate capitalize">
+              {author.name}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Reviewer */}
+      {reviewer?.name ? (
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 border border-gray-200">
+            {reviewer.image ? (
+              <img
+                src={getFullImageUrl(reviewer.image) || reviewer.image}
+                alt={reviewer.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-semibold">
+                {(reviewer.name || "R").charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+              Reviewer
+            </p>
+            <p className="text-sm font-semibold text-gray-900 truncate capitalize">
+              {reviewer.name}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+    </div>
+
+    {/* Blog Meta Info Row */}
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-500">
+
+      {blog.updatedAt && (
+        <div>
+          <span className="text-gray-700 font-medium">Updated:</span>{" "}
+          {formatDate(blog.updatedAt)}
+        </div>
+      )}
+
+      {blog.publishDate && (
+        <div>
+          <span className="text-gray-700 font-medium">Published:</span>{" "}
+          {formatDate(blog.publishDate)}
+        </div>
+      )}
+
+      {blog.tags?.length > 0 && (
+        <div className="max-w-full">
+          <span className="text-gray-700 font-medium">Tags:</span>{" "}
+          <span className="break-words">
+            {blog.tags.join(", ")}
+          </span>
+        </div>
+      )}
+
+      {blog.categories?.length > 0 && (
+        <div className="max-w-full">
+          <span className="text-gray-700 font-medium">Categories:</span>{" "}
+          <span className="break-words">
+            {blog.categories.map((cat) =>
+              typeof cat === "object" ? cat.name : cat
+            ).join(", ")}
+          </span>
+        </div>
+      )}
+
+    </div>
+
+  </div>
+)}
                       
                       {/* Excerpt - Responsive */}
                       {blog.excerpt && (
@@ -692,6 +804,117 @@ export default function ClientBlogPage({ blog }) {
                           ))}
                         </div>
                       )}
+
+               {/* End cards: Author / Reviewer */}
+{endCards.length > 0 && (
+  <div className="mt-10 pt-6 border-t border-gray-100">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {/* AUTHOR CARD */}
+      {author?.name ? (
+        <div className="group relative rounded-2xl bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 p-6">
+
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-5">
+            {author.image ? (
+              <img
+                src={getFullImageUrl(author.image) || author.image}
+                alt={author.name}
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-50"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-indigo-50 text-indigo-700 flex items-center capitalize justify-center font-semibold ring-2 ring-indigo-100">
+                {(author.name || "A").charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wider text-gray-400">
+                Author
+              </p>
+              <h3 className="text-base font-semibold capitalize text-gray-900 truncate">
+                {author.name}
+              </h3>
+              <p className="text-sm text-gray-500 capitalize truncate">
+                {author.designation || "Content writer"}
+              </p>
+            </div>
+          </div>
+
+          {/* Bio */}
+          <p className="text-sm text-gray-600 leading-6 line-clamp-6">
+            {author.bio || "No bio available for this author yet."}
+          </p>
+
+          {/* Footer CTA */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <Link
+              href={getPersonDetailsHref(author, "author")}
+              className="text-sm font-medium text-primary hover:text-secondary transition inline-flex items-center gap-1 capitalize group-hover:gap-2"
+            >
+              More about {author.name}
+              <span className="transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {/* REVIEWER CARD */}
+      {reviewer?.name ? (
+        <div className="group relative rounded-2xl bg-white shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 p-6">
+
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-5">
+            {reviewer.image ? (
+              <img
+                src={getFullImageUrl(reviewer.image) || reviewer.image}
+                alt={reviewer.name}
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-emerald-50"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-semibold ring-2 ring-emerald-100">
+                {(reviewer.name || "R").charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wider text-gray-400">
+                Reviewer
+              </p>
+              <h3 className="text-base font-semibold capitalize text-gray-900 truncate">
+                {reviewer.name}
+              </h3>
+              <p className="text-sm text-gray-500 truncate capitalize">
+                {reviewer.designation || "Content reviewer"}
+              </p>
+            </div>
+          </div>
+
+          {/* Bio */}
+          <p className="text-sm text-gray-600 leading-6 line-clamp-6">
+            {reviewer.bio || "No bio available for this reviewer yet."}
+          </p>
+
+          {/* Footer CTA */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <Link
+              href={getPersonDetailsHref(reviewer, "reviewer")}
+              className="text-sm font-medium text-primary hover:text-secondary transition inline-flex items-center gap-1 capitalize group-hover:gap-2"
+            >
+              More about {reviewer.name}
+              <span className="transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+    </div>
+  </div>
+)}
                     </div>
 
                     <aside

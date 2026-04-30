@@ -12,6 +12,7 @@ import {
   bleedStyle,
   useBlogContentFullBleed,
 } from "@/app/(routes)/blogs/new/[slug]/useBlogContentFullBleed";
+import { useAuth } from "@/app/context/Auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
@@ -47,6 +48,9 @@ function mapHomepageAggregateToProduct(p: Record<string, unknown>): Product {
   const id = String(p._id ?? "");
   const minP = Number(p.minPrice);
   const minS = Number(p.minSalePrice);
+  const resolvedPrice = Number(p.price);
+  const resolvedOriginalPrice = Number(p.originalPrice);
+  const resolvedGroupPrice = Number(p.groupPrice);
   const safeMin = Number.isFinite(minP) && minP > 0 ? minP : 1;
   const safeSale = Number.isFinite(minS) && minS >= 0 ? minS : safeMin;
   const totalStock = Number(p.totalStock);
@@ -71,6 +75,11 @@ function mapHomepageAggregateToProduct(p: Record<string, unknown>): Product {
     producturl: String(p.producturl ?? ""),
     minPrice: safeMin,
     minSalePrice: safeSale,
+    price: Number.isFinite(resolvedPrice) ? resolvedPrice : undefined,
+    originalPrice: Number.isFinite(resolvedOriginalPrice)
+      ? resolvedOriginalPrice
+      : undefined,
+    groupPrice: Number.isFinite(resolvedGroupPrice) ? resolvedGroupPrice : null,
     averageRating:
       typeof p.averageRating === "number" && Number.isFinite(p.averageRating)
         ? p.averageRating
@@ -84,6 +93,7 @@ export default function ContentProductSlider({
 }: {
   content: ProductSliderBlockContent;
 }) {
+  const auth = useAuth();
   const isLatest = content.productSource === "latest";
   const ids = useMemo(
     () => (content.productIds || []).map(String).filter(Boolean),
@@ -106,10 +116,20 @@ export default function ContentProductSlider({
       return;
     }
 
+    const pricingGroupId = auth?.user?.pricingGroup
+      ? String(auth.user.pricingGroup)
+      : "";
+    const groupQuery = pricingGroupId
+      ? `?groupId=${encodeURIComponent(pricingGroupId)}`
+      : "";
+
     if (isLatest) {
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/get/latest/products/homepage`, {
+        const listEndpoint = pricingGroupId
+          ? `${API_URL}/api/products${groupQuery}`
+          : `${API_URL}/get/latest/products/homepage`;
+        const res = await fetch(listEndpoint, {
           cache: "no-store",
         });
         const data = await res.json().catch(() => ({}));
@@ -137,18 +157,31 @@ export default function ContentProductSlider({
     setLoading(true);
     try {
       const qs = encodeURIComponent(ids.join(","));
-      const res = await fetch(`${API_URL}/get/products/by-ids/public?ids=${qs}`, {
+      const endpoint = pricingGroupId
+        ? `${API_URL}/api/products${groupQuery}`
+        : `${API_URL}/get/products/by-ids/public?ids=${qs}`;
+      const res = await fetch(endpoint, {
         cache: "no-store",
       });
       const data = await res.json();
       const raw: Product[] = Array.isArray(data.products) ? data.products : [];
-      setItems(raw.map(normalizeProductThumb));
+      const normalized = raw.map(normalizeProductThumb);
+      if (pricingGroupId) {
+        const byId = new Map(normalized.map((item) => [String(item._id), item]));
+        const filteredToIds =
+          ids.length > 0
+            ? ids.map((id) => byId.get(String(id))).filter(Boolean)
+            : normalized;
+        setItems(filteredToIds as Product[]);
+      } else {
+        setItems(normalized);
+      }
     } catch {
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [isLatest, ids.join(",")]);
+  }, [isLatest, ids.join(","), auth?.user?.pricingGroup]);
 
   useEffect(() => {
     fetchProducts();

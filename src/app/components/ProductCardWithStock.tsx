@@ -19,11 +19,23 @@ const ProductCardWithStock: React.FC<ProductCardWithStockProps> = memo(
   ({ product, checkStockRealTime = false }) => {
     const auth = useAuth();
     const dispatch = useAppDispatch();
-    const minPrice = product.minPrice;
-    const minSalePrice = product.minSalePrice;
-    const discountPercentage = Math.round(
-      ((minPrice - minSalePrice) / minPrice) * 100
-    );
+    const hasGroupPrice = typeof product.groupPrice === "number";
+    const displayPrice =
+      typeof product.price === "number" ? product.price : product.minSalePrice;
+    const displayOriginalPrice =
+      typeof product.originalPrice === "number"
+        ? product.originalPrice
+        : product.minPrice;
+    const discountPercentage =
+      displayOriginalPrice > 0
+        ? Math.max(
+            0,
+            Math.round(
+              ((displayOriginalPrice - displayPrice) / displayOriginalPrice) *
+                100
+            )
+          )
+        : 0;
     const productNameSlug = cleanProductSlug(product.producturl);
     const averageRating = product.averageRating
       ? Math.round(product.averageRating * 10) / 10
@@ -97,9 +109,10 @@ const ProductCardWithStock: React.FC<ProductCardWithStockProps> = memo(
             <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
               <div>
                 <small className="text-gray-500 flex gap-1">
-                  From <del>£{minPrice}</del>
+                  {hasGroupPrice ? "Was" : "From"}{" "}
+                  <del>£{displayOriginalPrice}</del>
                 </small>
-                <div className="text-xl sm:text-2xl">£{minSalePrice}</div>
+                <div className="text-xl sm:text-2xl">£{displayPrice}</div>
               </div>
               <div className="py-1 text-sm font-regular text-yellow-400 flex flex-row items-center">
                 {[0, 1, 2, 3, 4].map((ratingIndex) => {

@@ -187,6 +187,14 @@ function footerLogoImagePath(
   return raw.trim();
 }
 
+function footerLogoAltText(
+  logo: FooterSettings["section1"]["logo"] | undefined
+): string {
+  if (!logo || typeof logo === "string") return "Store logo";
+  const raw = (logo.altText ?? "").toString().trim();
+  return raw || "Store logo";
+}
+
 /** One pattern for all main footer columns: tight vertical stack */
 const footerCol =
   "flex min-w-0 w-full flex-col gap-2 self-start";
@@ -427,7 +435,10 @@ const Footer: React.FC<FooterProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-gray-200 inline-block rounded py-0.5 text-sm leading-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2"
-            aria-label={social.ariaLabel || `Visit Zextons on ${iconName}`}
+            // Source of footer social aria labels:
+            // - Preferred: CMS/admin-provided `social.ariaLabel`
+            // - Fallback: generic text below (keep brand-neutral, avoid hardcoded store names)
+            aria-label={social.ariaLabel || `Visit us on ${iconName}`}
           >
             {hasCustomIcon && iconUrl ? (
               <Image
@@ -467,6 +478,11 @@ const Footer: React.FC<FooterProps> = ({
     if (typeof footer.section1.logo === "string") return "/";
     return footer.section1.logo.link || "/";
   }, [footer.section1?.logo]);
+
+  const logoAltText = useMemo(
+    () => footerLogoAltText(footer.section1?.logo),
+    [footer.section1?.logo]
+  );
 
   // Get Ecologi logo URL
   const ecologiLogoUrl = useMemo(() => {
@@ -538,13 +554,13 @@ const Footer: React.FC<FooterProps> = ({
               <Link
                 id="footer-logo"
                 href={logoLink}
-                aria-label="Go to Zextons Home"
+                // aria-label="Go to Zextons Home"
                 className="block shrink-0 leading-none"
               >
                 {logoUrl && !imageErrors.has(logoUrl) ? (
                   <Image
                     src={logoUrl}
-                    alt="Zextons Tech Store Logo"
+                    alt={logoAltText}
                     width={180}
                     height={80}
                     className="block h-20 w-[150px] max-w-full object-cover object-center md:object-left"
@@ -569,7 +585,7 @@ const Footer: React.FC<FooterProps> = ({
 
               {socialMedia.length > 0 && (
                 <section
-                  aria-labelledby="social-links"
+                  // aria-labelledby="social-links"
                   className="flex w-full min-w-0 flex-col items-center md:items-start gap-2"
                 >
                   <h3 id="social-links" className={footerColTitle}>

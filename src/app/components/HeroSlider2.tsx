@@ -35,13 +35,6 @@ const HERO_LARGE_HEIGHT = 500;
 const HERO_SMALL_WIDTH = 1200;
 const HERO_SMALL_HEIGHT = 900;
 
-const heroHomeLargeAspectStyle = {
-  aspectRatio: `${HERO_LARGE_WIDTH} / ${HERO_LARGE_HEIGHT}`,
-} as const;
-const heroHomeSmallAspectStyle = {
-  aspectRatio: `${HERO_SMALL_WIDTH} / ${HERO_SMALL_HEIGHT}`,
-} as const;
-
 type HAlign = "left" | "center" | "right";
 
 function resolveBannerTextAlign(content?: { textAlign?: string }): HAlign {
@@ -67,7 +60,7 @@ function desktopTextBlockRowJustify(pos: HAlign): string {
 function fullBannerMinHeightClass(embedded: boolean): string {
   return embedded
     ? "min-h-[clamp(200px,52vw,320px)] sm:min-h-[clamp(220px,32vw,380px)]"
-    : "min-h-[420px] sm:min-h-[300px] md:min-h-[500px]";
+    : "h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[72vh]";
 }
 
 /** Horizontal padding + max-width (desktop). Vertical: flex-1 spacers + pb match original layout. */
@@ -421,7 +414,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
         className={
           embedded
             ? "relative w-full min-h-[200px] sm:min-h-[260px] max-h-[360px] rounded-xl bg-gray-100 animate-pulse flex items-center justify-center ring-1 ring-gray-200/80"
-            : "relative w-full min-h-[420px] sm:min-h-0 sm:aspect-[1440/500] aspect-[1200/900] bg-gray-200 animate-pulse flex items-center justify-center"
+            : "relative w-full h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh] bg-gray-200 animate-pulse flex items-center justify-center"
         }
       >
         <div className="text-sm text-gray-500">Loading banners…</div>
@@ -435,7 +428,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
         className={
           embedded
             ? "relative w-full min-h-[160px] rounded-xl bg-gray-50 flex items-center justify-center ring-1 ring-gray-200/80 px-4 py-8"
-            : "relative w-full min-h-[420px] sm:min-h-0 sm:aspect-[1440/500] aspect-[1200/900] bg-gray-100 flex items-center justify-center"
+            : "relative w-full h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh] bg-gray-100 flex items-center justify-center"
         }
       >
         <div className="text-sm text-gray-600 text-center">Error: {error}</div>
@@ -454,11 +447,11 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     <div
       className={
         embedded
-          ? "relative w-full overflow-x-hidden overflow-y-visible rounded-xl bg-gray-100 ring-1 ring-gray-200/70 shadow-md"
-          : "relative w-full"
+          ? "relative w-full overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200/70 shadow-md"
+          : "relative w-full overflow-hidden"
       }
     >
-      <div ref={emblaRef} className="overflow-x-hidden overflow-y-visible">
+      <div ref={emblaRef} className="overflow-hidden">
         <div className="embla__container flex">
           {banners.map((banner, index) => {
             const textAlign = resolveBannerTextAlign(banner.content);
@@ -478,19 +471,18 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     className={
                       embedded
                         ? "relative col-start-1 row-start-1 h-full min-h-[clamp(200px,52vw,320px)] sm:min-h-[clamp(220px,32vw,380px)]"
-                        : "relative col-start-1 row-start-1 h-full w-full min-h-[420px] aspect-[1200/900] sm:min-h-0 sm:h-auto sm:aspect-[1440/500]"
+                        : "relative col-start-1 row-start-1 h-[80vh] max-h-[85vh] min-h-[320px] w-full sm:h-[82vh]"
                     }
                   >
                     <div className="absolute inset-0 sm:hidden">
                       <Image
                         src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
                         alt={banner.alt}
-                        fill
-                        className="object-cover object-center"
-                        sizes="100vw"
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0}
-                        quality={90}
+                        width={HERO_SMALL_WIDTH}
+                        height={HERO_SMALL_HEIGHT}
+                        className="h-full w-full object-cover object-center"
+                        sizes="(max-width: 768px) 100vw, 1200px"
+                        quality={70}
                         unoptimized={banner.srcSmall?.startsWith('http') || banner.srcLarge?.startsWith('http') ? true : false}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -504,12 +496,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       <Image
                         src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
                         alt={banner.alt}
-                        fill
-                        className="object-cover object-center"
-                        sizes="100vw"
+                        width={HERO_LARGE_WIDTH}
+                        height={HERO_LARGE_HEIGHT}
+                        className="h-full w-full object-cover object-center"
+                        sizes="(max-width: 768px) 100vw, 1200px"
                         fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0}
-                        quality={90}
+                        priority={index === 0 && !embedded}
+                        quality={70}
                         unoptimized={banner.srcLarge?.startsWith('http') || banner.srcSmall?.startsWith('http') ? true : false}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -532,8 +525,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             alt={`${banner.alt} device`}
                             width={600}
                             height={600}
-                            fetchPriority={index === 0 ? "high" : "auto"}
-                            priority={index === 0}
+                            fetchPriority="auto"
                             unoptimized={
                               banner.extraImage?.startsWith("http")
                                 ? true
@@ -555,19 +547,17 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       className={
                         embedded
                           ? "relative z-0 w-full overflow-hidden sm:hidden min-h-[clamp(200px,52vw,320px)] aspect-[5/4]"
-                          : "relative z-0 w-full overflow-hidden sm:hidden min-h-[420px]"
+                          : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
                       }
-                      style={!embedded ? heroHomeSmallAspectStyle : undefined}
                     >
                       <Image
                         src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
                         alt={banner.alt}
-                        fill
-                        className="object-cover object-center"
-                        sizes="100vw"
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0}
-                        quality={90}
+                        width={HERO_SMALL_WIDTH}
+                        height={HERO_SMALL_HEIGHT}
+                        className="h-full w-full object-cover object-center"
+                        sizes="(max-width: 768px) 100vw, 1200px"
+                        quality={70}
                         unoptimized={
                           banner.srcSmall?.startsWith("http") ||
                           banner.srcLarge?.startsWith("http")
@@ -591,19 +581,19 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       className={
                         embedded
                           ? "relative z-0 hidden sm:block w-full overflow-hidden min-h-[clamp(220px,32vw,380px)] aspect-[21/9]"
-                          : "relative z-0 hidden sm:block w-full overflow-hidden min-h-[300px] md:min-h-[500px]"
+                          : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
                       }
-                      style={!embedded ? heroHomeLargeAspectStyle : undefined}
                     >
                       <Image
                         src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
                         alt={banner.alt}
-                        fill
-                        className="object-cover object-center"
-                        sizes="100vw"
+                        width={HERO_LARGE_WIDTH}
+                        height={HERO_LARGE_HEIGHT}
+                        className="h-full w-full object-cover object-center"
+                        sizes="(max-width: 768px) 100vw, 1200px"
                         fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0}
-                        quality={90}
+                        priority={index === 0 && !embedded}
+                        quality={70}
                         unoptimized={
                           banner.srcLarge?.startsWith("http") ||
                           banner.srcSmall?.startsWith("http")
@@ -630,15 +620,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                 {banner.type === "full" && (
                   <>
                     <div
-                      className={`pointer-events-none col-start-1 row-start-1 z-[5] hidden sm:flex w-full min-w-0 flex-row self-stretch ${desktopTextBlockRowJustify(
+                      className={`pointer-events-none absolute inset-0 z-[5] hidden sm:flex w-full min-w-0 flex-row ${desktopTextBlockRowJustify(
                         textPos
                       )}`}
                     >
                       {banner.content && (
                         <div
-                          className={`pointer-events-auto flex h-full min-w-0 shrink flex-col self-stretch pb-8 md:pb-12 ${fullBannerMinHeightClass(
-                            embedded
-                          )} ${desktopTextBlockFlowClass(textPos, embedded)} ${
+                        className={`pointer-events-auto flex h-full min-w-0 shrink flex-col justify-center py-5 md:py-7 ${desktopTextBlockFlowClass(textPos, embedded)} ${
                             currentSlide === index && index !== 0
                               ? "animate-fadeIn"
                               : currentSlide === index && index === 0
@@ -646,7 +634,6 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                 : "opacity-0"
                           }`}
                         >
-                          <div className="min-h-0 min-w-0 flex-1" aria-hidden />
                           <div
                             className={`flex min-w-0 shrink-0 flex-col ${flexItemsForTextAlign(
                               textAlign
@@ -654,10 +641,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           >
                             {banner.content.title?.trim() ? (
                               <h2
-                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1`}
+                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1 line-clamp-2`}
                                 style={{
-                                  fontSize: banner.content.titleSize || "24px",
-                                  lineHeight: 1.8,
+                                  fontSize: banner.content.titleSize || "22px",
+                                  lineHeight: 1.5,
                                   color: banner.content.titleColor || "#FFFFFF",
                                 }}
                                 title={banner.content.title}
@@ -686,7 +673,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                   embedded
                                     ? "max-w-[90%] lg:max-w-[85%]"
                                     : "max-w-full"
-                                } ${bannerCopyWrap} ${paragraphAlignClass(
+                                } ${bannerCopyWrap} line-clamp-3 ${paragraphAlignClass(
                                   textAlign
                                 )}`}
                                 style={{
@@ -715,7 +702,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             )}
                             {banner.content.warranty && (
                               <div
-                                className={`mt-2 max-h-[min(7.5rem,22vh)] overflow-y-auto overscroll-y-contain text-white [font-size:1rem] [line-height:1.5] lg:mt-4 lg:max-h-[min(9rem,26vh)] lg:[font-size:1.5rem] lg:[line-height:1.55] ${warrantyOuterClass(
+                                className={`mt-2 max-h-[min(7rem,20vh)] overflow-y-auto overscroll-y-contain text-white [font-size:0.95rem] [line-height:1.35] lg:mt-3 lg:max-h-[min(8rem,22vh)] lg:[font-size:1.1rem] lg:[line-height:1.4] ${warrantyOuterClass(
                                   textAlign
                                 )}`}
                               >
@@ -735,7 +722,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             <a
                               href={getButtonLink(banner)}
                               title={getButtonText(banner)}
-                              className={`mt-5 inline-flex min-w-0 max-w-[min(20rem,100%)] items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-black ring-1 ring-black/5 lg:max-w-[min(22rem,92%)] lg:px-7 lg:py-2.5 lg:text-base ${ctaBtnClass}`}
+                              className={`mt-3 inline-flex min-w-0 max-w-[min(20rem,100%)] items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-black ring-1 ring-black/5 lg:max-w-[min(22rem,92%)] lg:px-7 lg:py-2.5 lg:text-base ${ctaBtnClass}`}
                             >
                               <span
                                 className={`min-w-0 ${bannerCopyWrap} line-clamp-2 text-left leading-tight`}
@@ -747,7 +734,6 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                               </span>
                             </a>
                           </div>
-                          <div className="min-h-0 min-w-0 flex-1" aria-hidden />
                         </div>
                       )}
                     </div>
@@ -803,8 +789,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             alt={`${banner.alt} device`}
                             width={600}
                             height={600}
-                            fetchPriority={index === 0 ? "high" : "auto"}
-                            priority={index === 0}
+                            fetchPriority="auto"
                             unoptimized={
                               banner.extraImage?.startsWith("http")
                                 ? true
@@ -846,8 +831,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         alt={`${banner.alt} device`}
                         width={520}
                         height={520}
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0}
+                        fetchPriority="auto"
                         className="object-contain w-full h-auto"
                         unoptimized={banner.extraImage?.startsWith('http') ? true : false}
                         onError={(e) => {
@@ -989,7 +973,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
       {/* Bottom gradient so dots + CTAs read on light photography */}
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 z-[6] bg-gradient-to-t from-black/45 via-black/15 to-transparent ${
-          embedded ? "h-24 sm:h-28" : "h-32 sm:h-36"
+          embedded ? "h-20 sm:h-24" : "h-24 sm:h-28"
         }`}
         aria-hidden
       />
@@ -997,7 +981,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
       {/* Pagination Dots */}
       <div
         className={`absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/35 px-3 py-2 backdrop-blur-md ring-1 ring-white/25 ${
-          embedded ? "bottom-3" : "bottom-2 sm:bottom-4"
+          embedded ? "bottom-3" : "bottom-2 sm:bottom-3"
         }`}
       >
         {banners.map((_, index) => (

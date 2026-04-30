@@ -5,6 +5,7 @@ interface User {
   _id: string;
   username: string;
   email: string;
+  pricingGroup?: string | null;
   // add other fields depending on your user data
 }
 

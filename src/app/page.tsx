@@ -1,7 +1,7 @@
 import "./globals.css";
+import dynamic from "next/dynamic";
 import HeroSlider2 from "./components/HeroSlider2";
 import Nav from "./components/navbar/Nav";
-import HomeClient from "./HomeClient";
 import { Metadata } from "next";
 import {
   getHomepageFeatures,
@@ -9,8 +9,15 @@ import {
   type HomepageFeature,
 } from "./services/homepageFeaturesService";
 import { getHomepagePublicSeo } from "./services/homepageDataService";
-import { getHomepageHeroBannersCached } from "./services/activeBannersPublicService";
-import { getHomeServerCmsBundle } from "./lib/homeServerCms";
+import {
+  getHomepageHeroBannersCached,
+  type HomepageHeroPayload,
+} from "./services/activeBannersPublicService";
+import { emptyHeroSocial } from "./lib/homepageBannerShared";
+import {
+  getHomeServerCmsBundle,
+  createFallbackHomeServerCmsBundle,
+} from "./lib/homeServerCms";
 import { cmsPublicFetchInit } from "./lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "./lib/cmsTimedFetch";
 import {
@@ -20,6 +27,23 @@ import {
 import HomepageFeatureIcon from "./components/HomepageFeatureIcon";
 import { getCanonical } from "@/lib/getCanonical";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
+import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
+
+const HomeClient = dynamic(() => import("./HomeClient"), {
+  loading: () => (
+    <section
+      className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 min-h-[120px]"
+      aria-busy="true"
+      aria-label="Loading homepage content"
+    >
+      <div className="animate-pulse space-y-4" aria-hidden>
+        <div className="h-8 bg-gray-200 rounded w-1/3 max-w-md" />
+        <div className="h-4 bg-gray-200 rounded w-full" />
+        <div className="h-4 bg-gray-200 rounded w-5/6" />
+      </div>
+    </section>
+  ),
+});
 
 export const revalidate = 30;
 
@@ -42,9 +66,10 @@ const HOME_FALLBACK_TITLE = "";
 const HOME_FALLBACK_DESCRIPTION = "";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [metaData, homepageSeo] = await Promise.all([
+  const [metaData, homepageSeo, heroPayload] = await Promise.all([
     getMetaData(),
     getHomepagePublicSeo(),
+    getHomepageHeroBannersCached(),
   ]);
 
   const titleFromCms = homepageSeo?.metaTitle?.trim();
@@ -63,7 +88,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const keywords =
     keywordsFromCms ?? metaData?.metaKeywords;
 
-  const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
+  const firstHeroBanner = heroPayload?.banners?.[0];
+  const ogImage =
+    firstHeroBanner?.srcLarge ||
+    firstHeroBanner?.srcSmall ||
+    undefined;
   const canonicalUrl = await getCanonical("/");
 
   return {
@@ -77,13 +106,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: canonicalUrl,
       description,
       type: "website",
-      images: [{ url: ogImage }],
+      images: ogImage ? [{ url: ogImage }] : [],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [{ url: ogImage }],
+      images: ogImage ? [{ url: ogImage }] : [],
     },
     alternates: {
       canonical: canonicalUrl,
@@ -94,26 +123,41 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const backendAvailable = await isBackendAvailable();
-  if (!backendAvailable) {
-    return (
-      <div className="max-w-7xl mx-auto p-6 min-h-[50vh] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold text-gray-900 mb-3">Server is unavailable</h1>
-          <p className="text-gray-600">Backend/database is down. No storefront content can be rendered.</p>
-        </div>
-      </div>
-    );
-  }
 
-  const [homepageSeo, heroPayload, cmsBundle, features] = await Promise.all([
-    getHomepagePublicSeo(),
-    getHomepageHeroBannersCached(),
-    getHomeServerCmsBundle(),
-    getHomepageFeatures().catch((error) => {
-      console.error("[Home] Error fetching homepage features:", error);
-      return [] as HomepageFeature[];
-    }),
-  ]);
+  const emptyHeroPayload: HomepageHeroPayload = {
+    banners: [],
+    heroSocial: emptyHeroSocial(),
+  };
+
+  const [homepageSeo, heroPayload, cmsBundle, features, navServerBootstrap] =
+    await Promise.all([
+      getHomepagePublicSeo().catch((err) => {
+        console.error("[Home] homepage SEO fetch failed:", err);
+        return null;
+      }),
+      getHomepageHeroBannersCached().catch((err) => {
+        console.error("[Home] hero banners fetch failed:", err);
+        return emptyHeroPayload;
+      }),
+      getHomeServerCmsBundle().catch((err) => {
+        console.error("[Home] CMS bundle fetch failed:", err);
+        return createFallbackHomeServerCmsBundle();
+      }),
+      getHomepageFeatures().catch((error) => {
+        console.error("[Home] Error fetching homepage features:", error);
+        return [] as HomepageFeature[];
+      }),
+      getHomeNavbarCriticalServer().catch((err) => {
+        console.error("[Home] navbar critical fetch failed:", err);
+        return {
+          items: [],
+          logoUrl: null,
+          logoAlt: "Zextons",
+          supportPhone: "",
+          supportEmail: "",
+        };
+      }),
+    ]);
   const displayFeatures = features;
   const { banners: heroBanners, heroSocial } = heroPayload;
 
@@ -138,7 +182,7 @@ export default async function Home() {
       ))}
       <header className="relative">
         <nav className="" aria-label="Top">
-          <Nav />
+          <Nav serverBootstrap={navServerBootstrap} />
         </nav>
       </header>
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}
@@ -175,7 +219,7 @@ export default async function Home() {
         </div>
       )}
 
-      <HomeClient cmsPrefetch={cmsBundle} />
+      <HomeClient cmsPrefetch={cmsBundle} backendAvailable={backendAvailable} />
     </>
   );
 }

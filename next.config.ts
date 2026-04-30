@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     : {}),
   images: {
     minimumCacheTTL: 60,
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
@@ -47,6 +48,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "zextonsbackend-new-eosin.vercel.app",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "eshopinflix.sfo3.digitaloceanspaces.com",
         pathname: "/**",
       },
     ],
