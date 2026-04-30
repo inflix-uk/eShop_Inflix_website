@@ -1,5 +1,8 @@
 
 import dynamic from "next/dynamic";
+import HeroSlider2, {
+  type InlineBannerBlockPayload,
+} from "@/app/components/HeroSlider2";
 import {
   getHomepageImageUrl,
   type ContentBlock,
@@ -63,10 +66,6 @@ const BlogTestimonialsWidget = dynamic(
 );
 const BlogTrustpilotEmbedWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogTrustpilotEmbedWidget"),
-  { loading: WidgetChunkFallback }
-);
-const BlogSiteBannersWidget = dynamic(
-  () => import("@/app/(routes)/blogs/new/[slug]/BlogSiteBannersWidget"),
   { loading: WidgetChunkFallback }
 );
 const BlogCategoryCardsWidget = dynamic(
@@ -239,7 +238,13 @@ export function CmsWidgetAndProductBlock({
   if (w?.widgetType === "siteBanners") {
     if (!widgetVisibility.siteBannersEnabled) return null;
     const sb = w as WidgetSiteBannersContent;
-    return <BlogSiteBannersWidget items={sb.items || []} />;
+    const items = (sb.items || []) as InlineBannerBlockPayload[];
+    if (!items.length) return null;
+    return (
+      <div className="w-full max-w-full">
+        <HeroSlider2 inlineBanners={items} embedded />
+      </div>
+    );
   }
   if (w?.widgetType === "categoryCards") {
     if (!widgetVisibility.categoryCardsEnabled) return null;

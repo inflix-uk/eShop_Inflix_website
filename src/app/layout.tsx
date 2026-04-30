@@ -182,19 +182,6 @@ export default async function RootLayout({
           name="ahrefs-site-verification"
           content="e104a647a256b0215a2711b55f63420f2e8a84bf449ced9c3e942a98bccef408"
         />
-        {/* Flaticon uicons for product features icons */}
-        <link
-          rel="stylesheet"
-          href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdn-uicons.flaticon.com/2.6.0/uicons-bold-rounded/css/uicons-bold-rounded.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdn-uicons.flaticon.com/2.6.0/uicons-solid-rounded/css/uicons-solid-rounded.css"
-        />
         <FacebookPixelBlock />
         <DeferredGoogleTagManager />
         {/* Hardcoded Organization schema — kept as fallback reference

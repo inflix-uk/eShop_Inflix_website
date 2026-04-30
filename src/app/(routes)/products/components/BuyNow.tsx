@@ -14,6 +14,8 @@ export default function BuyNow({
   selectedOptions,
   checkingStock,
   stockData,
+  groupOverridePrice,
+  suppressPrice,
 }: {
   product: any;
   updatedPrice: number;
@@ -30,6 +32,8 @@ export default function BuyNow({
     availableQuantity: number;
     inStock: boolean;
   } | null;
+  groupOverridePrice?: number | null;
+  suppressPrice?: boolean;
 }) {
   const formatAndCapitalizeWords = (string: string) => {
     return string
@@ -135,27 +139,31 @@ export default function BuyNow({
                   </>
                 ) : (
                   <>
-                    <div className="flex flex-row items-center gap-1">
-                      <s>
-                        <p className="text-sm font-light text-gray-900">
-                          £
-                          {product?.variantValues &&
+                    {suppressPrice ? (
+                      <div className="h-8 w-36 animate-pulse rounded bg-gray-100" />
+                    ) : (
+                      <div className="flex flex-row items-center gap-1">
+                        <s>
+                          <p className="text-sm font-light text-gray-900">
+                            £{product?.variantValues &&
                             product.variantValues.length > 0 &&
                             parseFloat(
                               product?.variantValues[0]?.Price
                             ).toFixed(2)}{" "}
-                          new
+                            {typeof groupOverridePrice === "number" ? "was" : "new"}
+                          </p>
+                        </s>
+                        <p className="md:text-xl sm:text-lg text-md font-bold text-gray-900">
+                          £{typeof groupOverridePrice === "number"
+                            ? groupOverridePrice.toFixed(2)
+                            : product?.variantValues &&
+                              product.variantValues.length > 0 &&
+                              parseFloat(
+                                product?.variantValues[0]?.salePrice
+                              ).toFixed(2)}
                         </p>
-                      </s>
-                      <p className="md:text-xl sm:text-lg text-md font-bold text-gray-900">
-                        £
-                        {product?.variantValues &&
-                          product.variantValues.length > 0 &&
-                          parseFloat(
-                            product?.variantValues[0]?.salePrice
-                          ).toFixed(2)}
-                      </p>
-                    </div>
+                      </div>
+                    )}
                     {/* Stock Information for single products */}
                     {product?.productType?.type === "single" && (
                       <>

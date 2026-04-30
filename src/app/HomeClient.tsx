@@ -7,6 +7,8 @@ import {
   fetchCategoryCounts,
 } from "@/app/lib/features/categories/categoriesSlice";
 import { useAppDispatch, useAppSelector } from "./lib/hooks";
+import { useStore } from "react-redux";
+import type { RootState } from "./lib/store";
 import {
   getHomepageData,
   type HomepageBlock,
@@ -16,6 +18,7 @@ import {
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
 } from "./services/siteWidgetSettingsService";
+import { useAuth } from "@/app/context/Auth";
 import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
@@ -44,12 +47,20 @@ const NewsletterSuccessModal = dynamic(
 
 export default function HomeClient({
   cmsPrefetch,
+  backendAvailable: cmsApiAvailable = true,
 }: {
   cmsPrefetch?: HomeServerCmsBundle;
+  /**
+   * SSR `GET {api}/health` result. When false, show “service unavailable” for this block.
+   * When true and blocks are empty, show “no homepage content” instead.
+   */
+  backendAvailable?: boolean;
 }) {
   const prefetched = cmsPrefetch !== undefined;
   const hasPrefetchBlocks = Boolean(cmsPrefetch?.homepageBlocks?.length);
   const dispatch = useAppDispatch();
+  const store = useStore();
+  const auth = useAuth();
   const { products } = useAppSelector((state) => state.products);
   const newCategories = useAppSelector((state) => state.categories);
   const { categoryCounts, isCountsLoading } = useAppSelector(
@@ -60,20 +71,26 @@ export default function HomeClient({
   const backendAvailable = useBackendAvailability();
   const [mounted, setMounted] = useState(false);
   const category = "";
+  const pricingGroupId = auth?.user?.pricingGroup
+    ? String(auth.user.pricingGroup)
+    : "";
 
   /** Avoid re-dispatching thunks when lists stay empty — `isCountsLoading` toggles re-ran the effect and caused request storms. */
   const homeBootstrapRef = useRef({
-    products: false,
     categories: false,
     counts: false,
   });
+  const lastFetchedGroupIdRef = useRef<string | null>(null);
 
   const [homepageBlocks, setHomepageBlocks] = useState<HomepageBlock[]>(() =>
     prefetched ? cmsPrefetch!.homepageBlocks : []
   );
-  /** Show skeleton until we have at least one network response when SSR had no rows (admin may add content after build). */
+  /**
+   * Skeleton only while we expect a client refetch. If SSR already knows the API is
+   * unreachable, skip loading so we never flash “no content” after a failed fetch.
+   */
   const [homepageBlocksLoading, setHomepageBlocksLoading] = useState(
-    () => !hasPrefetchBlocks
+    () => (cmsApiAvailable === false ? false : !hasPrefetchBlocks)
   );
   const [widgetVisibility, setWidgetVisibility] = useState<SiteWidgetVisibility>(
     () =>
@@ -84,8 +101,11 @@ export default function HomeClient({
     setMounted(true);
   }, []);
 
-  /** Revalidate on mount so admin homepage rows / widget toggles apply without waiting on ISR prefetch. */
+  /** Revalidate on mount when the API is reachable (same origin as /health). */
   useEffect(() => {
+    if (cmsApiAvailable === false) {
+      return;
+    }
     let cancelled = false;
     const cancelSchedule = scheduleIdle(() => {
       void (async () => {
@@ -121,33 +141,72 @@ export default function HomeClient({
       cancelled = true;
       cancelSchedule();
     };
-  }, []);
+  }, [cmsApiAvailable, hasPrefetchBlocks]);
 
+  /**
+   * Product/category Redux loads are below-the-fold for most users. Defer with
+   * `scheduleIdle` so hydration + hero/nav work stays unblocked (TBT).
+   * Re-reads `getState()` inside the callback so dispatches stay correct if auth
+   * or lists change before the idle task runs.
+   */
   useEffect(() => {
-    if (!products.length && !homeBootstrapRef.current.products) {
-      homeBootstrapRef.current.products = true;
-      dispatch(fetchProducts());
-    }
-    if (
-      !newCategories.categories.length &&
-      !homeBootstrapRef.current.categories
-    ) {
-      homeBootstrapRef.current.categories = true;
-      dispatch(fetchProductCategory(category));
-    }
-    if (
+    const normalizedGroupId = pricingGroupId || null;
+    const shouldRefetchProducts =
+      products.length === 0 ||
+      lastFetchedGroupIdRef.current !== normalizedGroupId;
+    const needCategories =
+      !newCategories.categories.length && !homeBootstrapRef.current.categories;
+    const needCounts =
       !categoryCounts.length &&
       !isCountsLoading &&
-      !homeBootstrapRef.current.counts
-    ) {
-      homeBootstrapRef.current.counts = true;
-      dispatch(fetchCategoryCounts());
+      !homeBootstrapRef.current.counts;
+
+    if (!shouldRefetchProducts && !needCategories && !needCounts) {
+      return;
     }
+
+    const cancel = scheduleIdle(
+      () => {
+        const state = store.getState() as RootState;
+        const pg = state.auth.user?.pricingGroup
+          ? String(state.auth.user.pricingGroup)
+          : "";
+        const norm = pg || null;
+        const productsList = state.products.products;
+        const refetchProducts =
+          productsList.length === 0 ||
+          lastFetchedGroupIdRef.current !== norm;
+
+        if (refetchProducts) {
+          lastFetchedGroupIdRef.current = norm;
+          dispatch(fetchProducts(pg ? { groupId: pg } : undefined));
+        }
+        if (
+          !state.categories.categories.length &&
+          !homeBootstrapRef.current.categories
+        ) {
+          homeBootstrapRef.current.categories = true;
+          dispatch(fetchProductCategory(category));
+        }
+        if (
+          !state.categories.categoryCounts.length &&
+          !state.categories.isCountsLoading &&
+          !homeBootstrapRef.current.counts
+        ) {
+          homeBootstrapRef.current.counts = true;
+          dispatch(fetchCategoryCounts());
+        }
+      },
+      { timeout: 2200 }
+    );
+    return cancel;
   }, [
     dispatch,
+    store,
+    category,
+    pricingGroupId,
     products.length,
     newCategories.categories.length,
-    category,
     categoryCounts.length,
     isCountsLoading,
   ]);
@@ -166,6 +225,21 @@ export default function HomeClient({
   return (
     <>
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
+        {cmsApiAvailable === false && (
+          <div
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left"
+            role="alert"
+            aria-live="polite"
+          >
+            <h2 className="text-sm font-semibold text-amber-950">
+              Service temporarily unavailable
+            </h2>
+            <p className="mt-1 text-xs text-amber-900/90">
+              Some live sections may be outdated while we reconnect to backend services.
+            </p>
+          </div>
+        )}
+
         {homepageBlocksLoading ? (
           <div>
             <div className="animate-pulse space-y-4">
@@ -179,7 +253,7 @@ export default function HomeClient({
             blocks={homepageBlocks}
             widgetVisibility={widgetVisibility}
           />
-        ) : (
+        ) : cmsApiAvailable === false ? null : (
           <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-10 text-center">
             <h2 className="text-xl font-semibold text-gray-900">
               No homepage content configured yet

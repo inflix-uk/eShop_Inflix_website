@@ -8,12 +8,16 @@ export default function ProductInfo({
   totalReviews,
   selectedVariant,
   selectedOptions,
+  groupOverridePrice,
+  suppressPrice,
 }: {
   product: any;
   averageRating: number;
   totalReviews: number;
   selectedVariant: any;
   selectedOptions: any;
+  groupOverridePrice?: number | null;
+  suppressPrice?: boolean;
 }) {
   function classNames(
     ...classes: (string | undefined | null | false)[]
@@ -51,7 +55,11 @@ export default function ProductInfo({
           <h1 className="md:text-2xl sm:text-xl text-lg font-bold text-gray-900">
             {getSelectedVariantName()}
           </h1>
-          <SingleProductPrice product={product} />
+          <SingleProductPrice
+            product={product}
+            groupOverridePrice={groupOverridePrice}
+            suppressPrice={suppressPrice}
+          />
         </div>
         <div className="flex flex-col mt-1">
           <div className="flex items-center">

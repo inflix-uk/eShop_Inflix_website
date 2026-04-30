@@ -12,26 +12,77 @@ interface ProductsState {
 // Thunk for fetching products
 export const fetchProducts = createAsyncThunk<
   Product[], // The returned data type (an array of Product objects)
-  void, // No argument is passed to the thunk
+  { groupId?: string } | void, // Optional pricing group
   { rejectValue: string } // The type of the error
->("products/fetchProducts", async (_, { rejectWithValue }) => {
+>("products/fetchProducts", async (arg, { rejectWithValue }) => {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  if (!base) {
+    return rejectWithValue("API URL is not configured");
+  }
+
   try {
-    const response = await axios.get(`/api/products/homepage`, { timeout: 8000 });
+    const groupId = typeof arg === "object" && arg?.groupId ? String(arg.groupId).trim() : "";
+    const query = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const requestUrl = `${base}/api/products${query}`;
+    /** Local / cold APIs often exceed 8s; keeps dev from noisy aborts while still bounded. */
+    const response = await axios.get(requestUrl, { timeout: 20_000 });
 
     const body = response.data ?? {};
     const code = body.status;
     // Backend / BFF may use 200 or 201 in the JSON body for success
     if (code === 201 || code === 200) {
       const raw = body.products;
-      return Array.isArray(raw) ? raw : [];
+      const normalized = Array.isArray(raw) ? raw : [];
+      return normalized;
     }
     return rejectWithValue(
       typeof body.message === "string" ? body.message : "Failed to load products"
     );
-  } catch (error: any) {
-    return rejectWithValue(error.message); // Reject with error message
+  } catch (error: unknown) {
+    let message = "Failed to load products";
+
+    if (axios.isAxiosError(error)) {
+      message = error.message || message;
+      const data = error.response?.data;
+      const serverMsg =
+        data &&
+        typeof data === "object" &&
+        "message" in data &&
+        typeof (data as { message?: unknown }).message === "string"
+          ? (data as { message: string }).message
+          : null;
+      if (serverMsg) message = serverMsg;
+    } else if (error instanceof Error && error.message) {
+      message = error.message;
+    } else if (typeof error === "string") {
+      message = error;
+    }
+
+    // Never use console.error here — Next.js surfaces it as a runtime error overlay.
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.NEXT_PUBLIC_DEBUG_FETCH === "1"
+    ) {
+      console.debug(
+        "[fetchProducts]",
+        message,
+        requestUrlFromThunk(base, arg),
+        axios.isAxiosError(error) ? error.code : undefined
+      );
+    }
+
+    return rejectWithValue(message);
   }
 });
+
+function requestUrlFromThunk(
+  base: string,
+  arg: { groupId?: string } | void
+): string {
+  const groupId = typeof arg === "object" && arg?.groupId ? String(arg.groupId).trim() : "";
+  const query = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+  return `${base}/api/products${query}`;
+}
 
 // Products Slice
 const productsSlice = createSlice({
@@ -59,7 +110,10 @@ const productsSlice = createSlice({
         fetchProducts.rejected,
         (state, action) => {
           state.isLoading = false;
-          state.error = action.payload as string; // Set error message
+          state.error =
+            (typeof action.payload === "string" && action.payload) ||
+            action.error.message ||
+            "Failed to load products";
         }
       );
   },

@@ -29,6 +29,9 @@ export interface Product {
   producturl: string;
   minPrice: number;
   minSalePrice: number;
+  price?: number;
+  originalPrice?: number;
+  groupPrice?: number | null;
   averageRating: number | null;
   hasStock?: boolean; // Indicates if product has any available variants
 }
@@ -385,6 +388,7 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
+  pricingGroup?: string | null;
   firstname: string;
   lastname: string;
   companyname: string;

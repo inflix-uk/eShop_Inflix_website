@@ -6,13 +6,18 @@ const apiBase = (): string =>
   (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
 export const DEFAULT_HEADER_SUPPORT_PHONE = "";
+export const DEFAULT_HEADER_SUPPORT_EMAIL = "";
 
 export async function fetchNavbarHeaderPublic(): Promise<{
   supportPhone: string;
+  supportEmail: string;
 }> {
   const base = apiBase();
   if (!base) {
-    return { supportPhone: DEFAULT_HEADER_SUPPORT_PHONE };
+    return {
+      supportPhone: DEFAULT_HEADER_SUPPORT_PHONE,
+      supportEmail: DEFAULT_HEADER_SUPPORT_EMAIL,
+    };
   }
   try {
     const res = await fetch(`${base}/navbar-header/public`, {
@@ -21,7 +26,10 @@ export async function fetchNavbarHeaderPublic(): Promise<{
       cache: "no-store",
     });
     if (!res.ok) {
-      return { supportPhone: DEFAULT_HEADER_SUPPORT_PHONE };
+      return {
+        supportPhone: DEFAULT_HEADER_SUPPORT_PHONE,
+        supportEmail: DEFAULT_HEADER_SUPPORT_EMAIL,
+      };
     }
     const json = await res.json();
     const raw = json?.data?.supportPhone;
@@ -29,8 +37,16 @@ export async function fetchNavbarHeaderPublic(): Promise<{
       typeof raw === "string" && raw.trim()
         ? raw.trim()
         : DEFAULT_HEADER_SUPPORT_PHONE;
-    return { supportPhone: phone };
+    const rawEmail = json?.data?.supportEmail;
+    const email =
+      typeof rawEmail === "string" && rawEmail.trim()
+        ? rawEmail.trim()
+        : DEFAULT_HEADER_SUPPORT_EMAIL;
+    return { supportPhone: phone, supportEmail: email };
   } catch {
-    return { supportPhone: DEFAULT_HEADER_SUPPORT_PHONE };
+    return {
+      supportPhone: DEFAULT_HEADER_SUPPORT_PHONE,
+      supportEmail: DEFAULT_HEADER_SUPPORT_EMAIL,
+    };
   }
 }

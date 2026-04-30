@@ -8,7 +8,6 @@ import { useAuth } from "@/app/context/Auth";
 import { Product } from "../../../types";
 import { useAppDispatch } from "../lib/hooks";
 import { addProduct } from "@/app/lib/features/recentlyviewedproducts/recentlyViewedSlice";
-import { hasProductStock } from "../utils/stockUtils";
 import { cleanProductSlug } from "@/app/utils/productUrl";
 
 interface ProductCardProps {
@@ -18,11 +17,22 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
   const auth = useAuth();
   const dispatch = useAppDispatch();
-  const minPrice = product.minPrice;
-  const minSalePrice = product.minSalePrice;
-  const discountPercentage = Math.round(
-    ((minPrice - minSalePrice) / minPrice) * 100
-  );
+  const hasGroupPrice = typeof product.groupPrice === "number";
+  const displayPrice =
+    typeof product.price === "number" ? product.price : product.minSalePrice;
+  const displayOriginalPrice =
+    typeof product.originalPrice === "number"
+      ? product.originalPrice
+      : product.minPrice;
+  const discountPercentage =
+    displayOriginalPrice > 0
+      ? Math.max(
+          0,
+          Math.round(
+            ((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100
+          )
+        )
+      : 0;
   const productNameSlug = cleanProductSlug(product.producturl);
   const averageRating = product.averageRating
     ? Math.round(product.averageRating * 10) / 10
@@ -35,6 +45,8 @@ const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
     // Dispatch the product data to Redux
     dispatch(addProduct(product));
   };
+  const thumbnailSrc =
+    product.thumbnail_image?.url || `${auth.ip}${product.thumbnail_image?.path || ""}`;
   return (
     <div
       className="max-w-screen-xl mx-auto py-5 sm:py-10"
@@ -61,17 +73,27 @@ const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
 
           {/* Fixed box + overflow so layout stays stable when image loads */}
           <div className="relative w-full h-56 min-h-[14rem] shrink-0 overflow-hidden flex items-center justify-center bg-gray-50">
-            <Image
-              className={`object-contain transform transition-transform duration-1500 ease-in-out scale-105 group-hover:scale-110 ${
-                !isInStock ? "opacity-60" : ""
-              }`}
-              src={product.thumbnail_image?.url || `${auth.ip}${product.thumbnail_image?.path}`}
-              alt={product.thumbnail_image?.altText || product.name || "Product Image"}
-              title={product.thumbnail_image?.description || undefined}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              loading="lazy"
-            />
+            {thumbnailSrc ? (
+              <Image
+                className={`object-contain transform transition-transform duration-1500 ease-in-out scale-105 group-hover:scale-110 ${
+                  !isInStock ? "opacity-60" : ""
+                }`}
+                src={thumbnailSrc}
+                alt={product.thumbnail_image?.altText || product.name || "Product Image"}
+                title={product.thumbnail_image?.description || undefined}
+                width={200}
+                height={200}
+                sizes="(max-width: 768px) 50vw, 200px"
+                quality={60}
+                loading="lazy"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                }}
+              />
+            ) : (
+              <span className="text-sm text-gray-400">Image not available</span>
+            )}
 
             {/* Out of Stock Overlay */}
             {!isInStock && (
@@ -87,9 +109,10 @@ const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
           <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
             <div>
               <small className="text-gray-500 flex gap-1">
-                From <del>£{minPrice}</del>
+                {hasGroupPrice ? "Was" : "From"}{" "}
+                <del>£{displayOriginalPrice}</del>
               </small>
-              <div className="text-xl sm:text-2xl">£{minSalePrice}</div>
+              <div className="text-xl sm:text-2xl">£{displayPrice}</div>
             </div>
             <div className="py-1 text-sm font-regular text-yellow-400 flex flex-row items-center">
               {[0, 1, 2, 3, 4].map((ratingIndex) => {

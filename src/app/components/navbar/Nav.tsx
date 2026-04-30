@@ -5,7 +5,10 @@ import { getLogo } from "@/app/services/logoService";
 import { Bars3Icon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { ShoppingCartIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "@/app/context/Auth";
-import { fetchNavbarCategory } from "@/app/lib/features/navbarcategories/navbarCategorySlice";
+import {
+  fetchNavbarCategory,
+  hydrateNavbarFromServer,
+} from "@/app/lib/features/navbarcategories/navbarCategorySlice";
 import { isNavbarCustom } from "@/app/lib/features/navbarcategories/navbarTypes";
 import type { NavbarItem } from "@/app/lib/features/navbarcategories/navbarTypes";
 
@@ -24,13 +27,19 @@ import CategoryItem from "./CategoryItem";
 import MoreDropdown from "./MoreDropdown";
 import CategorySmallMenu from "./CategorySmallMenu";
 import { NavbarCustomLinkItem } from "./NavbarCustomLinkItem";
+import type { HomeNavbarServerBootstrap } from "@/app/services/navbarCriticalServer";
 
 interface NavbarCategorySliceState {
   items: NavbarItem[];
   error: string | null;
 }
 
-export default function Nav() {
+type NavProps = {
+  /** Homepage only: SSR logo, phone, categories so the bar paints without client waterfalls. */
+  serverBootstrap?: HomeNavbarServerBootstrap | null;
+};
+
+export default function Nav({ serverBootstrap = null }: NavProps) {
   const auth = useAuth();
   const backendAvailable = useBackendAvailability();
   const dispatch = useAppDispatch();
@@ -39,12 +48,20 @@ export default function Nav() {
   const [cartItemCount, setCartItemCount] = useState<number>(0);
   const [isSticky, setIsSticky] = useState<boolean>(false);
   const [isSearchBarVisible, setIsSearchBarVisible] = useState<boolean>(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoAlt, setLogoAlt] = useState<string>("Zextons");
+  const [logoUrl, setLogoUrl] = useState<string | null>(
+    () => serverBootstrap?.logoUrl ?? null
+  );
+  const [logoAlt, setLogoAlt] = useState<string>(
+    () => serverBootstrap?.logoAlt?.trim() || "Zextons"
+  );
   const [logoError, setLogoError] = useState<boolean>(false);
   const [supportPhone, setSupportPhone] = useState<string>(
-    DEFAULT_HEADER_SUPPORT_PHONE
+    () => serverBootstrap?.supportPhone ?? DEFAULT_HEADER_SUPPORT_PHONE
   );
+
+  const hasServerNavItems = Boolean(serverBootstrap?.items?.length);
+  const hasServerLogo = Boolean(serverBootstrap?.logoUrl);
+  const hasServerPhone = Boolean(serverBootstrap?.supportPhone?.trim());
 
   const { items } = useAppSelector(
     (state: StoreRootState & { navbarCategory: NavbarCategorySliceState }) =>
@@ -52,9 +69,11 @@ export default function Nav() {
   );
 
   const sortedNavItems: NavbarItem[] = useMemo(() => {
-    if (!items?.length) return [];
-    return [...items].sort((a, b) => a.order - b.order);
-  }, [items]);
+    const source =
+      items?.length ? items : (serverBootstrap?.items ?? []);
+    if (!source.length) return [];
+    return [...source].sort((a, b) => a.order - b.order);
+  }, [items, serverBootstrap?.items]);
 
   const visibleNavItems = useMemo(
     () => sortedNavItems.slice(0, 8),
@@ -70,12 +89,20 @@ export default function Nav() {
   }, [logoUrl, supportPhone, sortedNavItems.length]);
 
   useEffect(() => {
-    if (!backendAvailable) return;
-    dispatch(fetchNavbarCategory() as never);
-  }, [dispatch, backendAvailable]);
+    if (serverBootstrap?.items?.length) {
+      dispatch(hydrateNavbarFromServer(serverBootstrap.items));
+    }
+  }, [dispatch, serverBootstrap]);
 
   useEffect(() => {
     if (!backendAvailable) return;
+    if (hasServerNavItems) return;
+    dispatch(fetchNavbarCategory() as never);
+  }, [dispatch, backendAvailable, hasServerNavItems]);
+
+  useEffect(() => {
+    if (!backendAvailable) return;
+    if (hasServerLogo) return;
     const fetchLogo = async () => {
       try {
         const logoData = await getLogo();
@@ -93,10 +120,11 @@ export default function Nav() {
     };
 
     void fetchLogo();
-  }, [backendAvailable]);
+  }, [backendAvailable, hasServerLogo]);
 
   useEffect(() => {
     if (!backendAvailable) return;
+    if (hasServerPhone) return;
     let cancelled = false;
     void fetchNavbarHeaderPublic().then((data) => {
       if (!cancelled && data.supportPhone) {
@@ -106,7 +134,7 @@ export default function Nav() {
     return () => {
       cancelled = true;
     };
-  }, [backendAvailable]);
+  }, [backendAvailable, hasServerPhone]);
 
   useEffect(() => {
     const updateCartCount = () => {

@@ -69,11 +69,20 @@ export default function BlogPromotionalSectionsWidget({
   <div
     className={`relative rounded-xl py-8 px-4 sm:py-12 sm:px-6 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 min-h-[140px] overflow-hidden ${
       bnplBg
-        ? "bg-cover bg-center"
+        ? ""
         : "bg-gradient-to-r from-gray-500 to-gray-300"
     }`}
-    style={bnplBg ? { backgroundImage: `url(${bnplBg})` } : undefined}
   >
+    {bnplBg && (
+      <Image
+        src={bnplBg}
+        alt=""
+        fill
+        className="object-cover object-center"
+        sizes="(max-width: 768px) 100vw, 1200px"
+        quality={70}
+      />
+    )}
     {/* Overlay for better text visibility */}
     {bnplBg && (
       <div className="absolute inset-0 bg-black/50 z-0"></div>
@@ -129,16 +138,22 @@ export default function BlogPromotionalSectionsWidget({
         <div className="flex flex-col xs:flex-row justify-between gap-4 xl:gap-x-20">
           {showSell && sell && (
             <div
-              className="rounded-3xl w-full min-w-0 p-4 sm:p-6 flex flex-wrap items-center md:space-x-20 space-x-5 cursor-pointer transition-transform duration-500 ease-in-out hover:scale-105 hover:shadow-lg bg-cover bg-center min-h-[200px]"
-              style={
-                sell.backgroundImage
-                  ? {
-                      backgroundImage: `url(${imgSrc(sell.backgroundImage, resolveImageUrl)})`,
-                    }
-                  : { backgroundColor: "#FE1054" }
-              }
+              className="relative rounded-3xl w-full min-w-0 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4 md:gap-8 cursor-pointer transition-transform duration-500 ease-in-out hover:scale-105 hover:shadow-lg min-h-[200px] overflow-hidden"
             >
-              <div className="min-w-0 flex-1">
+              {sell.backgroundImage?.trim() ? (
+                <Image
+                  src={imgSrc(sell.backgroundImage, resolveImageUrl)}
+                  alt=""
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  quality={70}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[#FE1054]" aria-hidden />
+              )}
+              <div className="absolute inset-0 bg-black/25" aria-hidden />
+              <div className="relative z-10 min-w-0 w-full md:flex-1">
                 <h2 className="text-white text-[20px] sm:text-[26px] font-bold mb-2 break-words">{sell.heading}</h2>
                 <p className="text-white mt-4 mb-4 line-clamp-4 md:mb-10 md:line-clamp-none min-w-0">
                   {sell.paragraph}
@@ -160,7 +175,7 @@ export default function BlogPromotionalSectionsWidget({
                 )}
               </div>
               {sell.productImage?.trim() && (
-                <div className="md:block hidden">
+                <div className="relative z-10 md:block hidden shrink-0">
                   <div className="relative md:w-48 w-36 md:h-48 h-36 xl:-mb-6 md:mt-0 sm:mt-20 mt-10">
                     <Image
                       src={imgSrc(sell.productImage, resolveImageUrl)}
@@ -182,18 +197,24 @@ export default function BlogPromotionalSectionsWidget({
           )}
           {showBuy && buy && (
             <div
-              className={`rounded-3xl w-full min-w-0 p-4 sm:p-6 flex flex-wrap items-center md:space-x-20 space-x-5 cursor-pointer transition-transform duration-500 ease-in-out hover:scale-105 hover:shadow-lg min-h-[200px] relative ${
-                buy.backgroundImage ? "bg-cover bg-center" : "bg-primary"
+              className={`rounded-3xl w-full min-w-0 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4 md:gap-8 cursor-pointer transition-transform duration-500 ease-in-out hover:scale-105 hover:shadow-lg min-h-[200px] relative overflow-hidden ${
+                buy.backgroundImage ? "" : "bg-primary"
               }`}
-              style={
-                buy.backgroundImage
-                  ? {
-                      backgroundImage: `url(${imgSrc(buy.backgroundImage, resolveImageUrl)})`,
-                    }
-                  : undefined
-              }
             >
-              <div className="min-w-0 flex-1">
+              {buy.backgroundImage?.trim() && (
+                <Image
+                  src={imgSrc(buy.backgroundImage, resolveImageUrl)}
+                  alt=""
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  quality={70}
+                />
+              )}
+              {buy.backgroundImage?.trim() && (
+                <div className="absolute inset-0 bg-black/25" aria-hidden />
+              )}
+              <div className="relative z-10 min-w-0 w-full md:flex-1">
                 <h2 className="text-white text-[20px] sm:text-[26px] font-bold mb-2 break-words">{buy.heading}</h2>
                 <p className="text-white mt-4 mb-4 line-clamp-4 md:mb-10 md:line-clamp-none min-w-0">
                   {buy.paragraph}
@@ -215,7 +236,7 @@ export default function BlogPromotionalSectionsWidget({
                 )}
               </div>
               {buy.productImage?.trim() && (
-                <div className="md:block hidden">
+                <div className="relative z-10 md:block hidden shrink-0">
                   <div className="relative md:w-48 w-36 md:h-48 h-36 xl:-mb-6 md:mt-0 sm:mt-20 mt-10">
                     <Image
                       src={imgSrc(buy.productImage, resolveImageUrl)}
@@ -241,16 +262,17 @@ export default function BlogPromotionalSectionsWidget({
 {showTiny && tiny && (
   <div
     className="w-full rounded-2xl overflow-hidden relative shadow-lg"
-    style={
-      tiny.backgroundImage?.trim()
-        ? {
-            backgroundImage: `url(${imgSrc(tiny.backgroundImage, resolveImageUrl)})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }
-        : undefined
-    }
   >
+    {tiny.backgroundImage?.trim() && (
+      <Image
+        src={imgSrc(tiny.backgroundImage, resolveImageUrl)}
+        alt=""
+        fill
+        className="object-cover object-center"
+        sizes="(max-width: 768px) 100vw, 1200px"
+        quality={70}
+      />
+    )}
     {/* Overlay Gradient */}
     <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a]/90 via-[#1e293b]/80 to-[#0f172a]/70 backdrop-blur-[2px]" />
 

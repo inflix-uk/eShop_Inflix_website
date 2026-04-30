@@ -61,7 +61,7 @@ export interface FooterBottomBar {
 
 export interface FooterSettings {
   section1: {
-    logo?: string | { image?: string; link?: string };
+    logo?: string | { image?: string; altText?: string; link?: string };
     description?: string;
     socialMedia: SocialMediaItem[];
   };
