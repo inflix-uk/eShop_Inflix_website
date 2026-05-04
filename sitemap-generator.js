@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://aromadesire.com';
+const BASE_URL = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://aromadesire.com').replace(/\/$/, '');
 
 const fetchUrls = async () => {
     try {

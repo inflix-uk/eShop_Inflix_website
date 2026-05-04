@@ -3,8 +3,8 @@
 import { CmsWidgetAndProductBlock } from "@/app/components/cms/CmsWidgetAndProductBlock";
 import type { ContentBlock } from "@/app/services/homepageDataService";
 import { getImageUrl } from "@/app/services/footerPageService";
-import type { SiteWidgetVisibility } from "@/app/services/siteWidgetSettingsService";
-import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/services/siteWidgetSettingsService";
+import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
+import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 
 type GenericSection = Record<string, unknown> & { type: string };
 

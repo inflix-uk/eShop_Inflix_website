@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { getLogo } from "@/app/services/logoService";
@@ -20,8 +21,12 @@ import {
 
 import { useAppDispatch, useAppSelector } from "@/app/lib/hooks";
 import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
-import NavbarCart from "@/app/components/navbar/NavbarCart";
 import { RootState as StoreRootState } from "@/app/lib/store";
+
+const NavbarCart = dynamic(() => import("@/app/components/navbar/NavbarCart"), {
+  ssr: false,
+  loading: () => null,
+});
 import Image from "next/image";
 import CategoryItem from "./CategoryItem";
 import MoreDropdown from "./MoreDropdown";

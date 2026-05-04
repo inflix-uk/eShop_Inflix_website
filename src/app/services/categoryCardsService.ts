@@ -3,7 +3,10 @@
  * Fetches category cards from the backend API
  */
 
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import {
+  cmsLivePublicFetchInit,
+  cmsPublicFetchInit,
+} from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
 
 const getApiBaseUrl = (): string => {
@@ -150,7 +153,10 @@ const DEFAULT_SECTION: CategoryCardsSectionSettings = {
   sectionBackgroundColor: "",
 };
 
-export async function getCategoryCardsSectionSettings(): Promise<CategoryCardsSectionSettings> {
+export async function getCategoryCardsSectionSettings(options?: {
+  live?: boolean;
+}): Promise<CategoryCardsSectionSettings> {
+  const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const baseUrl = API_BASE_URL.endsWith("/")
       ? API_BASE_URL.slice(0, -1)
@@ -159,7 +165,7 @@ export async function getCategoryCardsSectionSettings(): Promise<CategoryCardsSe
     const response = await cmsTimedFetch(url, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      ...cmsPublicFetchInit(),
+      ...cacheInit,
     });
     if (!response.ok) {
       return { ...DEFAULT_SECTION };

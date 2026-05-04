@@ -24,7 +24,7 @@ export default function FacebookPixelBlock() {
   return (
     <Script
       id="fb-pixel-stub"
-      strategy="beforeInteractive"
+      strategy="afterInteractive"
       dangerouslySetInnerHTML={{
         __html: `!function(w){var n=function(){};n.queue=[];n.loaded=!0;n.version="2.0";n.callMethod=n.push=function(){};w.fbq=n;w._fbq=n}(window);`,
       }}

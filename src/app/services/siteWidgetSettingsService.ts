@@ -1,54 +1,30 @@
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import {
+  cmsLivePublicFetchInit,
+  cmsPublicFetchInit,
+} from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
+import {
+  DEFAULT_SITE_WIDGET_VISIBILITY,
+  type SiteWidgetVisibility,
+} from "@/app/lib/siteWidgetVisibilityDefaults";
+
+export type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
+export { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-export type SiteWidgetVisibility = {
-  sliderEnabled: boolean;
-  newsletterEnabled: boolean;
-  faqEnabled: boolean;
-  videoEnabled: boolean;
-  mapEnabled: boolean;
-  galleryEnabled: boolean;
-  iconBoxEnabled: boolean;
-  testimonialsEnabled: boolean;
-  trustpilotWidgetEnabled: boolean;
-  siteBannersEnabled: boolean;
-  categoryCardsEnabled: boolean;
-  promotionalSectionsEnabled: boolean;
-  latestBlogsEnabled: boolean;
-  htmlCssEnabled: boolean;
-  contactUsEnabled: boolean;
-};
-
-/** Default when API is unavailable; also used as initial client state before fetch. */
-export const DEFAULT_SITE_WIDGET_VISIBILITY: SiteWidgetVisibility = {
-  sliderEnabled: true,
-  newsletterEnabled: true,
-  faqEnabled: true,
-  videoEnabled: true,
-  mapEnabled: true,
-  galleryEnabled: true,
-  iconBoxEnabled: true,
-  testimonialsEnabled: true,
-  trustpilotWidgetEnabled: true,
-  siteBannersEnabled: true,
-  categoryCardsEnabled: true,
-  promotionalSectionsEnabled: true,
-  latestBlogsEnabled: true,
-  htmlCssEnabled: true,
-  contactUsEnabled: true,
-};
 
 /**
  * Global widget visibility (slider, newsletter, FAQ) for the public site.
  */
-export async function getSiteWidgetSettingsPublic(): Promise<SiteWidgetVisibility> {
+export async function getSiteWidgetSettingsPublic(options?: {
+  live?: boolean;
+}): Promise<SiteWidgetVisibility> {
+  const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const response = await cmsTimedFetch(`${API_URL}/site-widget-settings/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      ...cmsPublicFetchInit(),
+      ...cacheInit,
     });
     if (!response.ok) {
       return DEFAULT_SITE_WIDGET_VISIBILITY;

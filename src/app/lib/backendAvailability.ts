@@ -22,7 +22,7 @@ async function fetchHealthOnce(base: string): Promise<boolean> {
   try {
     const res = await fetch(url, {
       method: "GET",
-      cache: "no-store",
+      next: { revalidate: 10 },
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
@@ -46,8 +46,6 @@ export const isBackendAvailable = cache(async (): Promise<boolean> => {
     );
     return false;
   }
-
-  console.log("API BASE:", apiBase);
 
   try {
     if (await fetchHealthOnce(apiBase)) return true;

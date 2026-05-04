@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, useState, useEffect } from "react";
+import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaOptionsType } from "embla-carousel";
 import { getFullImageUrl } from "./blogUtils";
@@ -159,10 +160,15 @@ export default function BlogSliderWidget({
                 >
                   <div className="relative flex h-[200px] shrink-0 items-center justify-center bg-gray-100 p-2">
                     {src ? (
-                      <img
+                      <Image
                         src={src}
                         alt={slide.heading || "Slide"}
-                        className="max-h-full max-w-full object-contain"
+                        fill
+                        className="object-contain p-1"
+                        sizes="(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 24vw"
+                        quality={75}
+                        loading={i === 0 ? "eager" : "lazy"}
+                        priority={i === 0}
                         draggable={false}
                       />
                     ) : (

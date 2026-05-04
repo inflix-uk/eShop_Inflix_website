@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import Footer from "@/app/components/footer/footer";
 import { getFooterSettingsCached } from "@/app/services/footerPublicService";
 
@@ -13,13 +12,32 @@ function hostLooksLocal(host: string): boolean {
   );
 }
 
+/** Avoid `headers()` here — it forces dynamic HTML and breaks bfcache (Lighthouse). */
+function inferSiteHostIsLocalFromEnv(): boolean {
+  const raw = String(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.FRONTEND_URL ||
+      ""
+  ).trim();
+  if (raw) {
+    try {
+      const hostname = new URL(
+        /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+      ).hostname;
+      return hostLooksLocal(hostname);
+    } catch {
+      /* fall through */
+    }
+  }
+  return process.env.NODE_ENV === "development";
+}
+
 export default async function FooterShell() {
-  const headerList = await headers();
-  const host =
-    headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
-  const siteHostIsLocal = hostLooksLocal(host);
+  const siteHostIsLocal = inferSiteHostIsLocalFromEnv();
   const copyrightYear = new Date().getFullYear();
   const initialFooterSettings = await getFooterSettingsCached();
+
   return (
     <Footer
       initialFooterSettings={initialFooterSettings}

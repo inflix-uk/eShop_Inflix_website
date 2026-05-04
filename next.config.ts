@@ -10,6 +10,40 @@ function normalizePublicApiUrl(raw: string | undefined): string | undefined {
 const normalizedApiUrl = normalizePublicApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/profiles/:role/:slug",
+        destination: "/:role/:slug",
+        permanent: true,
+      },
+      {
+        source: "/profiles/:role/:slug/",
+        destination: "/:role/:slug/",
+        permanent: true,
+      },
+    ];
+  },
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
+  },
+  experimental: {
+    /** Smaller initial CSS: keep route/component CSS in separate chunks when safe. */
+    cssChunking: "strict",
+    optimizePackageImports: [
+      "lucide-react",
+      "react-icons",
+      "@heroicons/react",
+      "@headlessui/react",
+      "@reduxjs/toolkit",
+      "react-redux",
+      "embla-carousel-react",
+      "embla-carousel-fade",
+    ],
+  },
   trailingSlash: SITE_USES_TRAILING_SLASH,
   ...(normalizedApiUrl
     ? { env: { NEXT_PUBLIC_API_URL: normalizedApiUrl } }

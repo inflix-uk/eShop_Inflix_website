@@ -7,8 +7,8 @@ import {
   type ContentBlock,
   type ImageContent,
 } from "@/app/services/homepageDataService";
-import type { SiteWidgetVisibility } from "@/app/services/siteWidgetSettingsService";
-import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/services/siteWidgetSettingsService";
+import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
+import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { CmsWidgetAndProductBlock } from "@/app/components/cms/CmsWidgetAndProductBlock";
 
 /**
@@ -121,16 +121,17 @@ function ColumnRenderer({
   column,
   widgetVisibility,
 }: {
-  column: { width: number; blocks: ContentBlock[] };
+  column: { width: number; blocks?: ContentBlock[] };
   widgetVisibility: SiteWidgetVisibility;
 }) {
+  const columnBlocks = column.blocks ?? [];
   return (
     <div
       className="min-w-0 w-full flex-[1_1_100%] sm:flex-1 sm:basis-0 sm:w-auto sm:min-w-[250px] sm:max-w-[var(--homepage-col-max)]"
       style={{ ["--homepage-col-max" as string]: `${column.width}%` }}
     >
       <div className="space-y-4">
-        {column.blocks.map((block, blockIndex) => (
+        {columnBlocks.map((block, blockIndex) => (
           <BlockRenderer
             key={blockIndex}
             block={block}
@@ -152,9 +153,10 @@ function RowRenderer({
   row: HomepageBlock;
   widgetVisibility: SiteWidgetVisibility;
 }) {
+  const rowColumns = row.columns ?? [];
   return (
     <div className="flex flex-wrap gap-4 sm:gap-6 my-6 sm:my-8">
-      {row.columns.map((column, colIndex) => (
+      {rowColumns.map((column, colIndex) => (
         <ColumnRenderer
           key={colIndex}
           column={column}

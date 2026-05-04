@@ -4,6 +4,8 @@ const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const UPSTREAM_URL = `${base}/site-theme/public`;
 const TIMEOUT_MS = 8000;
 
+export const revalidate = 120;
+
 /** Matches `DEFAULT_SITE_THEME` in `siteThemeUtils` — no storefront tint until CMS sets hex colors. */
 const NO_CMS_THEME_COLORS = {
   primaryColor: "transparent",
@@ -28,7 +30,7 @@ export async function GET() {
     const res = await fetch(UPSTREAM_URL, {
       headers: { Accept: "application/json" },
       signal: controller.signal,
-      cache: "no-store",
+      next: { revalidate: 120 },
     });
 
     if (!res.ok) {

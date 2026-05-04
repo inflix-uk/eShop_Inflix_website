@@ -1,23 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { fetchProducts } from "@/app/lib/features/products/getProductSlice";
-import {
-  fetchProductCategory,
-  fetchCategoryCounts,
-} from "@/app/lib/features/categories/categoriesSlice";
 import { useAppDispatch, useAppSelector } from "./lib/hooks";
 import { useStore } from "react-redux";
 import type { RootState } from "./lib/store";
+import type { HomepageBlock } from "./services/homepageDataService";
 import {
-  getHomepageData,
-  type HomepageBlock,
-} from "./services/homepageDataService";
-import {
-  getSiteWidgetSettingsPublic,
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
-} from "./services/siteWidgetSettingsService";
+} from "@/app/lib/siteWidgetVisibilityDefaults";
 import { useAuth } from "@/app/context/Auth";
 import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 import { scheduleIdle } from "./lib/scheduleIdle";
@@ -107,36 +98,44 @@ export default function HomeClient({
       return;
     }
     let cancelled = false;
-    const cancelSchedule = scheduleIdle(() => {
-      void (async () => {
-        if (!hasPrefetchBlocks) {
-          setHomepageBlocksLoading(true);
-        }
-        try {
-          const data = await getHomepageData();
-          if (!cancelled) {
-            setHomepageBlocks(data?.blocks?.length ? data.blocks : []);
+    const cancelSchedule = scheduleIdle(
+      () => {
+        void (async () => {
+          const [{ getHomepageData }, { getSiteWidgetSettingsPublic }] =
+            await Promise.all([
+              import("./services/homepageDataService"),
+              import("./services/siteWidgetSettingsService"),
+            ]);
+          if (!hasPrefetchBlocks) {
+            setHomepageBlocksLoading(true);
           }
-        } catch (err) {
-          console.error("Error fetching homepage data:", err);
-          if (!cancelled && !hasPrefetchBlocks) {
-            setHomepageBlocks([]);
+          try {
+            const data = await getHomepageData({ live: true });
+            if (!cancelled) {
+              setHomepageBlocks(data?.blocks?.length ? data.blocks : []);
+            }
+          } catch (err) {
+            console.error("Error fetching homepage data:", err);
+            if (!cancelled && !hasPrefetchBlocks) {
+              setHomepageBlocks([]);
+            }
+          } finally {
+            if (!cancelled) {
+              setHomepageBlocksLoading(false);
+            }
           }
-        } finally {
-          if (!cancelled) {
-            setHomepageBlocksLoading(false);
+          try {
+            const v = await getSiteWidgetSettingsPublic({ live: true });
+            if (!cancelled) {
+              setWidgetVisibility(v);
+            }
+          } catch (err) {
+            console.error("Error fetching site widget settings:", err);
           }
-        }
-        try {
-          const v = await getSiteWidgetSettingsPublic();
-          if (!cancelled) {
-            setWidgetVisibility(v);
-          }
-        } catch (err) {
-          console.error("Error fetching site widget settings:", err);
-        }
-      })();
-    });
+        })();
+      },
+      { timeout: 3500 }
+    );
     return () => {
       cancelled = true;
       cancelSchedule();
@@ -167,37 +166,46 @@ export default function HomeClient({
 
     const cancel = scheduleIdle(
       () => {
-        const state = store.getState() as RootState;
-        const pg = state.auth.user?.pricingGroup
-          ? String(state.auth.user.pricingGroup)
-          : "";
-        const norm = pg || null;
-        const productsList = state.products.products;
-        const refetchProducts =
-          productsList.length === 0 ||
-          lastFetchedGroupIdRef.current !== norm;
+        void (async () => {
+          const [
+            { fetchProducts },
+            { fetchProductCategory, fetchCategoryCounts },
+          ] = await Promise.all([
+            import("@/app/lib/features/products/getProductSlice"),
+            import("@/app/lib/features/categories/categoriesSlice"),
+          ]);
+          const state = store.getState() as RootState;
+          const pg = state.auth.user?.pricingGroup
+            ? String(state.auth.user.pricingGroup)
+            : "";
+          const norm = pg || null;
+          const productsList = state.products.products;
+          const refetchProducts =
+            productsList.length === 0 ||
+            lastFetchedGroupIdRef.current !== norm;
 
-        if (refetchProducts) {
-          lastFetchedGroupIdRef.current = norm;
-          dispatch(fetchProducts(pg ? { groupId: pg } : undefined));
-        }
-        if (
-          !state.categories.categories.length &&
-          !homeBootstrapRef.current.categories
-        ) {
-          homeBootstrapRef.current.categories = true;
-          dispatch(fetchProductCategory(category));
-        }
-        if (
-          !state.categories.categoryCounts.length &&
-          !state.categories.isCountsLoading &&
-          !homeBootstrapRef.current.counts
-        ) {
-          homeBootstrapRef.current.counts = true;
-          dispatch(fetchCategoryCounts());
-        }
+          if (refetchProducts) {
+            lastFetchedGroupIdRef.current = norm;
+            dispatch(fetchProducts(pg ? { groupId: pg } : undefined));
+          }
+          if (
+            !state.categories.categories.length &&
+            !homeBootstrapRef.current.categories
+          ) {
+            homeBootstrapRef.current.categories = true;
+            dispatch(fetchProductCategory(category));
+          }
+          if (
+            !state.categories.categoryCounts.length &&
+            !state.categories.isCountsLoading &&
+            !homeBootstrapRef.current.counts
+          ) {
+            homeBootstrapRef.current.counts = true;
+            dispatch(fetchCategoryCounts());
+          }
+        })();
       },
-      { timeout: 2200 }
+      { timeout: 3800 }
     );
     return cancel;
   }, [

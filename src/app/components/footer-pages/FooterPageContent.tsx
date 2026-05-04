@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { CmsWidgetAndProductBlock } from "@/app/components/cms/CmsWidgetAndProductBlock";
 import type { ContentBlock } from "@/app/services/homepageDataService";
 import { getImageUrl, type FooterPage } from "@/app/services/footerPageService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import {
   DEFAULT_SITE_WIDGET_VISIBILITY,
-  getSiteWidgetSettingsPublic,
   type SiteWidgetVisibility,
-} from "@/app/services/siteWidgetSettingsService";
+} from "@/app/lib/siteWidgetVisibilityDefaults";
 
 /**
  * Renders a text block with HTML content

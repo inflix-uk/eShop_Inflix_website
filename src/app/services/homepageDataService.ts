@@ -1,5 +1,8 @@
 import { cache } from "react";
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import {
+  cmsLivePublicFetchInit,
+  cmsPublicFetchInit,
+} from "@/app/lib/cmsPublicFetchInit";
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
@@ -330,7 +333,10 @@ export type HomepageNewsletterSingleton = {
 /**
  * Global newsletter widget from Homepage Widgets admin (singleton).
  */
-export async function getHomepageNewsletterWidgetPublic(): Promise<HomepageNewsletterSingleton | null> {
+export async function getHomepageNewsletterWidgetPublic(options?: {
+  live?: boolean;
+}): Promise<HomepageNewsletterSingleton | null> {
+  const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const response = await cmsTimedFetch(
       `${API_URL}/homepage-newsletter-widget/public`,
@@ -339,7 +345,7 @@ export async function getHomepageNewsletterWidgetPublic(): Promise<HomepageNewsl
         headers: {
           "Content-Type": "application/json",
         },
-        ...cmsPublicFetchInit(),
+        ...cacheInit,
       }
     );
 
@@ -406,14 +412,17 @@ export const getHomepagePublicSeo = cache(
   }
 );
 
-export async function getHomepageData(): Promise<HomepageData | null> {
+export async function getHomepageData(options?: {
+  live?: boolean;
+}): Promise<HomepageData | null> {
+  const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const response = await cmsTimedFetch(`${API_URL}/homepage-data/public`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      ...cmsPublicFetchInit(),
+      ...cacheInit,
     });
 
     if (!response.ok) {

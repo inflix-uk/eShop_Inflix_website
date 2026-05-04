@@ -74,8 +74,7 @@ export const getLogoUrl = (logoPath: string | undefined | null): string | null =
 };
 
 /**
- * Fetches logo from the API
- * NO CACHING - Always fetches fresh data to reflect admin dashboard changes immediately
+ * Fetches logo from the API (short ISR — avoids forcing full dynamic / bfcache blocks).
  * @returns Promise with logo data or null if not set/active/invalid
  */
 export async function getLogo(): Promise<{ logoUrl: string; altText: string } | null> {
@@ -96,7 +95,7 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
           headers: {
             'Content-Type': 'application/json',
           },
-          cache: 'no-store',
+          next: { revalidate: 60 },
         });
 
         if (!response.ok) {
@@ -161,7 +160,7 @@ async function fetchLogoSettingsPublic(): Promise<LogoSettings | null> {
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store',
+          next: { revalidate: 60 },
         });
 
         if (!response.ok) continue;

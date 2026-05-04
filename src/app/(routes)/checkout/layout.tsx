@@ -1,3 +1,4 @@
+import PaymentVendorScripts from "@/app/components/PaymentVendorScripts";
 
 export default function CheckoutLayout({
   children,
@@ -6,7 +7,7 @@ export default function CheckoutLayout({
 }>) {
   return (
     <>
-      {" "}
+      <PaymentVendorScripts />
       {children}
     </>
   );

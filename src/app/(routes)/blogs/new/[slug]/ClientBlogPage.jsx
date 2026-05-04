@@ -210,9 +210,10 @@ const slugify = (value) =>
     .replace(/-+/g, "-");
 
 const getPersonDetailsHref = (person, roleLabel) => {
-  const role = roleLabel === "reviewer" ? "reviewer" : "author";
-  const personSlug = slugify(person?.name || role);
-  return `/profiles/${role}/${personSlug}`;
+  const roleSegment = roleLabel === "reviewer" ? "reviewer" : "author";
+  const personSlug = slugify(person?.name || "");
+  if (!personSlug) return "#";
+  return `/${roleSegment}/${personSlug}/`;
 };
 
 // Status badge

@@ -1,3 +1,5 @@
+import PaymentVendorScripts from "@/app/components/PaymentVendorScripts";
+
 // Layout Component for SubCategory
 export default async function ProductLayout({
   children,
@@ -7,6 +9,7 @@ export default async function ProductLayout({
 }) {
   return (
     <>
+      <PaymentVendorScripts />
       <head>
         {/* Product feature icons only needed on product pages */}
         <link

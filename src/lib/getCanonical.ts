@@ -2,6 +2,27 @@ import { headers } from "next/headers";
 import { SITE_USES_TRAILING_SLASH } from "./siteTrailingSlash";
 
 /**
+ * When set, canonical URLs never call `headers()` — avoids forcing the whole app
+ * dynamic (Next adds `Cache-Control: no-store` on HTML), which blocks bfcache.
+ */
+function tryPublicSiteOriginFromEnv(): string | null {
+  const raw = String(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.FRONTEND_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+      ""
+  ).trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Normalize path (lowercase; trailing slash matches `SITE_USES_TRAILING_SLASH` / `next.config` trailingSlash).
  */
 export function normalizeCanonicalPath(path: string): string {
@@ -28,10 +49,18 @@ export function normalizeCanonicalPath(path: string): string {
 }
 
 /**
- * Canonical generator (HEADERS ONLY, async-safe)
+ * Canonical URL for the storefront. Prefers `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_BASE_URL`
+ * so RSC does not depend on `headers()` (which opts all pages out of back/forward cache).
  */
 export async function getCanonical(path: string = ""): Promise<string> {
-  const h = await headers(); // ✅ REQUIRED in your setup
+  const fromEnv = tryPublicSiteOriginFromEnv();
+  if (fromEnv) {
+    const base = fromEnv.replace(/\/$/, "");
+    const safePath = normalizeCanonicalPath(path);
+    return `${base}${safePath}`;
+  }
+
+  const h = await headers();
 
   const firstHeaderValue = (value: string | null): string =>
     (value ?? "")

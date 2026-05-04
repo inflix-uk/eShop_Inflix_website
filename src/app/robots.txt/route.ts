@@ -16,6 +16,8 @@ Disallow: /Support/Your-payments
 Disallow: /customer/
 `;
 
+export const revalidate = 3600;
+
 export async function GET() {
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   if (!base) {
@@ -28,7 +30,7 @@ export async function GET() {
     const res = await fetch(`${base}/robots-settings/public`, {
       method: "GET",
       headers: { Accept: "application/json" },
-      cache: "no-store",
+      next: { revalidate: 3600 },
     });
 
     if (!res.ok) {

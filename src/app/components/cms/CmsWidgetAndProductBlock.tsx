@@ -25,7 +25,7 @@ import {
   type WidgetContactUsContent,
   type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
-import type { SiteWidgetVisibility } from "@/app/services/siteWidgetSettingsService";
+import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
 
 function WidgetChunkFallback() {
   return (

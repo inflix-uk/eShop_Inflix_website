@@ -4,9 +4,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/app/context/Auth";
-import "react-toastify/dist/ReactToastify.css";
-import Script from "next/script";
-import DeferredGoogleTagManager from "@/app/components/analytics/DeferredGoogleTagManager";
+import DeferredGoogleTagManagerGate from "@/app/components/analytics/DeferredGoogleTagManagerGate";
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
@@ -40,6 +38,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
 };
+
+/**
+ * Next.js 15 defaults `fetch` to uncached (`no-store`), which keeps RSC pages fully dynamic
+ * and sends `Cache-Control: no-store` on HTML — Lighthouse reports bfcache blocked.
+ * `default-cache` restores opt-in caching unless a fetch explicitly sets `cache: 'no-store'`.
+ */
+export const fetchCache = "default-cache";
 
 function buildStaticFaviconHref(branding: LogoSettings | null): string | null {
   const raw = branding?.faviconUrl?.trim();
@@ -183,7 +188,7 @@ export default async function RootLayout({
           content="e104a647a256b0215a2711b55f63420f2e8a84bf449ced9c3e942a98bccef408"
         />
         <FacebookPixelBlock />
-        <DeferredGoogleTagManager />
+        <DeferredGoogleTagManagerGate />
         {/* Hardcoded Organization schema — kept as fallback reference
         <Script
           id="organization-schema"
@@ -209,44 +214,7 @@ export default async function RootLayout({
             dangerouslySetInnerHTML={{ __html: jsonStr }}
           />
         ))}
-        <Script
-          src="https://analytics.ahrefs.com/analytics.js"
-          data-key="uvqeroCgZqjugCBgl++DGQ"
-          strategy="lazyOnload"
-        />
         <SiteScriptsRaw html={combinedHeadScripts} />
-        {/* Microsoft Clarity Integration */}
-        <Script
-          id="microsoft-clarity-script"
-          strategy="lazyOnload"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(c,l,a,r,i,t,y){
-                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                t=l.createElement(r);
-                t.defer=true;
-                t.src="https://www.clarity.ms/tag/"+i;
-                y=l.getElementsByTagName(r)[0];
-                y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "ok17wd71hr");
-            `,
-          }}
-        />
-        {/* Klarna Web SDK */}
-        <Script
-          id="klarna-sdk"
-          src="https://js.klarna.com/web-sdk/v1/klarna.js"
-          data-environment="production"
-          data-client-id="klarna_live_client_KVRVI2UlR2pJMWd6dko5OHBnZlNraSR4SSQhQjQ2IyosYjUyOWRmNTItNjQ5ZC00MjEwLTlmNmItNGVmN2ZiMDc5YmY3LDEsZlg3ZjJmeXRvL1NqR0lYemJteTZmZkFQT3pUY3NXQWNEZHd2LzRpenlKVT0"
-          strategy="lazyOnload"
-        />
-        {/* PayPal SDK */}
-        <Script
-          id="paypal-sdk"
-          src="https://www.paypal.com/sdk/js?client-id=Aft9jSD19fVZmU7VJd1je7hCfZ-JyG6WDhqCpJsCENqXlQuRpZYyJYqc7zP20_U0H_vB0NK_ZU407K3F&currency=GBP&components=messages"
-          data-namespace="PayPalSDK"
-          strategy="lazyOnload"
-        />
         <SiteThemeInlineStyles theme={siteThemeBundle.colors} />
         <TypographyThemeStyles typography={siteThemeBundle.typography} />
       </head>
@@ -262,7 +230,7 @@ export default async function RootLayout({
               {backendAvailable && <SiteBrandColors />}
               {backendAvailable && <AnnouncementBar initial={announcementBanner} />}
               {children}
-              {backendAvailable && <FooterShell />}
+              <FooterShell />
               {backendAvailable && <DeferredLayoutWidgets />}
             </BackendAvailabilityProvider>
           </AuthProvider>

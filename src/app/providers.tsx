@@ -5,7 +5,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { makeStore } from '@/app/lib/store';
 import { persistStore } from 'redux-persist';
 import { AuthProvider } from './context/Auth';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer } from "@/app/components/reactToastifyClient";
 import { TrustpilotProvider } from './providers/TrustpilotProvider';
 import { useMemo } from 'react';
 
