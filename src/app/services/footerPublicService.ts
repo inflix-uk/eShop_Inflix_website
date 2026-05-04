@@ -9,6 +9,17 @@ function apiBase(): string {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 }
 
+/** Last successful footer (per Node / lambda). Used when CMS fetch fails or returns empty. */
+let lastGoodFooterSettings: FooterSettings | null = null;
+
+function rememberFooterSnapshot(snapshot: FooterSettings) {
+  lastGoodFooterSettings = JSON.parse(JSON.stringify(snapshot)) as FooterSettings;
+}
+
+function footerFallback(): FooterSettings {
+  return lastGoodFooterSettings ?? DEFAULT_FOOTER;
+}
+
 /**
  * CMS documents may omit sections after partial PATCH/legacy saves.
  * Merge with defaults so we never drop valid sections (old guard required section1+section2).
@@ -115,10 +126,13 @@ export function normalizeFooterApiData(raw: FooterSettings): FooterSettings {
   return data;
 }
 
-/** Footer CMS with ISR + in-memory cache (per server instance). */
+/**
+ * Footer CMS fetch with warm in-memory cache (per server instance).
+ * On network/CMS errors or empty payloads, returns the last successful snapshot when available.
+ */
 export async function getFooterSettingsCached(): Promise<FooterSettings> {
   const base = apiBase();
-  if (!base) return DEFAULT_FOOTER;
+  if (!base) return footerFallback();
 
   try {
     const responseJson = await cmsServerFetchJson<{
@@ -128,14 +142,17 @@ export async function getFooterSettingsCached(): Promise<FooterSettings> {
 
     const apiData = responseJson.data;
     if (!apiData || typeof apiData !== "object") {
-      return DEFAULT_FOOTER;
+      console.warn("[footerPublicService] empty footer payload, using warm cache or defaults");
+      return footerFallback();
     }
     const merged = mergePartialFooterFromApi(
       apiData as Partial<FooterSettings>
     );
-    return normalizeFooterApiData(merged);
+    const normalized = normalizeFooterApiData(merged);
+    rememberFooterSnapshot(normalized);
+    return normalized;
   } catch (e) {
-    console.warn("[footerPublicService] fetch failed:", e);
-    return DEFAULT_FOOTER;
+    console.warn("[footerPublicService] fetch failed, using warm cache or defaults:", e);
+    return footerFallback();
   }
 }

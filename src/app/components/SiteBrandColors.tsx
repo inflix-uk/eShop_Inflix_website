@@ -13,7 +13,7 @@ export default function SiteBrandColors() {
 
     (async () => {
       try {
-        const res = await fetch("/api/site-theme", { cache: "no-store" });
+        const res = await fetch("/api/site-theme");
         const json = await res.json().catch(() => null);
         if (cancelled || !json?.success || !json?.data) return;
 

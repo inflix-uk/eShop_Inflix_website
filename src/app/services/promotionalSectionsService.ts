@@ -3,7 +3,10 @@
  * Fetches Buy Now Pay Later, Sell/Buy Cards, and Tiny Phone Banner from the API
  */
 
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import {
+  cmsLivePublicFetchInit,
+  cmsPublicFetchInit,
+} from "@/app/lib/cmsPublicFetchInit";
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
@@ -72,7 +75,11 @@ export const getPromoImageUrl = (
   return `${baseUrl}/uploads${path}`;
 };
 
-async function fetchSection<T>(path: string): Promise<T | null> {
+async function fetchSection<T>(
+  path: string,
+  live?: boolean
+): Promise<T | null> {
+  const cacheInit = live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const baseUrl = API_BASE_URL.endsWith("/")
       ? API_BASE_URL.slice(0, -1)
@@ -80,7 +87,7 @@ async function fetchSection<T>(path: string): Promise<T | null> {
     const response = await cmsTimedFetch(`${baseUrl}${path}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      ...cmsPublicFetchInit(),
+      ...cacheInit,
     });
     if (response.status === 404 || !response.ok) return null;
     const result = await response.json();
@@ -94,14 +101,29 @@ async function fetchSection<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function getBuyNowPayLater(): Promise<BuyNowPayLater | null> {
-  return fetchSection<BuyNowPayLater>("/get/buy-now-pay-later/active");
+export async function getBuyNowPayLater(options?: {
+  live?: boolean;
+}): Promise<BuyNowPayLater | null> {
+  return fetchSection<BuyNowPayLater>(
+    "/get/buy-now-pay-later/active",
+    options?.live
+  );
 }
 
-export async function getSellBuyCards(): Promise<SellBuyCards | null> {
-  return fetchSection<SellBuyCards>("/get/sell-buy-cards/active");
+export async function getSellBuyCards(options?: {
+  live?: boolean;
+}): Promise<SellBuyCards | null> {
+  return fetchSection<SellBuyCards>(
+    "/get/sell-buy-cards/active",
+    options?.live
+  );
 }
 
-export async function getTinyPhoneBanner(): Promise<TinyPhoneBanner | null> {
-  return fetchSection<TinyPhoneBanner>("/get/tiny-phone-banner/active");
+export async function getTinyPhoneBanner(options?: {
+  live?: boolean;
+}): Promise<TinyPhoneBanner | null> {
+  return fetchSection<TinyPhoneBanner>(
+    "/get/tiny-phone-banner/active",
+    options?.live
+  );
 }

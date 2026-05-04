@@ -3,6 +3,7 @@
  * Fetches the verification code from the backend API
  */
 
+import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
 
 // Get API base URL from environment variable
@@ -27,8 +28,8 @@ export interface GoogleVerificationResponse {
 }
 
 /**
- * Fetches Google Search Console verification code from the API
- * NO CACHING - Always fetches fresh data to reflect admin dashboard changes immediately
+ * Fetches Google Search Console verification code from the API.
+ * Uses ISR (not `no-store`) so root `generateMetadata` does not force dynamic HTML / bfcache loss.
  * @returns Promise with verification code or null if not set/active/invalid
  */
 export async function getGoogleVerificationCode(): Promise<string | null> {
@@ -51,8 +52,7 @@ export async function getGoogleVerificationCode(): Promise<string | null> {
           headers: {
             'Content-Type': 'application/json',
           },
-          // NO CACHING - Always fetch fresh data
-          cache: 'no-store',
+          ...cmsPublicFetchInit({ next: { revalidate: 3600 } }),
         });
 
         console.log('[GoogleVerification] Response status:', response.status, response.statusText);

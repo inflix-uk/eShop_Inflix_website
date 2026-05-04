@@ -1,5 +1,4 @@
 import PrivateRoute from "@/app/privateroute";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 enum UserRoles {
   USER = "user",

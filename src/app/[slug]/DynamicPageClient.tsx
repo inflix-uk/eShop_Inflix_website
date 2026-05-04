@@ -14,7 +14,14 @@ type PageResponse = {
   sections: Section[];
 };
 
-export default function DynamicPageClient({ slug }: { slug: string }) {
+export default function DynamicPageClient({
+  slug,
+  categorySlug,
+}: {
+  slug: string;
+  /** When set, resolves CMS page at /categorySlug/slug */
+  categorySlug?: string | null;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isNotFound, setIsNotFound] = useState(false);
@@ -27,10 +34,17 @@ export default function DynamicPageClient({ slug }: { slug: string }) {
     setIsNotFound(false);
 
     try {
-      const res = await fetch(`/api/page/${encodeURIComponent(slug)}`, {
-        method: "GET",
-        cache: "no-store",
-      });
+      const qs =
+        categorySlug && String(categorySlug).trim()
+          ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+          : "";
+      const res = await fetch(
+        `/api/page/${encodeURIComponent(slug)}${qs}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
 
       if (res.status === 404) {
         setData(null);
@@ -55,7 +69,7 @@ export default function DynamicPageClient({ slug }: { slug: string }) {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, categorySlug]);
 
   useEffect(() => {
     loadPage();

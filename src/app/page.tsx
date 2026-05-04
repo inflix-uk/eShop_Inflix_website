@@ -1,4 +1,3 @@
-import "./globals.css";
 import dynamic from "next/dynamic";
 import HeroSlider2 from "./components/HeroSlider2";
 import Nav from "./components/navbar/Nav";
@@ -45,7 +44,8 @@ const HomeClient = dynamic(() => import("./HomeClient"), {
   ),
 });
 
-export const revalidate = 30;
+/** Fresh homepage CMS on each request — avoids stale blocks after admin saves (ISR was 30s). */
+export const revalidate = 0;
 
 async function getMetaData() {
   try {

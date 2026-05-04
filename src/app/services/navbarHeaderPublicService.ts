@@ -23,7 +23,7 @@ export async function fetchNavbarHeaderPublic(): Promise<{
     const res = await fetch(`${base}/navbar-header/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
+      next: { revalidate: 60 },
     });
     if (!res.ok) {
       return {

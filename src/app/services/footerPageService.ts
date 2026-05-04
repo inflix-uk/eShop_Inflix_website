@@ -4,6 +4,7 @@
  */
 
 import { cache } from "react";
+import { cmsServerFetch } from "@/app/lib/cmsServerFetch";
 
 // Get API base URL from environment variable
 // Make sure NEXT_PUBLIC_API_URL is set in your .env file
@@ -45,6 +46,8 @@ export interface FooterPage {
   _id: string;
   title: string;
   slug: string;
+  /** When set, live URL is /{categorySlug}/{slug}; otherwise /{slug}. */
+  categorySlug?: string | null;
   blocks: FooterPageRow[];
   bannerImage?: string;
   bannerImageAlt?: string;
@@ -71,25 +74,44 @@ export interface FooterPageResponse {
  * @returns Promise with the footer page data or null if not found
  */
 async function fetchFooterPageBySlugImpl(
-  slug: string
+  slug: string,
+  categorySlug?: string | null
 ): Promise<FooterPage | null> {
   try {
     // URL encode the slug to handle special characters
     const encodedSlug = encodeURIComponent(slug);
-    const apiUrl = `${API_BASE_URL}/footer-pages/pagesBySlug/${encodedSlug}`;
-    
-    console.log(`[FooterPageService] Fetching page with slug: "${slug}" (encoded: "${encodedSlug}")`);
+    const qs =
+      categorySlug && String(categorySlug).trim()
+        ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+        : "";
+    const apiUrl = `${API_BASE_URL}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
+
+    console.log(
+      `[FooterPageService] Fetching page with slug: "${slug}"${categorySlug ? `, category: "${categorySlug}"` : ""} (encoded: "${encodedSlug}")`
+    );
     console.log(`[FooterPageService] API URL: ${apiUrl}`);
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
+    const response = await cmsServerFetch(apiUrl, {
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        Accept: "application/json",
+        "Content-Type": "application/json",
       },
-      cache: 'no-store', // Always fetch fresh data
     });
 
-    const data: FooterPageResponse = await response.json();
+    const text = await response.text();
+    const trimmed = text.trim();
+    if (!trimmed) {
+      console.warn(`[FooterPageService] Empty body for slug: "${slug}"`);
+      return null;
+    }
+    let data: FooterPageResponse;
+    try {
+      data = JSON.parse(trimmed) as FooterPageResponse;
+    } catch {
+      console.warn(`[FooterPageService] Invalid JSON for slug: "${slug}"`);
+      return null;
+    }
 
     // Handle 404 response
     if (response.status === 404 || !data.success) {
@@ -118,12 +140,54 @@ async function fetchFooterPageBySlugImpl(
     return null;
   } catch (error) {
     console.error(`[FooterPageService] Error fetching footer page with slug "${slug}":`, error);
-    throw error;
+    return null;
   }
 }
 
 /** Dedupes within a single request (e.g. layout + generateMetadata). */
 export const fetchFooterPageBySlug = cache(fetchFooterPageBySlugImpl);
+
+/**
+ * Uncached fetch using the same URL/base resolution as {@link fetchFooterPageBySlug}.
+ * Use in RSC route guards so newly published pages are visible immediately and so
+ * API base falls back to localhost when NEXT_PUBLIC_API_URL is unset (matches service default).
+ */
+export async function fetchFooterPageBySlugFresh(
+  slug: string,
+  categorySlug?: string | null
+): Promise<FooterPage | null> {
+  try {
+    const encodedSlug = encodeURIComponent(slug);
+    const qs =
+      categorySlug && String(categorySlug).trim()
+        ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+        : "";
+    const apiUrl = `${API_BASE_URL}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    const text = await response.text();
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    let data: FooterPageResponse;
+    try {
+      data = JSON.parse(trimmed) as FooterPageResponse;
+    } catch {
+      return null;
+    }
+    if (response.status === 404 || !data.success) return null;
+    if (data.success && data.data) return data.data;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Fetches all footer pages from the API (useful for debugging)
@@ -134,19 +198,31 @@ export async function fetchAllFooterPages(): Promise<FooterPage[]> {
     const apiUrl = `${API_BASE_URL}/footer-pages/get/all/pages`;
     console.log(`[FooterPageService] Fetching all pages from: ${apiUrl}`);
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
+    const response = await cmsServerFetch(apiUrl, {
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        Accept: "application/json",
+        "Content-Type": "application/json",
       },
-      cache: 'no-store',
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch all pages: ${response.statusText}`);
+      console.warn(
+        `[FooterPageService] Failed to fetch all pages: ${response.status} ${response.statusText}`
+      );
+      return [];
     }
 
-    const data = await response.json();
+    const text = await response.text();
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+
+    let data: { success?: boolean; data?: FooterPage[] };
+    try {
+      data = JSON.parse(trimmed) as { success?: boolean; data?: FooterPage[] };
+    } catch {
+      return [];
+    }
 
     if (data.success && Array.isArray(data.data)) {
       console.log(`[FooterPageService] Found ${data.data.length} footer pages`);

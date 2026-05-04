@@ -1,19 +1,26 @@
 import { NextResponse } from "next/server";
 
-const UPSTREAM_URL = process.env.NEXT_PUBLIC_API_URL + "/get/category/for/navbar";
+const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+const UPSTREAM_URL = `${base}/get/category/for/navbar`;
 const TIMEOUT_MS = 7000;
 
-/** Navbar order/content is edited in admin — do not cache or storefront stays stale for minutes. */
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+/** Short ISR — avoids `force-dynamic` + `no-store`, which block bfcache on navigations. */
+export const revalidate = 30;
 
 export async function GET() {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
+    if (!base) {
+      return NextResponse.json(
+        { message: "Backend is not configured", data: [] },
+        { status: 503 }
+      );
+    }
+
     const res = await fetch(UPSTREAM_URL, {
-      cache: "no-store",
+      next: { revalidate: 30 },
       headers: {
         Accept: "application/json",
       },
@@ -36,7 +43,7 @@ export async function GET() {
         status: 200,
         headers: {
           "Cache-Control":
-            "private, no-cache, no-store, max-age=0, must-revalidate",
+            "public, s-maxage=30, stale-while-revalidate=120",
         },
       }
     );

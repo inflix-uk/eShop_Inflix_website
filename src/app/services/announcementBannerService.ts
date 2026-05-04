@@ -97,7 +97,6 @@ export async function getAnnouncementBannerPublic(): Promise<AnnouncementBannerP
       method: "GET",
       headers: { Accept: "application/json" },
       ...cmsPublicFetchInit(),
-      next: { revalidate: 0 },
     });
     if (!response.ok) {
       return EMPTY;

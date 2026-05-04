@@ -5,11 +5,11 @@ import {
   type HomepageBlock,
   type HomepageNewsletterSingleton,
 } from "@/app/services/homepageDataService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import {
-  getSiteWidgetSettingsPublic,
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
-} from "@/app/services/siteWidgetSettingsService";
+} from "@/app/lib/siteWidgetVisibilityDefaults";
 import {
   getTrustpilotSettings,
   type TrustpilotSettings,
@@ -69,16 +69,17 @@ export function createFallbackHomeServerCmsBundle(): HomeServerCmsBundle {
 export const getHomeServerCmsBundle = cache(
   async (): Promise<HomeServerCmsBundle> => {
     const fallback = createFallbackHomeServerCmsBundle();
+    const live = { live: true as const };
     const results = await Promise.allSettled([
-      getHomepageData(),
-      getHomepageNewsletterWidgetPublic(),
-      getSiteWidgetSettingsPublic(),
-      getTrustpilotSettings(),
-      getCategoryCardsSectionSettings(),
-      getHomeNavLinksPublicServer(),
-      getBuyNowPayLater(),
-      getSellBuyCards(),
-      getTinyPhoneBanner(),
+      getHomepageData(live),
+      getHomepageNewsletterWidgetPublic(live),
+      getSiteWidgetSettingsPublic(live),
+      getTrustpilotSettings(live),
+      getCategoryCardsSectionSettings(live),
+      getHomeNavLinksPublicServer(live),
+      getBuyNowPayLater(live),
+      getSellBuyCards(live),
+      getTinyPhoneBanner(live),
     ]);
 
     const valueOrFallback = <T,>(index: number, defaultValue: T): T => {

@@ -25,6 +25,10 @@ export function pathnameHidesTopBarForSlugRoute(pathname: string | null): boolea
   if (parts[0]?.toLowerCase() === "footer-pages" && parts[1]) {
     return slugHidesTopBar(parts[1]);
   }
+  /** /category/page-slug CMS routes — use page slug (second segment). */
+  if (parts.length >= 2) {
+    return slugHidesTopBar(parts[1]);
+  }
   const segment = parts[0];
   return segment ? slugHidesTopBar(segment) : false;
 }

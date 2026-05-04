@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaOptionsType } from "embla-carousel";
 import { getFullImageUrl } from "./blogUtils";
@@ -173,14 +174,17 @@ export default function BlogGalleryWidget({
                   >
                     {/* Thumbnail: object-contain (no crop), same idea as image slider */}
                     <div className="relative flex h-44 w-full items-center justify-center bg-gray-100 p-2 sm:h-52 sm:p-3">
-                      <img
+                      <Image
                         src={src}
                         alt={
                           item.alt?.trim() ||
                           item.caption?.trim() ||
                           `Gallery image ${index + 1}`
                         }
-                        className="max-h-full max-w-full object-contain transition-opacity duration-200 group-hover:opacity-95"
+                        fill
+                        className="object-contain p-1 transition-opacity duration-200 group-hover:opacity-95"
+                        sizes="(max-width: 640px) 85vw, 320px"
+                        quality={75}
                         loading="lazy"
                         draggable={false}
                       />
@@ -250,14 +254,19 @@ export default function BlogGalleryWidget({
             className="max-h-[90vh] max-w-5xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={resolvedSrc(String(list[lightboxIndex].imageUrl))}
               alt={
                 list[lightboxIndex].alt?.trim() ||
                 list[lightboxIndex].caption?.trim() ||
                 "Gallery image"
               }
+              width={1600}
+              height={1200}
               className="max-h-[85vh] w-auto max-w-full rounded-lg object-contain shadow-2xl"
+              sizes="100vw"
+              quality={80}
+              priority
             />
             {list[lightboxIndex].caption?.trim() ? (
               <p className="mt-3 text-center text-sm text-white/90">

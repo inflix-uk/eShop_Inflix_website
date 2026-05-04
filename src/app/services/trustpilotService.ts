@@ -1,4 +1,7 @@
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
+import {
+  cmsLivePublicFetchInit,
+  cmsPublicFetchInit,
+} from "@/app/lib/cmsPublicFetchInit";
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
@@ -10,14 +13,17 @@ export interface TrustpilotSettings {
   homePageScript: string;
 }
 
-export const getTrustpilotSettings = async (): Promise<TrustpilotSettings | null> => {
+export const getTrustpilotSettings = async (options?: {
+  live?: boolean;
+}): Promise<TrustpilotSettings | null> => {
+  const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const response = await cmsTimedFetch(`${process.env.NEXT_PUBLIC_API_URL}/trustpilot/public`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      ...cmsPublicFetchInit(),
+      ...cacheInit,
     });
 
     if (!response.ok) {

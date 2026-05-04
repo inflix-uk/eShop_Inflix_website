@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { API_BASE_URL } from "@/app/services/footerPageService";
 
+/** Always resolve fresh CMS content; category queries must not cache a mistaken 404. */
 export const dynamic = "force-dynamic";
 
 type PageSection = Record<string, unknown> & { type: string };
@@ -11,11 +13,11 @@ type PagePayload = {
 };
 
 function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  return API_BASE_URL.replace(/\/$/, "");
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
@@ -26,7 +28,12 @@ export async function GET(
   }
 
   const encodedSlug = encodeURIComponent(slug);
-  const url = `${base}/footer-pages/pagesBySlug/${encodedSlug}`;
+  const categorySlug = new URL(req.url).searchParams.get("categorySlug");
+  const qs =
+    categorySlug && categorySlug.trim()
+      ? `?categorySlug=${encodeURIComponent(categorySlug.trim())}`
+      : "";
+  const url = `${base}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
 
   try {
     const upstream = await fetch(url, {

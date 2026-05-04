@@ -3,8 +3,14 @@ import Nav from "@/app/components/navbar/Nav";
 import Link from "next/link";
 import ProfileBlocksRenderer from "./ProfileBlocksRenderer";
 
-type Props = {
-  params: Promise<{ role: string; slug: string }>;
+export type PersonProfileRole = "author" | "reviewer";
+
+type ProfileMatch = {
+  name: string;
+  designation: string;
+  bio: string;
+  image: string;
+  blocks: any[];
 };
 
 function toSlug(value: string): string {
@@ -16,20 +22,37 @@ function toSlug(value: string): string {
     .replace(/-+/g, "-");
 }
 
-async function getProfileByRoleAndSlug(role: string, slug: string) {
+function pushPersonFromPost(
+  post: Record<string, unknown>,
+  role: PersonProfileRole,
+  slug: string,
+  into: ProfileMatch[]
+) {
+  const person = role === "reviewer" ? post?.reviewer : post?.author;
+  if (!person || typeof person !== "object") return;
+  const o = person as Record<string, unknown>;
+  const name = String(o?.name || o?.fullName || "");
+  if (!name || toSlug(name) !== slug) return;
+  into.push({
+    name,
+    designation: String(o?.designation || ""),
+    bio: String(o?.bio || o?.description || ""),
+    image: String(o?.image || o?.profileImage || ""),
+    blocks: Array.isArray(o?.blocks) ? o.blocks : [],
+  });
+}
+
+async function getProfileByRoleAndSlug(
+  role: PersonProfileRole,
+  slug: string
+): Promise<ProfileMatch | null> {
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   if (!apiBase) return null;
 
   try {
     const limit = 200;
     const maxPages = 30;
-    const allMatches: Array<{
-      name: string;
-      designation: string;
-      bio: string;
-      image: string;
-      blocks: any[];
-    }> = [];
+    const allMatches: ProfileMatch[] = [];
 
     for (let page = 1; page <= maxPages; page++) {
       const response = await fetch(
@@ -43,18 +66,7 @@ async function getProfileByRoleAndSlug(role: string, slug: string) {
       if (posts.length === 0) break;
 
       for (const post of posts) {
-        const person = role === "reviewer" ? post?.reviewer : post?.author;
-        if (!person || typeof person !== "object") continue;
-        const name = String(person?.name || person?.fullName || "");
-        if (name && toSlug(name) === slug) {
-          allMatches.push({
-            name,
-            designation: String(person?.designation || ""),
-            bio: String(person?.bio || person?.description || ""),
-            image: String(person?.image || person?.profileImage || ""),
-            blocks: Array.isArray(person?.blocks) ? person.blocks : [],
-          });
-        }
+        pushPersonFromPost(post, role, slug, allMatches);
       }
 
       const totalPages = Number(payload?.pagination?.pages || 0);
@@ -64,7 +76,6 @@ async function getProfileByRoleAndSlug(role: string, slug: string) {
 
     if (allMatches.length === 0) return null;
 
-    // Prefer profile variant with richer data.
     const withBlocks = allMatches.find(
       (entry) => Array.isArray(entry.blocks) && entry.blocks.length > 0
     );
@@ -96,11 +107,17 @@ function getFullImageUrl(imagePath?: string): string {
   return `${apiBase}/uploads/${normalized}`;
 }
 
-export default async function PersonProfilePage({ params }: Props) {
-  const { role, slug } = await params;
-  const profile = await getProfileByRoleAndSlug(role, slug);
+type Props = {
+  profileRole: PersonProfileRole;
+  params: Promise<{ slug: string }>;
+};
 
-  const fallbackName = slug
+export default async function PersonProfilePage({ profileRole, params }: Props) {
+  const { slug } = await params;
+  const normalizedSlug = decodeURIComponent(slug).toLowerCase().trim();
+  const profile = await getProfileByRoleAndSlug(profileRole, normalizedSlug);
+
+  const fallbackName = normalizedSlug
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
@@ -110,7 +127,8 @@ export default async function PersonProfilePage({ params }: Props) {
   const bio = profile?.bio || "Bio is not available.";
   const profileImage = getFullImageUrl(profile?.image);
   const profileBlocks = Array.isArray(profile?.blocks) ? profile.blocks : [];
-  const roleLabel = role === "reviewer" ? "Reviewer" : "Author";
+  const roleLabel = profileRole === "reviewer" ? "Reviewer" : "Author";
+  const sectionCrumb = roleLabel;
 
   return (
     <>
@@ -127,23 +145,14 @@ export default async function PersonProfilePage({ params }: Props) {
                 </Link>
               </li>
               <li aria-hidden="true">/</li>
-              <li>
-                <span>Profiles</span>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li className="capitalize">{roleLabel}</li>
+              <li className="capitalize">{sectionCrumb}</li>
               <li aria-hidden="true">/</li>
               <li className="text-gray-900 font-medium capitalize">{name}</li>
             </ol>
           </nav>
 
-          {/* Profile Card */}
           <div className=" p-8 sm:p-10">
-
-            {/* Header */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
-
-              {/* Avatar */}
               {profileImage ? (
                 <img
                   src={profileImage}
@@ -156,19 +165,14 @@ export default async function PersonProfilePage({ params }: Props) {
                 </div>
               )}
 
-              {/* Identity */}
               <div className="text-center sm:text-left">
-                <p className="text-xs uppercase tracking-widest text-gray-400">
-                  {roleLabel}
-                </p>
+                <p className="text-xs uppercase tracking-widest text-gray-400">{roleLabel}</p>
 
                 <h1 className="text-2xl sm:text-3xl capitalize font-semibold text-gray-900 mt-1">
                   {name}
                 </h1>
 
-                <p className="text-base text-gray-500 capitalize mt-1">
-                  {designation}
-                </p>
+                <p className="text-base text-gray-500 capitalize mt-1">{designation}</p>
 
                 <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-xs text-gray-600">
                   Verified {roleLabel}
@@ -176,29 +180,20 @@ export default async function PersonProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* Divider */}
             <div className="my-8 border-t border-gray-100" />
 
-            {/* Bio Section */}
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900 tracking-wide uppercase">
-                About
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-900 tracking-wide uppercase">About</h2>
 
-              <p className="text-gray-700 text-base leading-8 whitespace-pre-line">
-                {bio}
-              </p>
+              <p className="text-gray-700 text-base leading-8 whitespace-pre-line">{bio}</p>
             </div>
 
-            {/* Content row blocks */}
             {profileBlocks.length > 0 ? (
               <div className="mt-10 pt-8 border-t border-gray-100">
                 <ProfileBlocksRenderer blocks={profileBlocks} />
               </div>
             ) : null}
-
           </div>
-
         </div>
       </main>
     </>

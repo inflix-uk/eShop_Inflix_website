@@ -29,6 +29,18 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+/**
+ * Use the image optimizer for remote HTTPS (e.g. Vercel Blob) so Lighthouse gets WebP/AVIF + resized assets.
+ * Skip only cases the optimizer cannot fetch or that are intentionally local.
+ */
+function imageUnoptimized(src: string | undefined | null): boolean {
+  if (!src) return false;
+  if (src.startsWith("data:") || src.startsWith("blob:")) return true;
+  return (
+    src.startsWith("http://localhost") || src.startsWith("http://127.0.0.1")
+  );
+}
+
 /** Homepage hero — match Canva: large (desktop) + small (mobile). Embedded widgets keep their own ratios. */
 const HERO_LARGE_WIDTH = 1440;
 const HERO_LARGE_HEIGHT = 500;
@@ -483,7 +495,9 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         className="h-full w-full object-cover object-center"
                         sizes="(max-width: 768px) 100vw, 1200px"
                         quality={70}
-                        unoptimized={banner.srcSmall?.startsWith('http') || banner.srcLarge?.startsWith('http') ? true : false}
+                        unoptimized={imageUnoptimized(
+                          banner.srcSmall || banner.srcLarge
+                        )}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
@@ -503,7 +517,9 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         fetchPriority={index === 0 ? "high" : "auto"}
                         priority={index === 0 && !embedded}
                         quality={70}
-                        unoptimized={banner.srcLarge?.startsWith('http') || banner.srcSmall?.startsWith('http') ? true : false}
+                        unoptimized={imageUnoptimized(
+                          banner.srcLarge || banner.srcSmall
+                        )}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
@@ -526,11 +542,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={600}
                             height={600}
                             fetchPriority="auto"
-                            unoptimized={
-                              banner.extraImage?.startsWith("http")
-                                ? true
-                                : false
-                            }
+                            unoptimized={imageUnoptimized(banner.extraImage)}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (target) target.style.display = "none";
@@ -558,12 +570,9 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         className="h-full w-full object-cover object-center"
                         sizes="(max-width: 768px) 100vw, 1200px"
                         quality={70}
-                        unoptimized={
-                          banner.srcSmall?.startsWith("http") ||
-                          banner.srcLarge?.startsWith("http")
-                            ? true
-                            : false
-                        }
+                        unoptimized={imageUnoptimized(
+                          banner.srcSmall || banner.srcLarge
+                        )}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           if (
@@ -594,12 +603,9 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         fetchPriority={index === 0 ? "high" : "auto"}
                         priority={index === 0 && !embedded}
                         quality={70}
-                        unoptimized={
-                          banner.srcLarge?.startsWith("http") ||
-                          banner.srcSmall?.startsWith("http")
-                            ? true
-                            : false
-                        }
+                        unoptimized={imageUnoptimized(
+                          banner.srcLarge || banner.srcSmall
+                        )}
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           if (
@@ -790,11 +796,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={600}
                             height={600}
                             fetchPriority="auto"
-                            unoptimized={
-                              banner.extraImage?.startsWith("http")
-                                ? true
-                                : false
-                            }
+                            unoptimized={imageUnoptimized(banner.extraImage)}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (target) target.style.display = "none";
@@ -833,7 +835,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         height={520}
                         fetchPriority="auto"
                         className="object-contain w-full h-auto"
-                        unoptimized={banner.extraImage?.startsWith('http') ? true : false}
+                        unoptimized={imageUnoptimized(banner.extraImage)}
                         onError={(e) => {
                           // Hide the image element on error
                           const target = e.target as HTMLImageElement;

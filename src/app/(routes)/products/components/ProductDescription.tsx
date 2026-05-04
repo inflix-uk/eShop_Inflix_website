@@ -1,8 +1,6 @@
 import React from "react";
 import HomepageContent from "@/app/components/HomepageContent";
-import {
-  DEFAULT_SITE_WIDGET_VISIBILITY,
-} from "@/app/services/siteWidgetSettingsService";
+import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 
 const productContentStyles = `
   .product-content ul li h1,

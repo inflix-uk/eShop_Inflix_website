@@ -1,15 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import BlackFridayModal from "@/app/components/common/BlackFridayModal";
+import DeferredChatWidget from "@/app/components/DeferredChatWidget";
 import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 
-const ChatWidget = dynamic(() => import("@/app/components/ChatWidget"), {
-  ssr: false,
-});
+const BlackFridayModal = dynamic(
+  () => import("@/app/components/common/BlackFridayModal"),
+  { ssr: false }
+);
 const ToastContainer = dynamic(
   () =>
-    import("react-toastify").then((m) => ({ default: m.ToastContainer })),
+    import("@/app/components/reactToastifyClient").then((m) => ({
+      default: m.ToastContainer,
+    })),
   { ssr: false }
 );
 
@@ -20,7 +23,7 @@ export default function DeferredLayoutWidgets() {
   return (
     <>
       {backendAvailable && <BlackFridayModal />}
-      {backendAvailable && <ChatWidget />}
+      {backendAvailable && <DeferredChatWidget />}
       <ToastContainer
         position="top-right"
         autoClose={5000}
