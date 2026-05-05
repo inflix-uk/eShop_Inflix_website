@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import Image from "next/image";
 import { Star } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
 
 export type TestimonialItem = {
   id?: string;
@@ -14,43 +15,8 @@ export type TestimonialItem = {
   avatarUrl?: string;
 };
 
-/** Gap between cards (must match `gap-3` on scroller = 0.75rem) */
-const CARD_GAP_PX = 12;
 /** Auto-advance: next slide on an infinite loop (ms) */
-const AUTO_SLIDE_MS = 6000;
-
-function scrollLeftForSlideIndex(scroller: HTMLDivElement, index: number): number {
-  const articles = scroller.querySelectorAll("article");
-  if (index <= 0 || articles.length === 0) return 0;
-
-  let left = 0;
-  const stop = Math.min(index, articles.length);
-  for (let i = 0; i < stop; i++) {
-    left += (articles[i] as HTMLElement).offsetWidth + CARD_GAP_PX;
-  }
-  const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-  return Math.min(left, max);
-}
-
-function nearestSlideIndex(scroller: HTMLDivElement, listLen: number): number {
-  const articles = scroller.querySelectorAll("article");
-  if (articles.length === 0) return 0;
-
-  const sl = scroller.scrollLeft;
-  let best = 0;
-  let bestDist = Infinity;
-
-  for (let i = 0; i < Math.min(listLen, articles.length); i++) {
-    const target = scrollLeftForSlideIndex(scroller, i);
-    const dist = Math.abs(target - sl);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = i;
-    }
-  }
-
-  return best;
-}
+const AUTO_SLIDE_MS = 4500;
 
 function clampRating(n: unknown): number {
   if (typeof n !== "number" || !Number.isFinite(n)) return 0;
@@ -119,74 +85,60 @@ export default function BlogTestimonialsWidget({
     [items]
   );
 
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const activeIndexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoverPaused, setHoverPaused] = useState(false);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    dragFree: false,
+    watchDrag: true,
+  });
 
   const scrollToIndex = useCallback(
     (i: number) => {
-      const el = scrollerRef.current;
-      if (!el || list.length === 0) return;
-
+      if (!emblaApi || list.length === 0) return;
       const idx = Math.max(0, Math.min(i, list.length - 1));
-      activeIndexRef.current = idx;
-      setActiveIndex(idx);
-
-      el.scrollTo({
-        left: scrollLeftForSlideIndex(el, idx),
-        behavior: "smooth",
-      });
+      emblaApi.scrollTo(idx);
     },
-    [list.length]
+    [emblaApi, list.length]
   );
 
   const scrollPrev = useCallback(() => {
-    scrollToIndex((activeIndex - 1 + list.length) % list.length);
-  }, [activeIndex, list.length, scrollToIndex]);
+    if (!emblaApi) return;
+    emblaApi.scrollPrev();
+  }, [emblaApi]);
 
   const scrollNext = useCallback(() => {
-    scrollToIndex((activeIndex + 1) % list.length);
-  }, [activeIndex, list.length, scrollToIndex]);
+    if (!emblaApi) return;
+    emblaApi.scrollNext();
+  }, [emblaApi]);
 
   useEffect(() => {
-    activeIndexRef.current = activeIndex;
-  }, [activeIndex]);
-
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (!el || list.length === 0) return;
-
-    const onScroll = () => {
-      const next = nearestSlideIndex(el, list.length);
-      activeIndexRef.current = next;
-      setActiveIndex(next);
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setActiveIndex(emblaApi.selectedScrollSnap());
     };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [list.length]);
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+    };
+  }, [emblaApi]);
 
   /** Infinite auto-advance (always “next”, wraps last → first) */
   useEffect(() => {
-    if (list.length <= 1 || hoverPaused || prefersReducedMotion) return;
+    if (!emblaApi || list.length <= 1 || hoverPaused || prefersReducedMotion) return;
 
     const tick = () => {
-      const el = scrollerRef.current;
-      if (!el || list.length === 0) return;
-      const next = (activeIndexRef.current + 1) % list.length;
-      activeIndexRef.current = next;
-      setActiveIndex(next);
-      el.scrollTo({
-        left: scrollLeftForSlideIndex(el, next),
-        behavior: "smooth",
-      });
+      emblaApi.scrollNext();
     };
 
     const id = window.setInterval(tick, AUTO_SLIDE_MS);
     return () => window.clearInterval(id);
-  }, [list.length, hoverPaused, prefersReducedMotion]);
+  }, [emblaApi, list.length, hoverPaused, prefersReducedMotion]);
 
   if (list.length === 0) return null;
 
@@ -238,10 +190,11 @@ export default function BlogTestimonialsWidget({
 
       <div className="px-4 sm:px-6">
         <div
-          ref={scrollerRef}
-          className="embla__container flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          ref={emblaRef}
+          className="overflow-hidden select-none [touch-action:pan-y] cursor-grab active:cursor-grabbing [&_*]:cursor-grab active:[&_*]:cursor-grabbing"
         >
-          {list.map((item, index) => {
+          <div className="embla__container flex">
+            {list.map((item, index) => {
             const rating = clampRating(item.rating);
             const avatarSrc = resolveImageUrl(item.avatarUrl);
             const hasAvatar = Boolean(avatarSrc);
@@ -249,7 +202,7 @@ export default function BlogTestimonialsWidget({
             return (
               <article
                 key={item.id || `tm-${index}`}
-                className="snap-start flex w-full shrink-0 basis-full justify-center px-1 sm:basis-[calc((100%-0.75rem)/2)] sm:px-2"
+                className="flex w-full min-w-0 shrink-0 basis-full justify-center px-1 sm:basis-1/2 sm:px-2"
               >
                 <div className="w-full overflow-hidden rounded-xl border border-green-100/80 bg-white/95 p-5 shadow-sm ring-1 ring-green-50 sm:p-6">
                   <StarRow rating={rating} />
@@ -292,25 +245,60 @@ export default function BlogTestimonialsWidget({
                 </div>
               </article>
             );
-          })}
+            })}
+          </div>
         </div>
       </div>
 
-      {multi ? (
-        <div className="mt-3 flex justify-center gap-1.5 px-4 sm:px-6">
-          {list.map((_, i) => (
-            <button
-              type="button"
-              key={i}
-              onClick={() => scrollToIndex(i)}
-              className={`h-2 rounded-full transition-all ${
-                i === activeIndex ? "w-6 bg-primary" : "w-2 bg-green-200"
-              }`}
-              aria-label={`Go to testimonial ${i + 1}`}
-            />
-          ))}
+      {/* {multi ? (
+        <div className="mt-4 px-4 sm:px-6">
+          <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {list.map((item, i) => {
+              const avatarSrc = resolveImageUrl(item.avatarUrl);
+              const hasAvatar = Boolean(avatarSrc);
+              const author = item.authorName?.trim() || `User ${i + 1}`;
+              return (
+                <button
+                  type="button"
+                  key={item.id || `thumb-${i}`}
+                  onClick={() => scrollToIndex(i)}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition sm:text-sm ${
+                    i === activeIndex
+                      ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
+                      : "border-green-200 bg-white text-gray-700 hover:bg-green-50"
+                  }`}
+                  aria-label={`Show testimonial by ${author}`}
+                >
+                  {hasAvatar ? (
+                    <span className="relative h-6 w-6 overflow-hidden rounded-full bg-gray-100">
+                      <Image
+                        src={avatarSrc}
+                        alt={`${author} avatar`}
+                        width={24}
+                        height={24}
+                        className="h-full w-full object-cover"
+                        unoptimized={avatarSrc.startsWith("http://localhost")}
+                      />
+                    </span>
+                  ) : (
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
+                        i === activeIndex
+                          ? "bg-primary/20 text-primary"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                      aria-hidden
+                    >
+                      {author.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="max-w-[7.5rem] truncate">{author}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      ) : null}
+      ) : null} */}
     </section>
   );
 }

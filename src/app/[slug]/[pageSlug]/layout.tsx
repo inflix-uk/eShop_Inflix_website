@@ -60,8 +60,8 @@ function defaultOgImage() {
 }
 
 /**
- * Metadata for /{categorySlug}/{pageSlug} CMS footer pages.
- * Params: first `slug` = category segment; `pageSlug` = page segment (Next.js 15 naming).
+ * Metadata for /{parentSlug}/{pageSlug} CMS footer pages.
+ * Params: first `slug` = parent segment; `pageSlug` = child segment (Next.js 15 naming).
  */
 export async function generateMetadata({
   params,
@@ -69,14 +69,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string; pageSlug: string }>;
 }): Promise<Metadata> {
   const { slug, pageSlug } = await params;
-  const decodedCategory = decodeURIComponent(slug).toLowerCase().trim();
+  const decodedParentSlug = decodeURIComponent(slug).toLowerCase().trim();
   const decodedPageSlug = decodeURIComponent(pageSlug).toLowerCase().trim();
-  const pathSeg = `/${decodedCategory}/${decodedPageSlug}`;
+  const pathSeg = `/${decodedParentSlug}/${decodedPageSlug}`;
   const canonicalUrl = await getCanonical(pathSeg);
 
   const [staticMeta, page] = await Promise.all([
     fetchStaticMetaByPath(pathSeg),
-    fetchFooterPageBySlug(decodedPageSlug, decodedCategory).catch((error) => {
+    fetchFooterPageBySlug(decodedPageSlug, decodedParentSlug).catch((error) => {
       console.error("Error fetching page for metadata:", error);
       return null;
     }),
@@ -210,13 +210,13 @@ export default async function CategoryDynamicPageLayout({
   params,
 }: CategoryPageLayoutProps) {
   const { slug, pageSlug } = await params;
-  const decodedCategory = decodeURIComponent(slug).toLowerCase().trim();
+  const decodedParentSlug = decodeURIComponent(slug).toLowerCase().trim();
   const decodedPageSlug = decodeURIComponent(pageSlug).toLowerCase().trim();
-  const pathSeg = `/${decodedCategory}/${decodedPageSlug}`;
+  const pathSeg = `/${decodedParentSlug}/${decodedPageSlug}`;
 
   const [staticMeta, page] = await Promise.all([
     fetchStaticMetaByPath(pathSeg),
-    fetchFooterPageBySlug(decodedPageSlug, decodedCategory).catch((error) => {
+    fetchFooterPageBySlug(decodedPageSlug, decodedParentSlug).catch((error) => {
       console.error("Error fetching page for layout:", error);
       return null;
     }),

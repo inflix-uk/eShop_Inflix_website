@@ -46,8 +46,9 @@ export interface FooterPage {
   _id: string;
   title: string;
   slug: string;
-  /** When set, live URL is /{categorySlug}/{slug}; otherwise /{slug}. */
+  /** When set, live URL is /{parentSlug}/{slug}; otherwise /{slug}. */
   categorySlug?: string | null;
+  parentPageId?: string | null;
   blocks: FooterPageRow[];
   bannerImage?: string;
   bannerImageAlt?: string;
@@ -75,19 +76,19 @@ export interface FooterPageResponse {
  */
 async function fetchFooterPageBySlugImpl(
   slug: string,
-  categorySlug?: string | null
+  parentSlug?: string | null
 ): Promise<FooterPage | null> {
   try {
     // URL encode the slug to handle special characters
     const encodedSlug = encodeURIComponent(slug);
     const qs =
-      categorySlug && String(categorySlug).trim()
-        ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+      parentSlug && String(parentSlug).trim()
+        ? `?parentSlug=${encodeURIComponent(String(parentSlug).trim())}`
         : "";
     const apiUrl = `${API_BASE_URL}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
 
     console.log(
-      `[FooterPageService] Fetching page with slug: "${slug}"${categorySlug ? `, category: "${categorySlug}"` : ""} (encoded: "${encodedSlug}")`
+      `[FooterPageService] Fetching page with slug: "${slug}"${parentSlug ? `, parent: "${parentSlug}"` : ""} (encoded: "${encodedSlug}")`
     );
     console.log(`[FooterPageService] API URL: ${apiUrl}`);
 
@@ -154,13 +155,13 @@ export const fetchFooterPageBySlug = cache(fetchFooterPageBySlugImpl);
  */
 export async function fetchFooterPageBySlugFresh(
   slug: string,
-  categorySlug?: string | null
+  parentSlug?: string | null
 ): Promise<FooterPage | null> {
   try {
     const encodedSlug = encodeURIComponent(slug);
     const qs =
-      categorySlug && String(categorySlug).trim()
-        ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+      parentSlug && String(parentSlug).trim()
+        ? `?parentSlug=${encodeURIComponent(String(parentSlug).trim())}`
         : "";
     const apiUrl = `${API_BASE_URL}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
     const response = await fetch(apiUrl, {

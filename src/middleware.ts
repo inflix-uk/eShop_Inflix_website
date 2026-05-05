@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDisabledMarketingSlug } from "@/app/lib/disabledMarketingRoutes";
 import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
+import { getSuperadminControlsPublic } from "@/app/lib/superadminControlsPublic";
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -24,7 +25,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
-  if (isDisabledMarketingSlug(pathname)) {
+  const slug = pathname.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  const controls = await getSuperadminControlsPublic();
+  const dynamicDisabledBySuperadmin =
+    controls.routeBlockingEnabled === false &&
+    controls.disabledMarketingRoutes.includes(slug);
+
+  if (isDisabledMarketingSlug(pathname) || dynamicDisabledBySuperadmin) {
     return NextResponse.rewrite(
       new URL("/__disabled-marketing-route", request.url)
     );
