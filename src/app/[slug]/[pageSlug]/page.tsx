@@ -1,4 +1,5 @@
 import DynamicPageClient from "@/app/[slug]/DynamicPageClient";
+import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
 import { notFound } from "next/navigation";
 import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
 import { fetchFooterPageBySlugFresh } from "@/app/services/footerPageService";
@@ -15,7 +16,7 @@ function isPublishedWithBlocks(page: {
 }
 
 /**
- * Two-segment CMS footer URLs: /{categorySlug}/{pageSlug}
+ * Two-segment CMS footer URLs: /{parentSlug}/{pageSlug}
  * First param must be named `slug` (same as parent `app/[slug]`) for Next.js 15;
  * second is `pageSlug` to avoid duplicate param names.
  */
@@ -25,19 +26,22 @@ export default async function CategoryFooterDynamicPage({
   params: Promise<{ slug: string; pageSlug: string }>;
 }) {
   const { slug, pageSlug } = await params;
-  const decodedCategory = decodeURIComponent(slug).toLowerCase().trim();
+  const decodedParentSlug = decodeURIComponent(slug).toLowerCase().trim();
   const decodedPageSlug = decodeURIComponent(pageSlug).toLowerCase().trim();
 
-  if (!decodedCategory || isDisabledRootSlug(decodedPageSlug)) {
+  if (!decodedParentSlug || isDisabledRootSlug(decodedPageSlug)) {
     notFound();
   }
 
-  const page = await fetchFooterPageBySlugFresh(decodedPageSlug, decodedCategory);
+  const page = await fetchFooterPageBySlugFresh(decodedPageSlug, decodedParentSlug);
   if (!page || !isPublishedWithBlocks(page)) {
     notFound();
   }
 
   return (
-    <DynamicPageClient slug={decodedPageSlug} categorySlug={decodedCategory} />
+    <>
+      <SlugRouteHeader />
+      <DynamicPageClient slug={decodedPageSlug} parentSlug={decodedParentSlug} />
+    </>
   );
 }

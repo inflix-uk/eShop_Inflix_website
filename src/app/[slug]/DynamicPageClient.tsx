@@ -16,11 +16,11 @@ type PageResponse = {
 
 export default function DynamicPageClient({
   slug,
-  categorySlug,
+  parentSlug,
 }: {
   slug: string;
-  /** When set, resolves CMS page at /categorySlug/slug */
-  categorySlug?: string | null;
+  /** When set, resolves CMS page at /parentSlug/slug */
+  parentSlug?: string | null;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -35,8 +35,8 @@ export default function DynamicPageClient({
 
     try {
       const qs =
-        categorySlug && String(categorySlug).trim()
-          ? `?categorySlug=${encodeURIComponent(String(categorySlug).trim())}`
+        parentSlug && String(parentSlug).trim()
+          ? `?parentSlug=${encodeURIComponent(String(parentSlug).trim())}`
           : "";
       const res = await fetch(
         `/api/page/${encodeURIComponent(slug)}${qs}`,
@@ -69,7 +69,7 @@ export default function DynamicPageClient({
     } finally {
       setLoading(false);
     }
-  }, [slug, categorySlug]);
+  }, [slug, parentSlug]);
 
   useEffect(() => {
     loadPage();

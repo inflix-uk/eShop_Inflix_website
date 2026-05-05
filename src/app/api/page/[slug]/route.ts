@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { API_BASE_URL } from "@/app/services/footerPageService";
 
-/** Always resolve fresh CMS content; category queries must not cache a mistaken 404. */
+/** Always resolve fresh CMS content; parent queries must not cache a mistaken 404. */
 export const dynamic = "force-dynamic";
 
 type PageSection = Record<string, unknown> & { type: string };
@@ -28,10 +28,10 @@ export async function GET(
   }
 
   const encodedSlug = encodeURIComponent(slug);
-  const categorySlug = new URL(req.url).searchParams.get("categorySlug");
+  const parentSlug = new URL(req.url).searchParams.get("parentSlug");
   const qs =
-    categorySlug && categorySlug.trim()
-      ? `?categorySlug=${encodeURIComponent(categorySlug.trim())}`
+    parentSlug && parentSlug.trim()
+      ? `?parentSlug=${encodeURIComponent(parentSlug.trim())}`
       : "";
   const url = `${base}/footer-pages/pagesBySlug/${encodedSlug}${qs}`;
 

@@ -1,4 +1,5 @@
-import DynamicPageClient from "@/app/[slug]/DynamicPageClient";
+import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
+import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 import { notFound } from "next/navigation";
 import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
 import { fetchFooterPageBySlugFresh } from "@/app/services/footerPageService";
@@ -28,5 +29,12 @@ export default async function DynamicPage({
   if (!page || !isPublishedWithBlocks(page)) {
     notFound();
   }
-  return <DynamicPageClient slug={slugNorm} />;
+  return (
+    <>
+      <SlugRouteHeader />
+      <div className="max-w-7xl mx-auto p-6">
+        <FooterPageContent page={page} />
+      </div>
+    </>
+  );
 }
