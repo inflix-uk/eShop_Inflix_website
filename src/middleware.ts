@@ -37,33 +37,9 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  // Redirect old /subcategory/ URLs to new /categories/ structure
-  if (pathname.startsWith("/subcategory/")) {
-    const subcategorySlug = pathname.replace("/subcategory/", "");
-
-    if (!subcategorySlug) return NextResponse.next();
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subcategorySlug)}`,
-        { next: { revalidate: 60 } }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        const parentCategory = data.subcategoryDetails?.parentCategorySlug
-          || data.subcategoryDetails?.parentCategory;
-
-        if (parentCategory) {
-          const url = request.nextUrl.clone();
-          const base = `/categories/${parentCategory.toLowerCase()}/${subcategorySlug.toLowerCase()}`;
-          url.pathname = normalizeSitePathname(base);
-          return NextResponse.redirect(url, 301);
-        }
-      }
-    } catch (error) {
-      console.error("Middleware redirect error:", error);
-    }
+  // Legacy /subcategory routes are retired — show 404 instead of redirect.
+  if (pathname === "/subcategory" || pathname.startsWith("/subcategory/")) {
+    return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
 
   return NextResponse.next();

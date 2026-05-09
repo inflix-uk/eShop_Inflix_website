@@ -55,10 +55,6 @@ interface CategoryPageLayoutProps {
   }>;
 }
 
-function defaultOgImage() {
-  return [{ url: getImageUrl("/uploads/web/Zextons.webp") }];
-}
-
 /**
  * Metadata for /{parentSlug}/{pageSlug} CMS footer pages.
  * Params: first `slug` = parent segment; `pageSlug` = child segment (Next.js 15 naming).
@@ -91,23 +87,21 @@ export async function generateMetadata({
       description,
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title,
         url: canonicalUrl,
         description,
         type: "website",
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title,
         description,
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       alternates: {
         canonical: canonicalUrl,
@@ -126,14 +120,13 @@ export async function generateMetadata({
     const ogImages =
       page?.publishStatus === "published" && page.bannerImage
         ? [{ url: getImageUrl(page.bannerImage) }]
-        : defaultOgImage();
+        : [];
 
     const metadata: Metadata = {
       title: staticMeta.titleTag,
       description: staticMeta.metaDescription || "",
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title: staticMeta.titleTag,
         url: canonicalUrl,
         description: staticMeta.metaDescription || "",
@@ -142,7 +135,6 @@ export async function generateMetadata({
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title: staticMeta.titleTag,
         description: staticMeta.metaDescription || "",
         images: ogImages,
@@ -167,23 +159,21 @@ export async function generateMetadata({
       description,
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title,
         url: canonicalUrl,
         description,
         type: "website",
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title,
         description,
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       alternates: {
         canonical: canonicalUrl,

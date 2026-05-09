@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useMemo } from "react";
 import type React from "react";
+import type { CSSProperties } from "react";
 
 import useEmblaCarousel from "embla-carousel-react";
 import Image from "next/image";
@@ -47,6 +48,17 @@ const HERO_LARGE_HEIGHT = 500;
 const HERO_SMALL_WIDTH = 1200;
 const HERO_SMALL_HEIGHT = 900;
 
+/**
+ * Blog/CMS embedded “Banners” widget (`HeroSlider2` + `embedded`): slide height in viewport units.
+ * Change this single value to resize embedded banners everywhere.
+ */
+const EMBEDDED_BANNER_HEIGHT_VH = 80;
+
+function embeddedBannerBoxStyle(): CSSProperties {
+  const h = `${EMBEDDED_BANNER_HEIGHT_VH}vh`;
+  return { height: h, minHeight: h, maxHeight: h };
+}
+
 type HAlign = "left" | "center" | "right";
 
 function resolveBannerTextAlign(content?: { textAlign?: string }): HAlign {
@@ -68,21 +80,21 @@ function desktopTextBlockRowJustify(pos: HAlign): string {
   return "justify-end";
 }
 
-/** Matches image layer so slide height is never below the original hero min-heights. */
+/** Matches image layer so slide height is never below the original hero min-heights. Embedded height uses `embeddedBannerBoxStyle()` on the slide shell. */
 function fullBannerMinHeightClass(embedded: boolean): string {
   return embedded
-    ? "min-h-[clamp(200px,52vw,320px)] sm:min-h-[clamp(220px,32vw,380px)]"
+    ? ""
     : "h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[72vh]";
 }
 
 /** Horizontal padding + max-width (desktop). Vertical: flex-1 spacers + pb match original layout. */
 function desktopTextBlockFlowClass(pos: HAlign, embedded: boolean): string {
-  /** Homepage hero (`embedded=false`): wider copy column. Widget embeds keep the original caps. */
+  /** Homepage hero (`embedded=false`): wider copy column. Embedded: ~50% wider copy rail than prior embed caps. */
   const maxLeftRight = embedded
-    ? "max-w-[min(32rem,calc(50vw-1rem))]"
+    ? "max-w-[min(57rem,calc(72vw-1rem))]"
     : "max-w-[min(44rem,calc(58vw-1rem))]";
   const maxCenter = embedded
-    ? "max-w-[min(42rem,92vw)]"
+    ? "max-w-[min(69rem,96vw)]"
     : "max-w-[min(52rem,94vw)]";
   if (pos === "left") {
     return `pl-3 md:pl-8 lg:pl-14 pr-2 ${maxLeftRight} min-w-0`;
@@ -278,6 +290,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     () => heroSocialProp ?? emptyHeroSocial()
   );
 
+  /** Near full viewport width with 10px inset each side (blog/CMS embedded banners only). */
+  const embeddedShellClass =
+    "relative left-1/2 w-[calc(100vw-50px)] -translate-x-1/2 py-2.5";
+
   useEffect(() => {
     setHeroSocialState(heroSocialProp ?? emptyHeroSocial());
   }, [heroSocialProp]);
@@ -425,11 +441,20 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
       <div
         className={
           embedded
-            ? "relative w-full min-h-[200px] sm:min-h-[260px] max-h-[360px] rounded-xl bg-gray-100 animate-pulse flex items-center justify-center ring-1 ring-gray-200/80"
+            ? embeddedShellClass
             : "relative w-full h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh] bg-gray-200 animate-pulse flex items-center justify-center"
         }
       >
-        <div className="text-sm text-gray-500">Loading banners…</div>
+        {embedded ? (
+          <div
+            className="relative flex w-full max-w-none overflow-hidden rounded-2xl bg-neutral-200/50 animate-pulse items-center justify-center"
+            style={embeddedBannerBoxStyle()}
+          >
+            <div className="text-sm text-neutral-500">Loading banners…</div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">Loading banners…</div>
+        )}
       </div>
     );
   }
@@ -439,11 +464,17 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
       <div
         className={
           embedded
-            ? "relative w-full min-h-[160px] rounded-xl bg-gray-50 flex items-center justify-center ring-1 ring-gray-200/80 px-4 py-8"
+            ? "relative mx-auto w-[140vw] max-w-full py-2.5 px-0"
             : "relative w-full h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh] bg-gray-100 flex items-center justify-center"
         }
       >
-        <div className="text-sm text-gray-600 text-center">Error: {error}</div>
+        {embedded ? (
+          <div className="relative flex min-h-[160px] w-full max-w-none items-center justify-center overflow-hidden rounded-2xl bg-neutral-100/90 px-4 py-8">
+            <div className="text-sm text-neutral-600 text-center">Error: {error}</div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-600 text-center">Error: {error}</div>
+        )}
       </div>
     );
   }
@@ -455,26 +486,46 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
   const ctaBtnClass =
     "shadow-lg hover:shadow-xl hover:brightness-[1.02] active:scale-[0.98] transition-all duration-200";
 
+  /** In-page banner widget only (`embedded`): white CTA, black label + arrow. */
+  const embeddedCtaClass =
+    "inline-flex min-w-0 items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-black shadow-md ring-1 ring-black/10 hover:bg-neutral-100 hover:brightness-[1.02] active:scale-[0.98] transition-all duration-200";
+  const embeddedCtaArrowWrap =
+    "flex h-5 w-5 shrink-0 items-center justify-center text-base font-bold leading-none text-black";
+
   return (
     <div
       className={
         embedded
-          ? "relative w-full overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200/70 shadow-md"
-          : "relative w-full overflow-hidden"
+          ? embeddedShellClass
+          : "relative w-full overflow-hidden px-3 py-2 sm:px-4 lg:px-4"
       }
     >
+      <div
+        className={
+          embedded
+            ? "relative w-full max-w-none overflow-hidden rounded-2xl"
+            : "relative w-full overflow-hidden rounded-2xl"
+        }
+      >
       <div ref={emblaRef} className="overflow-hidden">
         <div className="embla__container flex">
           {banners.map((banner, index) => {
             const textAlign = resolveBannerTextAlign(banner.content);
             const textPos = resolveTextPosition(banner.content);
             return (
-            <div key={banner.id} className="embla__slide flex-[0_0_100%]">
+            <div
+              key={banner.id}
+              className={`embla__slide flex-[0_0_100%] ${embedded ? "min-h-0" : ""}`}
+              style={embedded ? embeddedBannerBoxStyle() : undefined}
+            >
+              <div className="box-border h-full min-h-0 w-full">
               <div
                 className={
                   banner.type === "full"
-                    ? `relative isolate grid grid-cols-1 ${fullBannerMinHeightClass(embedded)}`
-                    : "relative w-full"
+                    ? `relative isolate grid grid-cols-1 ${embedded ? "grid-rows-1 min-h-0 h-full w-full " : ""}${fullBannerMinHeightClass(embedded)}`.trimEnd()
+                    : embedded
+                      ? "relative h-full min-h-0 w-full"
+                      : "relative w-full"
                 }
               >
                 {/* Responsive banner image */}
@@ -482,9 +533,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                   <div
                     className={
                       embedded
-                        ? "relative col-start-1 row-start-1 h-full min-h-[clamp(200px,52vw,320px)] sm:min-h-[clamp(220px,32vw,380px)]"
+                        ? "relative col-start-1 row-start-1 row-span-1 min-h-0 w-full"
                         : "relative col-start-1 row-start-1 h-[80vh] max-h-[85vh] min-h-[320px] w-full sm:h-[82vh]"
                     }
+                    style={embedded ? embeddedBannerBoxStyle() : undefined}
                   >
                     <div className="absolute inset-0 sm:hidden">
                       <Image
@@ -553,12 +605,16 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <>
+                  <div
+                    className={
+                      embedded ? "relative h-full min-h-0 w-full" : "contents"
+                    }
+                  >
                     {/* Simple banners: sized box + fill avoids h-auto CLS when intrinsic dimensions load */}
                     <div
                       className={
                         embedded
-                          ? "relative z-0 w-full overflow-hidden sm:hidden min-h-[clamp(200px,52vw,320px)] aspect-[5/4]"
+                          ? "relative z-0 w-full overflow-hidden sm:hidden h-full min-h-0"
                           : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
                       }
                     >
@@ -589,7 +645,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     <div
                       className={
                         embedded
-                          ? "relative z-0 hidden sm:block w-full overflow-hidden min-h-[clamp(220px,32vw,380px)] aspect-[21/9]"
+                          ? "relative z-0 hidden sm:block w-full overflow-hidden h-full min-h-0"
                           : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
                       }
                     >
@@ -619,7 +675,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                         }}
                       />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Desktop: full banners — same min-h as image; flex-1 spacers vertically center copy without shrinking the hero */}
@@ -632,12 +688,16 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     >
                       {banner.content && (
                         <div
-                        className={`pointer-events-auto flex h-full min-w-0 shrink flex-col justify-center py-5 md:py-7 ${desktopTextBlockFlowClass(textPos, embedded)} ${
-                            currentSlide === index && index !== 0
-                              ? "animate-fadeIn"
-                              : currentSlide === index && index === 0
+                        className={`pointer-events-auto flex h-full min-w-0 shrink flex-col justify-center ${embedded ? "py-3 md:py-5" : "py-5 md:py-7"} ${desktopTextBlockFlowClass(textPos, embedded)} ${
+                            embedded
+                              ? currentSlide === index
                                 ? "opacity-100"
-                                : "opacity-0"
+                                : "opacity-0 pointer-events-none"
+                              : currentSlide === index && index !== 0
+                                ? "animate-fadeIn"
+                                : currentSlide === index && index === 0
+                                  ? "opacity-100"
+                                  : "opacity-0"
                           }`}
                         >
                           <div
@@ -647,7 +707,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           >
                             {banner.content.title?.trim() ? (
                               <h2
-                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1 line-clamp-2`}
+                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1 ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
                                   fontSize: banner.content.titleSize || "22px",
                                   lineHeight: 1.5,
@@ -660,7 +720,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             ) : null}
                             {banner.content.subtitle?.trim() ? (
                               <h3
-                                className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap} line-clamp-2`}
+                                className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
                                   fontSize:
                                     banner.content.subtitleSize || "32px",
@@ -675,11 +735,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             ) : null}
                             {banner.content.paragraph && (
                               <p
-                                className={`mt-2 text-white ${
-                                  embedded
-                                    ? "max-w-[90%] lg:max-w-[85%]"
-                                    : "max-w-full"
-                                } ${bannerCopyWrap} line-clamp-3 ${paragraphAlignClass(
+                                className={`mt-2 max-w-full text-white ${bannerCopyWrap} ${embedded ? "" : "line-clamp-3"} ${paragraphAlignClass(
                                   textAlign
                                 )}`}
                                 style={{
@@ -696,7 +752,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             )}
                             {banner.content.price && (
                               <p
-                                className={`mt-2 font-bold text-red-500 ${bannerCopyWrap} line-clamp-2`}
+                                className={`mt-2 font-bold text-red-500 ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
                                   fontSize: banner.content.priceSize || "20px",
                                   lineHeight: 1.35,
@@ -708,7 +764,11 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             )}
                             {banner.content.warranty && (
                               <div
-                                className={`mt-2 max-h-[min(7rem,20vh)] overflow-y-auto overscroll-y-contain text-white [font-size:0.95rem] [line-height:1.35] lg:mt-3 lg:max-h-[min(8rem,22vh)] lg:[font-size:1.1rem] lg:[line-height:1.4] ${warrantyOuterClass(
+                                className={`mt-2 overflow-y-auto overscroll-y-contain text-white [font-size:0.95rem] [line-height:1.35] lg:mt-3 lg:[font-size:1.1rem] lg:[line-height:1.4] ${
+                                  embedded
+                                    ? "max-h-[min(6rem,22vh)] lg:max-h-[min(8rem,26vh)]"
+                                    : "max-h-[min(7rem,20vh)] lg:max-h-[min(8rem,22vh)]"
+                                } ${warrantyOuterClass(
                                   textAlign
                                 )}`}
                               >
@@ -718,7 +778,9 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                     className={warrantyRowClass(textAlign)}
                                   >
                                     <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-white lg:h-2 lg:w-2"></div>
-                                    <span className={`${bannerCopyWrap} line-clamp-2`}>
+                                    <span
+                                      className={`${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
+                                    >
                                       {item}
                                     </span>
                                   </div>
@@ -728,14 +790,24 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             <a
                               href={getButtonLink(banner)}
                               title={getButtonText(banner)}
-                              className={`mt-3 inline-flex min-w-0 max-w-[min(20rem,100%)] items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-black ring-1 ring-black/5 lg:max-w-[min(22rem,92%)] lg:px-7 lg:py-2.5 lg:text-base ${ctaBtnClass}`}
+                              className={
+                                embedded
+                                  ? `mt-3 ${embeddedCtaClass} max-w-[min(33rem,100%)] lg:max-w-[min(33rem,92%)] lg:text-base`
+                                  : `mt-3 inline-flex min-w-0 max-w-[min(20rem,100%)] items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-black ring-1 ring-black/5 lg:max-w-[min(22rem,92%)] lg:px-7 lg:py-2.5 lg:text-base ${ctaBtnClass}`
+                              }
                             >
                               <span
-                                className={`min-w-0 ${bannerCopyWrap} line-clamp-2 text-left leading-tight`}
+                                className={`min-w-0 ${bannerCopyWrap} text-left leading-tight ${embedded ? "line-clamp-4" : "line-clamp-2"}`}
                               >
                                 {getButtonText(banner)}
                               </span>
-                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-lg bg-black text-white lg:h-5 lg:w-5">
+                              <span
+                                className={
+                                  embedded
+                                    ? embeddedCtaArrowWrap
+                                    : "flex h-4 w-4 shrink-0 items-center justify-center rounded-lg bg-black text-white lg:h-5 lg:w-5"
+                                }
+                              >
                                 →
                               </span>
                             </a>
@@ -749,20 +821,18 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                 {/* Desktop: simple banners — button left, optional product center */}
                 {banner.type === "simple" && (
                   embedded ? (
-                    <div className="absolute inset-0 z-[5] hidden sm:flex items-end justify-start p-6 md:p-8">
+                    <div className="absolute inset-0 z-[5] hidden sm:flex items-end justify-start">
                       <a
                         href={getButtonLink(banner)}
                         title={getButtonText(banner)}
-                        className={`inline-flex min-w-0 max-w-[min(18rem,90%)] items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-black ring-1 ring-black/5 pointer-events-auto ${ctaBtnClass}`}
+                        className={`pointer-events-auto max-w-[min(18rem,90%)] ${embeddedCtaClass}`}
                       >
                         <span
-                          className={`min-w-0 ${bannerCopyWrap} line-clamp-2 text-left leading-tight`}
+                          className={`min-w-0 ${bannerCopyWrap} text-left leading-tight ${embedded ? "line-clamp-4" : "line-clamp-2"}`}
                         >
                           {getButtonText(banner)}
                         </span>
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-black text-sm text-white">
-                          →
-                        </span>
+                        <span className={embeddedCtaArrowWrap}>→</span>
                       </a>
                     </div>
                   ) : (
@@ -812,7 +882,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                 {/* Mobile: full banners — vertically centered in slide; horizontal alignment from CMS */}
                 {banner.type === "full" && (
                 <div
-                  className={`pointer-events-none absolute inset-0 z-[5] flex min-h-0 w-full flex-col justify-center gap-3 p-3 sm:hidden ${mobileStackClass(
+                  className={`pointer-events-none absolute inset-0 z-[5] flex min-h-0 w-full flex-col justify-center gap-3 sm:hidden ${embedded ? "gap-4 p-4" : "gap-3 p-3"} ${mobileStackClass(
                     textPos
                   )} ${textAlignTailwind(textAlign)}`}
                 >
@@ -849,12 +919,18 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     <div
                       className={`pointer-events-auto flex min-w-0 ${
                         embedded
-                          ? "max-w-[min(100%,32rem)]"
+                          ? "max-w-[min(100%,48rem)]"
                           : "max-w-[min(100%,42rem)]"
                       } flex-col ${flexItemsForTextAlign(
                         textAlign
                       )} ${textAlignTailwind(textAlign)} ${
-                        currentSlide === index ? "animate-fadeIn" : "opacity-0"
+                        embedded
+                          ? currentSlide === index
+                            ? "opacity-100"
+                            : "opacity-0 pointer-events-none"
+                          : currentSlide === index
+                            ? "animate-fadeIn"
+                            : "opacity-0"
                       }`}
                     >
                       {banner.content.title?.trim() ? (
@@ -895,7 +971,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       )}
                       {banner.content.price && (
                         <p
-                          className={`mb-1 text-sm font-bold text-shadow text-red-500 ${bannerCopyWrap} line-clamp-2`}
+                          className={`mb-1 text-sm font-bold text-shadow text-red-500 ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                           style={{
                             color: banner.content.priceColor || "#FF0000",
                           }}
@@ -905,7 +981,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       )}
                       {banner.content.warranty && (
                         <div
-                          className={`mb-2 max-h-24 overflow-y-auto text-xs text-shadow text-white ${warrantyOuterClass(
+                          className={`mb-2 overflow-y-auto text-xs text-shadow text-white ${embedded ? "max-h-28" : "max-h-24"} ${warrantyOuterClass(
                             textAlign
                           )}`}
                         >
@@ -915,7 +991,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                               className={`mb-0.5 ${warrantyRowClass(textAlign)}`}
                             >
                               <span className="shrink-0 opacity-90">•</span>
-                              <span className={`${bannerCopyWrap} line-clamp-2`}>
+                              <span className={`${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}>
                                 {item}
                               </span>
                             </div>
@@ -925,14 +1001,24 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       <a
                         href={getButtonLink(banner)}
                         title={getButtonText(banner)}
-                        className={`mt-2 flex max-w-[min(100%,18rem)] items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold text-black ring-1 ring-black/10 ${ctaBtnClass}`}
+                        className={
+                          embedded
+                            ? `mt-2 w-full max-w-[min(100%,30rem)] justify-center ${embeddedCtaClass} py-2.5 text-xs sm:text-sm`
+                            : `mt-2 flex max-w-[min(100%,18rem)] items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold text-black ring-1 ring-black/10 ${ctaBtnClass}`
+                        }
                       >
                         <span
-                          className={`min-w-0 flex-1 ${bannerCopyWrap} line-clamp-2 text-left leading-tight`}
+                          className={`min-w-0 flex-1 ${bannerCopyWrap} text-left leading-tight ${embedded ? "line-clamp-4" : "line-clamp-2"}`}
                         >
                           {getButtonText(banner)}
                         </span>
-                        <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-black text-[8px] text-white">
+                        <span
+                          className={
+                            embedded
+                              ? embeddedCtaArrowWrap
+                              : "flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-black text-[8px] text-white"
+                          }
+                        >
                           →
                         </span>
                       </a>
@@ -946,23 +1032,34 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     <a
                       href={getButtonLink(banner)}
                       title={getButtonText(banner)}
-                      className={`${
-                        currentSlide === index
-                          ? "animate-fadeIn"
-                          : "opacity-0"
-                      } mx-auto flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-black shadow-lg ring-1 ring-black/10 ${ctaBtnClass}`}
+                      className={
+                        embedded
+                          ? `${currentSlide === index ? "opacity-100" : "opacity-0"} mx-auto w-full max-w-[min(100%,30rem)] shadow-lg ${embeddedCtaClass} justify-center py-2.5 text-xs`
+                          : `${
+                              currentSlide === index
+                                ? "animate-fadeIn"
+                                : "opacity-0"
+                            } mx-auto flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-black shadow-lg ring-1 ring-black/10 ${ctaBtnClass}`
+                      }
                     >
                       <span
-                        className={`min-w-0 flex-1 ${bannerCopyWrap} line-clamp-2 text-center leading-tight`}
+                        className={`min-w-0 flex-1 ${bannerCopyWrap} text-center leading-tight ${embedded ? "line-clamp-4" : "line-clamp-2"}`}
                       >
                         {getButtonText(banner)}
                       </span>
-                      <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-black text-[8px] text-white">
+                      <span
+                        className={
+                          embedded
+                            ? embeddedCtaArrowWrap
+                            : "flex h-3 w-3 shrink-0 items-center justify-center rounded-full bg-black text-[8px] text-white"
+                        }
+                      >
                         →
                       </span>
                     </a>
                   </div>
                 )}
+              </div>
               </div>
             </div>
             );
@@ -1005,6 +1102,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
             />
           </button>
         ))}
+      </div>
       </div>
     </div>
   );

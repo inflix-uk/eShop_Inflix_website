@@ -178,6 +178,7 @@ export default function HomeClient({
           const pg = state.auth.user?.pricingGroup
             ? String(state.auth.user.pricingGroup)
             : "";
+          const uid = state.auth.user?._id ? String(state.auth.user._id) : "";
           const norm = pg || null;
           const productsList = state.products.products;
           const refetchProducts =
@@ -186,7 +187,11 @@ export default function HomeClient({
 
           if (refetchProducts) {
             lastFetchedGroupIdRef.current = norm;
-            dispatch(fetchProducts(pg ? { groupId: pg } : undefined));
+            dispatch(
+              fetchProducts(
+                uid ? { userId: uid, ...(pg ? { groupId: pg } : {}) } : undefined
+              )
+            );
           }
           if (
             !state.categories.categories.length &&

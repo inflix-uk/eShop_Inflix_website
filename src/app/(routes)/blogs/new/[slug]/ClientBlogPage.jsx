@@ -7,6 +7,7 @@ import Link from "next/link";
 import TableOfContents from "../TableOfContents";
 import TopBar from "@/app/topbar/page";
 import Nav from "@/app/components/navbar/Nav";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 
 import { getFullImageUrl } from "./blogUtils";
 import BlogSliderWidget from "./BlogSliderWidget";
@@ -22,11 +23,16 @@ import BlogPromotionalSectionsWidget from "./BlogPromotionalSectionsWidget";
 import BlogLatestBlogsWidget from "./BlogLatestBlogsWidget";
 import BlogHtmlCssWidget from "./BlogHtmlCssWidget";
 import BlogContactUsWidget from "./BlogContactUsWidget";
+import BlogNavbarWidget from "./BlogNavbarWidget";
 import DealsDiscountCardsWidget from "@/app/components/deals/DealsDiscountCardsWidget";
 import NewsletterSignupWidget from "./NewsletterSignupWidget";
 import FaqWidget from "./FaqWidget";
 import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import ContentProductSlider from "@/app/components/ContentProductSlider";
+
+/**
+ * @typedef {import("@/app/services/navbarVariantTestPublicService").NavbarVariantTestConfig} NavbarVariantTestConfig
+ */
 
 // Enhanced responsive CSS for blog content
 const blogContentStyles = `
@@ -260,7 +266,10 @@ BlogContent.propTypes = {
 };
 
 // Main Client Component
-export default function ClientBlogPage({ blog }) {
+/**
+ * @param {{ blog: Record<string, unknown>, navbarVariantTestConfig?: NavbarVariantTestConfig | null }} props
+ */
+export default function ClientBlogPage({ blog, navbarVariantTestConfig = null }) {
   const [showTOC, setShowTOC] = useState(false);
   const [isButtonFixed, setIsButtonFixed] = useState(false);
   const [widgetVisibility, setWidgetVisibility] = useState({
@@ -322,8 +331,9 @@ export default function ClientBlogPage({ blog }) {
 
   return (
     <>
-      <TopBar />
-      <Nav />
+      {/* <TopBar />
+      <Nav /> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       
       <div className="min-h-screen bg-white relative overflow-x-hidden">
         {/* TOC Toggle Button - Better positioned with scroll behavior */}
@@ -783,6 +793,14 @@ export default function ClientBlogPage({ blog }) {
                                             />
                                           );
                                         }
+                                        if (block.content?.widgetType === "navbar") {
+                                          return (
+                                            <BlogNavbarWidget
+                                              key={`block-${rowIndex}-${colIndex}-${blockIndex}`}
+                                              content={block.content}
+                                            />
+                                          );
+                                        }
                                         if (block.content?.widgetType === "htmlCss") {
                                           if (!widgetVisibility.htmlCssEnabled) return null;
                                           return (
@@ -977,4 +995,5 @@ export default function ClientBlogPage({ blog }) {
 
 ClientBlogPage.propTypes = {
   blog: PropTypes.object.isRequired,
+  navbarVariantTestConfig: PropTypes.object,
 };

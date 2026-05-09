@@ -62,10 +62,6 @@ interface DynamicPageLayoutProps {
   }>;
 }
 
-function defaultOgImage() {
-  return [{ url: getImageUrl("/uploads/web/Zextons.webp") }];
-}
-
 /**
  * Generates metadata for the footer page.
  * Priority: Footer Page SEO (from admin Footer Pages) > Static Meta > fallback
@@ -98,23 +94,21 @@ export async function generateMetadata({
       description: description,
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title: title,
         url: canonicalUrl,
         description: description,
         type: "website",
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title: title,
         description: description,
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       alternates: {
         canonical: canonicalUrl,
@@ -134,14 +128,13 @@ export async function generateMetadata({
     const ogImages =
       page?.publishStatus === "published" && page.bannerImage
         ? [{ url: getImageUrl(page.bannerImage) }]
-        : defaultOgImage();
+        : [];
 
     const metadata: Metadata = {
       title: staticMeta.titleTag,
       description: staticMeta.metaDescription || "",
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title: staticMeta.titleTag,
         url: canonicalUrl,
         description: staticMeta.metaDescription || "",
@@ -150,7 +143,6 @@ export async function generateMetadata({
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title: staticMeta.titleTag,
         description: staticMeta.metaDescription || "",
         images: ogImages,
@@ -176,23 +168,21 @@ export async function generateMetadata({
       description: description,
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
         title: title,
         url: canonicalUrl,
         description: description,
         type: "website",
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title: title,
         description: description,
         images: page.bannerImage
           ? [{ url: getImageUrl(page.bannerImage) }]
-          : defaultOgImage(),
+          : [],
       },
       alternates: {
         canonical: canonicalUrl,

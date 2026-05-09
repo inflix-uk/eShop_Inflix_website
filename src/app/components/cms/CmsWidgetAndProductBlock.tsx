@@ -22,6 +22,7 @@ import {
   type WidgetActiveDealsContent,
   type WidgetDealsDiscountCardsContent,
   type WidgetHtmlCssContent,
+  type WidgetNavbarContent,
   type WidgetContactUsContent,
   type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
@@ -104,6 +105,10 @@ const BlogContactUsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogContactUsWidget"),
   { loading: WidgetChunkFallback }
 );
+const BlogNavbarWidget = dynamic(
+  () => import("@/app/(routes)/blogs/new/[slug]/BlogNavbarWidget"),
+  { loading: WidgetChunkFallback }
+);
 
 export type CmsWidgetAndProductBlockProps = {
   block: ContentBlock;
@@ -150,6 +155,7 @@ export function CmsWidgetAndProductBlock({
     | WidgetActiveDealsContent
     | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
+    | WidgetNavbarContent
     | WidgetContactUsContent;
 
   if (w?.widgetType === "slider") {
@@ -241,7 +247,7 @@ export function CmsWidgetAndProductBlock({
     const items = (sb.items || []) as InlineBannerBlockPayload[];
     if (!items.length) return null;
     return (
-      <div className="w-full max-w-full">
+      <div className="w-full max-w-full overflow-x-visible">
         <HeroSlider2 inlineBanners={items} embedded />
       </div>
     );
@@ -303,6 +309,10 @@ export function CmsWidgetAndProductBlock({
     if (!widgetVisibility.contactUsEnabled) return null;
     const cu = w as WidgetContactUsContent;
     return <BlogContactUsWidget content={cu} />;
+  }
+  if (w?.widgetType === "navbar") {
+    const nv = w as WidgetNavbarContent;
+    return <BlogNavbarWidget content={nv} />;
   }
 
   return null;

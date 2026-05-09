@@ -25,6 +25,7 @@ export default function ShopAll() {
   const pricingGroupId = auth?.user?.pricingGroup
     ? String(auth.user.pricingGroup)
     : null;
+  const userId = auth?.user?._id ? String(auth.user._id) : null;
 
   useEffect(() => {
     const shouldRefetch =
@@ -41,10 +42,17 @@ export default function ShopAll() {
     if (shouldRefetch) {
       lastFetchedGroupIdRef.current = pricingGroupId;
       dispatch(
-        fetchProducts(pricingGroupId ? { groupId: pricingGroupId } : undefined)
+        fetchProducts(
+          userId
+            ? {
+                userId,
+                ...(pricingGroupId ? { groupId: pricingGroupId } : {}),
+              }
+            : undefined
+        )
       );
     }
-  }, [dispatch, pricingGroupId, products.length]);
+  }, [dispatch, userId, pricingGroupId, products.length]);
 
   useEffect(() => {
     setFilteredProducts(products);

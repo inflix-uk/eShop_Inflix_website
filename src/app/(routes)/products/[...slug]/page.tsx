@@ -6,6 +6,7 @@ import ProductPage from "@/app/(routes)/products/[...slug]/ProductPage";
 import Loading from "@/app/components/Loading";
 import VariantLinksSSR from "@/app/(routes)/products/components/VariantLinksSSR";
 import ProductSEOContent from "@/app/(routes)/products/components/ProductSEOContent";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 // Force dynamic rendering since we use cache: "no-store" for fresh product data
 export const dynamic = 'force-dynamic';
@@ -35,15 +36,31 @@ async function getProductData(productName: string) {
 // Parse slug array into product URL and variant info
 // URL format: /products/{productUrl} or /products/{productUrl}/{variantSlug}
 function parseSlugArray(slugArray: string[]): { productUrl: string; variantSlug: string } {
+  const sanitizeSegment = (segment: string): string => {
+    if (!segment) return "";
+    let value = segment;
+    try {
+      value = decodeURIComponent(segment);
+    } catch {
+      value = segment;
+    }
+
+    // Handle accidental quoted values such as "\"product-slug\"" from copied URLs.
+    return value
+      .trim()
+      .replace(/^['"`]+|['"`]+$/g, "")
+      .replace(/^%22+|%22+$/gi, "");
+  };
+
   if (!slugArray || slugArray.length === 0) {
     return { productUrl: '', variantSlug: '' };
   }
 
   // First segment is always the product URL
-  const productUrl = slugArray[0];
+  const productUrl = sanitizeSegment(slugArray[0]);
 
   // Second segment (if exists) is the variant slug
-  const variantSlug = slugArray.length > 1 ? slugArray[1] : '';
+  const variantSlug = slugArray.length > 1 ? sanitizeSegment(slugArray[1]) : '';
 
   return { productUrl, variantSlug };
 }
@@ -169,6 +186,57 @@ function findVariantFromSlug(product: any, variantInfo: string) {
   });
 }
 
+function parseSchemaInputs(rawSchema: unknown): Record<string, unknown>[] {
+  if (rawSchema == null) return [];
+
+  const toObject = (value: unknown): Record<string, unknown> | null => {
+    if (!value || typeof value !== "object") return null;
+    const obj = value as Record<string, unknown>;
+    return Object.keys(obj).length > 0 ? obj : null;
+  };
+
+  if (typeof rawSchema === "object") {
+    const direct = toObject(rawSchema);
+    return direct ? [direct] : [];
+  }
+
+  if (typeof rawSchema !== "string") return [];
+
+  let normalized = rawSchema.trim();
+  if (!normalized) return [];
+
+  // Remove HTML comments from admin-pasted snippets.
+  normalized = normalized.replace(/<!--[\s\S]*?-->/g, "").trim();
+  if (!normalized) return [];
+
+  // If a full HTML/meta snippet is pasted, extract only ld+json script bodies.
+  const scriptRegex =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const scriptBodies: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = scriptRegex.exec(normalized)) !== null) {
+    const body = (match[1] || "").trim();
+    if (body) scriptBodies.push(body);
+  }
+
+  const candidates = scriptBodies.length > 0 ? scriptBodies : [normalized];
+  const parsed: Record<string, unknown>[] = [];
+
+  for (const candidate of candidates) {
+    const clean = candidate.trim();
+    if (!clean || clean.startsWith("<")) continue;
+    try {
+      const obj = JSON.parse(clean) as unknown;
+      const asObj = toObject(obj);
+      if (asObj) parsed.push(asObj);
+    } catch {
+      // Ignore invalid entries; keep valid schema payloads.
+    }
+  }
+
+  return parsed;
+}
+
 // Generate metadata for SEO
 export async function generateMetadata({
   params,
@@ -178,7 +246,10 @@ export async function generateMetadata({
   try {
     const { slug } = await params;
     const { productUrl, variantSlug } = parseSlugArray(slug);
-    const product = await getProductData(productUrl);
+    const [product, navbarVariantTestConfig] = await Promise.all([
+      getProductData(productUrl),
+      getNavbarVariantTestPublicServer(),
+    ]);
 
     // Build the full URL path for canonical
     const fullSlugPath = slug.join('/');
@@ -200,7 +271,20 @@ export async function generateMetadata({
     // Determine if we should use variant meta or product meta
     const isVariantSelected = !!(selectedVariant && variantSlug);
 
-    let title, description, keywords;
+    const resolveAssetUrl = (asset: any): string | null => {
+      const base = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+      const raw = String(asset?.url || asset?.path || "").trim();
+      if (!raw) return null;
+      if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
+        return raw;
+      }
+      if (!base) return raw.startsWith("/") ? raw : `/${raw}`;
+      return raw.startsWith("/") ? `${base}${raw}` : `${base}/${raw}`;
+    };
+
+    let title = "";
+    let description = "";
+    let keywords = "";
 
     if (isVariantSelected) {
       // Variant is selected - use ONLY variant meta (even if empty, NO fallback to product meta)
@@ -219,10 +303,11 @@ export async function generateMetadata({
     }
 
     // Use meta_Image if available, otherwise use Gallery_Images
-    const metaImageUrl = product.meta_Image?.path
-      ? `${process.env.NEXT_PUBLIC_API_URL}/${product.meta_Image.path}`
-      : null;
-    const galleryImages = product.Gallery_Images?.map((img: any) => `${process.env.NEXT_PUBLIC_API_URL}/${img.path}`) || [];
+    const metaImageUrl = resolveAssetUrl(product.meta_Image);
+    const galleryImages =
+      (Array.isArray(product.Gallery_Images) ? product.Gallery_Images : [])
+        .map((img: any) => resolveAssetUrl(img))
+        .filter((img: string | null): img is string => Boolean(img));
     const images = metaImageUrl ? [metaImageUrl, ...galleryImages] : galleryImages;
     const canonicalUrl = await getCanonical(`/products/${fullSlugPath}`);
 
@@ -295,7 +380,10 @@ export default async function Product({
       notFound();
     }
 
-    const product = await getProductData(productUrl);
+    const [product, navbarVariantTestConfig] = await Promise.all([
+      getProductData(productUrl),
+      getNavbarVariantTestPublicServer(),
+    ]);
 
     if (!product) {
       console.error('Product not found for productUrl:', productUrl);
@@ -325,28 +413,26 @@ export default async function Product({
   return (
     <>
       {/* JSON-LD Structured Data Schemas */}
-      {schemas.map((schema, index) => {
-        try {
-          // Parse to validate JSON and ensure it's valid
-          const parsedSchema = typeof schema === 'string' ? JSON.parse(schema) : schema;
-          return (
-            <script
-              key={`schema-${index}`}
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify(parsedSchema),
-              }}
-            />
-          );
-        } catch (error) {
-          console.error('Invalid schema JSON at index', index, error);
-          return null;
-        }
+      {schemas.flatMap((schema, index) => {
+        const parsedSchemas = parseSchemaInputs(schema);
+        return parsedSchemas.map((parsedSchema, innerIndex) => (
+          <script
+            key={`schema-${index}-${innerIndex}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(parsedSchema),
+            }}
+          />
+        ));
       })}
 
       <VariantLinksSSR product={product} />
       <Suspense fallback={<Loading />}>
-        <ProductPage product={product} initialVariantSlug={variantSlug} />
+        <ProductPage
+          product={product}
+          initialVariantSlug={variantSlug}
+          navbarVariantTestConfig={navbarVariantTestConfig}
+        />
       </Suspense>
       <ProductSEOContent product={product} />
     </>

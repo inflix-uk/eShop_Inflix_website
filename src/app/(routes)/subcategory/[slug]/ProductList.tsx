@@ -7,6 +7,7 @@ import Pagination from "@/app/components/Pagination";
 import SidebarCommon from "@/app/components/SidebarCommon";
 import { Product, SortOption } from "../../../../../types";
 import { SortOptions } from "@/app/components/SortOptions";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function ProductList({
   initialProducts,
@@ -15,11 +16,17 @@ export default function ProductList({
   initialProducts: Product[];
   subCategoryName: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [filteredProducts, setFilteredProducts] =
     useState<Product[]>(initialProducts);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const rawPage = Number(searchParams.get("page") || "1");
+    return Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  });
 
   const productsPerPage = 50;
   const indexOfLastProduct = currentPage * productsPerPage;
@@ -32,6 +39,42 @@ export default function ProductList({
   useEffect(() => {
     setFilteredProducts(products);
   }, [products]);
+
+  useEffect(() => {
+    const rawPage = Number(searchParams.get("page") || "1");
+    const nextPage =
+      Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+    setCurrentPage(nextPage);
+  }, [searchParams]);
+
+  const updatePageInUrl = (nextPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextPage <= 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
+    router.replace(
+      `${pathname}${params.toString() ? `?${params.toString()}` : ""}`,
+      { scroll: false }
+    );
+  };
+
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const goToPage = (nextPage: number) => {
+    const maxPage = Math.max(totalPages, 1);
+    const normalized = Math.min(Math.max(nextPage, 1), maxPage);
+    setCurrentPage(normalized);
+    updatePageInUrl(normalized);
+  };
+
+  useEffect(() => {
+    const maxPage = Math.max(totalPages, 1);
+    if (currentPage > maxPage) {
+      goToPage(maxPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages]);
 
   return (
     <div className="grid grid-flow-row-dense lg:grid-cols-5 my-5 py-5">
@@ -69,7 +112,11 @@ export default function ProductList({
           filteredProducts={filteredProducts}
           productsPerPage={productsPerPage}
           currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
+          setCurrentPage={(value) => {
+            const nextPage =
+              typeof value === "function" ? value(currentPage) : value;
+            goToPage(nextPage);
+          }}
           indexOfFirstProduct={indexOfFirstProduct}
           indexOfLastProduct={indexOfLastProduct}
         />

@@ -9,8 +9,7 @@ import React, {
   useState,
 } from "react";
 
-import TopBar from "@/app/topbar/page";
-import Nav from "@/app/components/navbar/Nav";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import ProductBattery from "@/app/(routes)/products/components/ProductBattery";
 import ProductCart from "@/app/(routes)/products/components/ProductCart";
 import ProductPerks from "@/app/(routes)/products/components/ProductPerks";
@@ -82,8 +81,17 @@ import {
 import { checkStockAvailability } from "@/utils/stockApi";
 import { toast } from "react-toastify";
 import { useAuth } from "@/app/context/Auth";
+import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 
-export default function ProductPage({ product, initialVariantSlug }: { product: ProductData; initialVariantSlug?: string }) {
+export default function ProductPage({
+  product,
+  initialVariantSlug,
+  navbarVariantTestConfig,
+}: {
+  product: ProductData;
+  initialVariantSlug?: string;
+  navbarVariantTestConfig?: NavbarVariantTestConfig | null;
+}) {
   const auth = useAuth();
   const { slug } = useParams();
   // slug is now an array: [productUrl] or [productUrl, variantSlug]
@@ -405,10 +413,11 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
   }, []);
 
   useEffect(() => {
+    const userId = auth?.user?._id ? String(auth.user._id) : "";
     const pricingGroupId = auth?.user?.pricingGroup
       ? String(auth.user.pricingGroup)
       : "";
-    if (!pricingGroupId || !product?._id) {
+    if (!userId || !product?._id) {
       setGroupOverridePrice(null);
       setIsGroupPriceLoading(false);
       return;
@@ -418,17 +427,20 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     const fetchGroupOverride = async () => {
       setIsGroupPriceLoading(true);
       try {
+        const params = new URLSearchParams();
+        params.set("userId", userId);
+        if (pricingGroupId) {
+          params.set("groupId", pricingGroupId);
+        }
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/products?groupId=${encodeURIComponent(
-            pricingGroupId
-          )}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/products?${params.toString()}`
         );
         const body = await res.json();
         const list = Array.isArray(body?.products) ? body.products : [];
         const matched = list.find(
           (item: any) => String(item?._id) === String(product._id)
         );
-        const override = Number(matched?.groupPrice);
+        const override = Number(matched?.userPrice ?? matched?.groupPrice);
         if (!cancelled) {
           setGroupOverridePrice(
             Number.isFinite(override) && override > 0 ? override : null
@@ -449,9 +461,9 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     return () => {
       cancelled = true;
     };
-  }, [auth?.user?.pricingGroup, product?._id]);
+  }, [auth?.user?._id, auth?.user?.pricingGroup, product?._id]);
 
-  const shouldDeferPriceRender = Boolean(auth?.user?.pricingGroup) && isGroupPriceLoading;
+  const shouldDeferPriceRender = Boolean(auth?.user?._id) && isGroupPriceLoading;
 
   useEffect(() => {
     if (
@@ -495,7 +507,8 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     // Handle object values (extract string from value, slug, or name property)
     let rawValue: string;
     if (typeof optionValue === 'object' && optionValue !== null) {
-      rawValue = optionValue.value || optionValue.slug || optionValue.name || '';
+      // Prefer canonical slug for reliable variant lookup (avoids punctuation mismatches).
+      rawValue = optionValue.slug || optionValue.value || optionValue.name || '';
     } else {
       rawValue = String(optionValue || '');
     }
@@ -509,7 +522,12 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
     if (variantName.toLowerCase() === "condition") {
       return processedValue.toLowerCase().trim();
     }
-    return processedValue.toLowerCase();
+    // Keep only alphanumeric/space/underscore/dash to align with variant slug names.
+    return processedValue
+      .toLowerCase()
+      .replace(/[^a-z0-9\s_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   };
   const handleOptionChange = (variantName: string, selectedOption: any) => {
     const processedSelectedOption = processOptionValue(
@@ -1068,10 +1086,12 @@ export default function ProductPage({ product, initialVariantSlug }: { product: 
       ))}
 
       <NewsletterModal mode="product" />
-      <header className="relative">
-        {/* <TopBar /> */}
-        <Nav />
-      </header>
+      {/* Old header kept for reference:
+          <header className="relative">
+            <Nav />
+          </header>
+      */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig || null} />
       <BreadCrumb
         breadcrumb={breadcrumb.map((item) => ({
           ...item,

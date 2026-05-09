@@ -1,6 +1,7 @@
 import dynamic from "next/dynamic";
 import HeroSlider2 from "./components/HeroSlider2";
 import Nav from "./components/navbar/Nav";
+import NavbarVariantTestBar from "./components/navbar/NavbarVariantTestBar";
 import { Metadata } from "next";
 import {
   getHomepageFeatures,
@@ -27,6 +28,7 @@ import HomepageFeatureIcon from "./components/HomepageFeatureIcon";
 import { getCanonical } from "@/lib/getCanonical";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
 import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 const HomeClient = dynamic(() => import("./HomeClient"), {
   loading: () => (
@@ -129,7 +131,7 @@ export default async function Home() {
     heroSocial: emptyHeroSocial(),
   };
 
-  const [homepageSeo, heroPayload, cmsBundle, features, navServerBootstrap] =
+  const [homepageSeo, heroPayload, cmsBundle, features, navServerBootstrap, navbarVariantTestConfig] =
     await Promise.all([
       getHomepagePublicSeo().catch((err) => {
         console.error("[Home] homepage SEO fetch failed:", err);
@@ -157,9 +159,14 @@ export default async function Home() {
           supportEmail: "",
         };
       }),
+      getNavbarVariantTestPublicServer().catch((err) => {
+        console.error("[Home] navbar variant test fetch failed:", err);
+        return null;
+      }),
     ]);
   const displayFeatures = features;
   const { banners: heroBanners, heroSocial } = heroPayload;
+  const showOverallNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
 
   const adminJsonLdStrings = (homepageSeo?.metaSchema ?? [])
     .map((entry) => metaSchemaEntryToJsonLdString(entry))
@@ -180,11 +187,17 @@ export default async function Home() {
           dangerouslySetInnerHTML={{ __html: json }}
         />
       ))}
-      <header className="relative">
-        <nav className="" aria-label="Top">
-          <Nav serverBootstrap={navServerBootstrap} />
-        </nav>
-      </header>
+      {showOverallNavbar ? (
+        <>
+       
+   {/* <header className="relative">
+            <nav className="" aria-label="Top">
+              <Nav serverBootstrap={navServerBootstrap} />
+            </nav>
+          </header> */}
+          <NavbarVariantTestBar config={navbarVariantTestConfig} />
+        </>
+      ) : null}
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}
       <HeroSlider2 serverBanners={heroBanners} heroSocial={heroSocial} />
       {displayFeatures.length > 0 && (

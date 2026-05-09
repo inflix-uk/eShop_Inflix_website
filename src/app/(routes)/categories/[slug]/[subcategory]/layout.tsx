@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCanonical } from "@/lib/getCanonical";
+import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 
 function toOriginalCase(slug: string) {
   return slug
@@ -11,21 +12,21 @@ function toOriginalCase(slug: string) {
 async function getSubCategoryData(subcategoryName: string) {
   try {
     let res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/get/subcategorydetails/${encodeURIComponent(subcategoryName)}`,
-      { next: { revalidate: 60 } }
+      `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subcategoryName)}`,
+      { cache: "no-store" }
     );
 
     if (!res.ok && subcategoryName !== toOriginalCase(subcategoryName)) {
       res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategorydetails/${encodeURIComponent(toOriginalCase(subcategoryName))}`,
-        { next: { revalidate: 60 } }
+        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(toOriginalCase(subcategoryName))}`,
+        { cache: "no-store" }
       );
     }
 
     if (!res.ok) return null;
 
     const data = await res.json();
-    return data;
+    return data?.subcategoryDetails || null;
   } catch (error) {
     console.error("Error fetching subcategory data:", error);
     return null;
@@ -43,38 +44,46 @@ export async function generateMetadata({
     throw new Error("Invalid slug provided for subcategory.");
   }
 
-  const response = await getSubCategoryData(subcategory);
+  const subcategoryData = await getSubCategoryData(subcategory);
 
-  if (!response) {
+  if (!subcategoryData) {
     return {
       title: "",
       description: "",
     };
   }
-  const { metaTitle, metaDescription, metaKeywords, banner } = response;
+  const metaTitle = String(subcategoryData?.metaTitle || "").trim();
+  const metaDescription = String(subcategoryData?.metaDescription || "").trim();
+  const metaKeywords = String(subcategoryData?.metaKeywords || "").trim();
   const canonicalUrl = await getCanonical(`/categories/${slug}/${subcategory}`);
-  const bannerUrl = banner?.path
-    ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
-    : undefined;
-  const kw = metaKeywords || "";
+  const bannerUrl = resolveCategoryImageSrc(subcategoryData?.banner);
 
   return {
-    title: metaTitle || "",
-    description: metaDescription || "",
-    ...(kw ? { keywords: kw } : {}),
+    title: metaTitle,
+    description: metaDescription,
+    ...(metaKeywords ? { keywords: metaKeywords } : {}),
     robots: "index, follow",
     openGraph: {
-      title: metaTitle || "",
+      title: metaTitle,
       url: canonicalUrl,
-      description: metaDescription || "",
+      description: metaDescription,
       type: "website",
-      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
+      ...(bannerUrl
+        ? {
+            images: [
+              {
+                url: bannerUrl,
+                alt: metaTitle,
+              },
+            ],
+          }
+        : {}),
     },
     twitter: {
       card: "summary_large_image",
-      title: metaTitle || "",
-      description: metaDescription || "",
-      ...(bannerUrl ? { images: [{ url: bannerUrl }] } : {}),
+      title: metaTitle,
+      description: metaDescription,
+      ...(bannerUrl ? { images: [bannerUrl] } : {}),
     },
     alternates: {
       canonical: canonicalUrl,

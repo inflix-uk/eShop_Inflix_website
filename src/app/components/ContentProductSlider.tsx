@@ -119,15 +119,17 @@ export default function ContentProductSlider({
     const pricingGroupId = auth?.user?.pricingGroup
       ? String(auth.user.pricingGroup)
       : "";
-    const groupQuery = pricingGroupId
-      ? `?groupId=${encodeURIComponent(pricingGroupId)}`
-      : "";
+    const userId = auth?.user?._id ? String(auth.user._id) : "";
+    const queryParams = new URLSearchParams();
+    if (pricingGroupId) queryParams.set("groupId", pricingGroupId);
+    if (userId) queryParams.set("userId", userId);
+    const scopeQuery = queryParams.toString() ? `?${queryParams.toString()}` : "";
 
     if (isLatest) {
       setLoading(true);
       try {
-        const listEndpoint = pricingGroupId
-          ? `${API_URL}/api/products${groupQuery}`
+        const listEndpoint = scopeQuery
+          ? `${API_URL}/api/products${scopeQuery}`
           : `${API_URL}/get/latest/products/homepage`;
         const res = await fetch(listEndpoint, {
           cache: "no-store",
@@ -157,8 +159,8 @@ export default function ContentProductSlider({
     setLoading(true);
     try {
       const qs = encodeURIComponent(ids.join(","));
-      const endpoint = pricingGroupId
-        ? `${API_URL}/api/products${groupQuery}`
+      const endpoint = scopeQuery
+        ? `${API_URL}/api/products${scopeQuery}`
         : `${API_URL}/get/products/by-ids/public?ids=${qs}`;
       const res = await fetch(endpoint, {
         cache: "no-store",
@@ -166,7 +168,7 @@ export default function ContentProductSlider({
       const data = await res.json();
       const raw: Product[] = Array.isArray(data.products) ? data.products : [];
       const normalized = raw.map(normalizeProductThumb);
-      if (pricingGroupId) {
+      if (scopeQuery) {
         const byId = new Map(normalized.map((item) => [String(item._id), item]));
         const filteredToIds =
           ids.length > 0
@@ -181,7 +183,7 @@ export default function ContentProductSlider({
     } finally {
       setLoading(false);
     }
-  }, [isLatest, ids.join(","), auth?.user?.pricingGroup]);
+  }, [isLatest, ids.join(","), auth?.user?.pricingGroup, auth?.user?._id]);
 
   useEffect(() => {
     fetchProducts();

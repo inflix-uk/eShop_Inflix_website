@@ -7,9 +7,11 @@ import DateDisplay from "./DateDisplay";
 import Nav from "@/app/components/navbar/Nav";
 import TopBar from "@/app/topbar/page";
 import ClientBlogPage from "../new/[slug]/ClientBlogPage";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import { getFullImageUrl } from "../new/[slug]/blogUtils";
 import { metaSchemaEntryToJsonLdString } from "@/app/lib/homepageJsonLd";
 import { getCanonical } from "@/lib/getCanonical";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 interface BlogData {
   _id: string;
@@ -202,6 +204,7 @@ export async function generateMetadata({
   const { slug, category } = await params;
   const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
   const canonicalUrl = await getCanonical(routePath);
+  const navbarVariantTestConfig = await getNavbarVariantTestPublicServer();
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog && typeof newBlog.title === "string") {
     if (category) {
@@ -329,6 +332,7 @@ export default async function BlogPage({
   const { slug, category } = await params;
   const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
   const canonicalUrl = await getCanonical(routePath);
+  const navbarVariantTestConfig = await getNavbarVariantTestPublicServer();
 
   const newBlog = await fetchNewBlogBySlug(slug);
   if (newBlog) {
@@ -366,7 +370,10 @@ export default async function BlogPage({
             dangerouslySetInnerHTML={{ __html: json }}
           />
         ))}
-        <ClientBlogPage blog={newBlog as never} />
+        <ClientBlogPage
+          blog={newBlog as never}
+          navbarVariantTestConfig={navbarVariantTestConfig}
+        />
       </>
     );
   }
@@ -433,8 +440,9 @@ export default async function BlogPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
-      <TopBar />
-      <Nav /> 
+      {/* <TopBar />
+      <Nav /> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
 
       <article className="px-3 sm:px-4 py-6 sm:py-10 min-w-0">
         {/* HERO (server-rendered) */}
