@@ -14,14 +14,7 @@ export default function CategoryBlogs() {
   const { category } = useParams();
   const router = useRouter();
   const categorySlug = typeof category === 'string' ? category : '';
-  
-  // We'll find the actual category name from the slug after loading blogs
-  
-  // We'll set this after we have the blogs data
-  const [breadCrumb, setBreadCrumb] = useState([
-    { name: "Blogs", link: "/blogs", current: false },
-    { name: "Loading...", link: `/blogs/category/${categorySlug}`, current: true }
-  ]);
+  const formattedSlugCategory = formatCategoryName(categorySlug);
   
   const [progress, setProgress] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,13 +38,15 @@ export default function CategoryBlogs() {
   function formatCategoryName(categoryName: string | undefined | null): string {
     if (!categoryName || typeof categoryName !== "string") return "All Categories";
     return categoryName
-      .split("-")
+      .replace(/[-_]+/g, " ")
+      .trim()
+      .split(/\s+/)
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
 
   // Find the actual category name from the slug
-  const [actualCategory, setActualCategory] = useState<string>("");
+  const [actualCategory, setActualCategory] = useState<string>(formattedSlugCategory);
   
   useEffect(() => {
     if (blogs.length > 0 && categorySlug) {
@@ -69,22 +64,24 @@ export default function CategoryBlogs() {
       });
       
       if (matchingBlog) {
-        setActualCategory(matchingBlog.blogCategory);
-        setBreadCrumb([
-          { name: "Blogs", link: "/blogs", current: false },
-          { name: formatCategoryName(matchingBlog.blogCategory), link: `/blogs/category/${categorySlug}`, current: true }
-        ]);
+        const resolvedCategory = normalizeCategory(matchingBlog) || categorySlug;
+        setActualCategory(resolvedCategory);
       } else {
         // If no match found, use the slug as fallback
-        const formattedName = formatCategoryName(categorySlug.replace(/-/g, ' '));
+        const formattedName = formatCategoryName(categorySlug);
         setActualCategory(formattedName);
-        setBreadCrumb([
-          { name: "Blogs", link: "/blogs", current: false },
-          { name: formattedName, link: `/blogs/category/${categorySlug}`, current: true }
-        ]);
       }
     }
   }, [blogs, categorySlug]);
+
+  const breadCrumb = [
+    { name: "Blogs", link: "/blogs", current: false },
+    {
+      name: formatCategoryName(actualCategory || categorySlug) || "Category",
+      link: `/blogs/category/${categorySlug}`,
+      current: true,
+    },
+  ];
   
   // Helper to robustly extract category name
   const normalizeCategory = (blog: Blog) => {
@@ -149,7 +146,7 @@ export default function CategoryBlogs() {
       <BreadCrumb breadcrumb={breadCrumb} />
       <div className="container mx-auto max-w-screen-xl py-10 px-4">
         <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-8 text-center">
-          {actualCategory ? formatCategoryName(actualCategory) : "Loading..."} Blogs
+          {formatCategoryName(actualCategory || categorySlug)} Blogs
         </h2>
 
         <div className="flex flex-col md:flex-row gap-6 mb-8 max-w-4xl mx-auto">

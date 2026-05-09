@@ -22,13 +22,12 @@ const BreadCrumb: FC<BreadCrumbProps> = ({ breadcrumb }) => {
             <div>
               <Link href="/" className="hover:underline">
                 Home
-                <span className="sr-only">Home</span>
               </Link>
             </div>
           </li>
-          <li>
+          {/* <li>
             <span className="mx-2">»</span>
-          </li>
+          </li> */}
           {breadcrumb.map((page) => (
             <li key={page.name}>
               <div className="flex items-center">
@@ -37,7 +36,8 @@ const BreadCrumb: FC<BreadCrumbProps> = ({ breadcrumb }) => {
                   className="text-sm font-medium text-gray-500 hover:text-gray-700 hover:underline"
                   aria-current={page.current ? "page" : undefined}
                 >
-                  {page.name}
+                             <span className="mx-2">»</span>
+                             {page.name}
                 </Link>
               </div>
             </li>

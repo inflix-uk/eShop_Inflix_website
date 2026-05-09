@@ -8,7 +8,7 @@ import { useAuth } from "@/app/context/Auth";
 import { Product } from "../../../types";
 import { useAppDispatch } from "../lib/hooks";
 import { addProduct } from "@/app/lib/features/recentlyviewedproducts/recentlyViewedSlice";
-import { cleanProductSlug } from "@/app/utils/productUrl";
+import { buildProductHref } from "@/app/utils/productUrl";
 
 interface ProductCardProps {
   product: Product;
@@ -33,7 +33,7 @@ const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
           )
         )
       : 0;
-  const productNameSlug = cleanProductSlug(product.producturl);
+  const productHref = buildProductHref(product.producturl);
   const averageRating = product.averageRating
     ? Math.round(product.averageRating * 10) / 10
     : 0; // Round to one decimal place or default to 0
@@ -65,7 +65,7 @@ const ProductCard: React.FC<ProductCardProps> = memo(({ product }) => {
         </div>
 
         <h3 className="text-lg mb-2 h-16 flex items-start font-normal">
-          <Link href={`/products/${productNameSlug}`} className="line-clamp-2 md:line-clamp-2">
+          <Link href={productHref} className="line-clamp-2 md:line-clamp-2">
             {product.name}
             <span className="absolute inset-0 z-[1]" aria-hidden="true" />
           </Link>

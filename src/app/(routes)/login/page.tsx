@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import LoadingBar from "react-top-loading-bar";
@@ -8,6 +8,7 @@ import { useAuth } from "@/app/context/Auth";
 import { CountdownCircleTimer } from "react-countdown-circle-timer";
 import Image from "next/image";
 import Link from "next/link";
+import { getLogoUrl } from "@/app/services/logoService";
 export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
@@ -20,6 +21,48 @@ export default function LoginPage() {
   const [errState, setErrState] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [logoSrc, setLogoSrc] = useState<string>(
+    "/1775033425417_1773417790440_aroma_psd_logo__2_.png"
+  );
+  const [logoAlt, setLogoAlt] = useState<string>("AROMA Desire logo");
+
+  useEffect(() => {
+    let cancelled = false;
+    const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+    if (!base) return () => void 0;
+
+    const endpoints = [
+      `${base}/get/logo/public`,
+      `${base}/api/get/logo/public`,
+      `${base}/get/logo`,
+      `${base}/api/get/logo`,
+    ];
+
+    const loadLogo = async () => {
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, { method: "GET" });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const path = data?.data?.logoUrl;
+          const resolved = getLogoUrl(path);
+          if (!resolved) continue;
+          if (!cancelled) {
+            setLogoSrc(resolved);
+            setLogoAlt(data?.data?.altText || "AROMA Desire logo");
+          }
+          return;
+        } catch {
+          // keep trying fallbacks
+        }
+      }
+    };
+
+    void loadLogo();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleInputChange = useCallback(
     (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -125,11 +168,12 @@ export default function LoginPage() {
           <Link href="/">
             <Image
               className="mx-auto h-20 w-auto"
-              src="/1775033425417_1773417790440_aroma_psd_logo__2_.png"
-              alt="AROMA Desire logo"
+              src={logoSrc}
+              alt={logoAlt}
               width={384}
               height={195}
               priority
+              unoptimized={logoSrc.startsWith("http://localhost")}
             />
           </Link>
           <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">

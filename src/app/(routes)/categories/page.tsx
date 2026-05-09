@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/app/context/Auth";
-import TopBar from "@/app/topbar/page";
-import Nav from "@/app/components/navbar/Nav";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
+import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 import { Category } from "../../../../types";
 
 export default function CategoriesPage() {
@@ -13,6 +13,8 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [navbarVariantTestConfig, setNavbarVariantTestConfig] =
+    useState<NavbarVariantTestConfig | null>(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -31,18 +33,43 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadNavbarVariantConfig = async () => {
+      const base = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+      if (!base) return;
+      try {
+        const res = await fetch(`${base}/navbar-variant-test/public`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setNavbarVariantTestConfig(json?.data?.config || null);
+        }
+      } catch {
+        if (!cancelled) setNavbarVariantTestConfig(null);
+      }
+    };
+    void loadNavbarVariantConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <>
-      <header className="relative">
+      {/* <header className="relative">
         <nav className="" aria-label="Top">
           <TopBar />
           <Nav />
         </nav>
-      </header>
+      </header> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       <div className="max-w-7xl mx-auto p-3">
         <nav className="mb-4 text-sm text-gray-600">
           <Link href="/" className="hover:underline">

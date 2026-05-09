@@ -12,7 +12,7 @@ interface ProductsState {
 // Thunk for fetching products
 export const fetchProducts = createAsyncThunk<
   Product[], // The returned data type (an array of Product objects)
-  { groupId?: string } | void, // Optional pricing group
+  { groupId?: string; userId?: string } | void, // Optional pricing scope
   { rejectValue: string } // The type of the error
 >("products/fetchProducts", async (arg, { rejectWithValue }) => {
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
@@ -22,7 +22,11 @@ export const fetchProducts = createAsyncThunk<
 
   try {
     const groupId = typeof arg === "object" && arg?.groupId ? String(arg.groupId).trim() : "";
-    const query = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+    const userId = typeof arg === "object" && arg?.userId ? String(arg.userId).trim() : "";
+    const params = new URLSearchParams();
+    if (groupId) params.set("groupId", groupId);
+    if (userId) params.set("userId", userId);
+    const query = params.toString() ? `?${params.toString()}` : "";
     const requestUrl = `${base}/api/products${query}`;
     /** Local / cold APIs often exceed 8s; keeps dev from noisy aborts while still bounded. */
     const response = await axios.get(requestUrl, { timeout: 20_000 });
@@ -77,10 +81,14 @@ export const fetchProducts = createAsyncThunk<
 
 function requestUrlFromThunk(
   base: string,
-  arg: { groupId?: string } | void
+  arg: { groupId?: string; userId?: string } | void
 ): string {
   const groupId = typeof arg === "object" && arg?.groupId ? String(arg.groupId).trim() : "";
-  const query = groupId ? `?groupId=${encodeURIComponent(groupId)}` : "";
+  const userId = typeof arg === "object" && arg?.userId ? String(arg.userId).trim() : "";
+  const params = new URLSearchParams();
+  if (groupId) params.set("groupId", groupId);
+  if (userId) params.set("userId", userId);
+  const query = params.toString() ? `?${params.toString()}` : "";
   return `${base}/api/products${query}`;
 }
 

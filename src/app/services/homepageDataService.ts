@@ -275,6 +275,32 @@ export interface WidgetContactUsContent {
   fields?: Array<Record<string, unknown>>;
 }
 
+export interface NavbarLinkItemContent {
+  id?: string;
+  label?: string;
+  url?: string;
+  icon?: string;
+}
+
+export interface WidgetNavbarContent {
+  widgetType: "navbar";
+  layout?: "classic" | "centered" | "split" | "minimal";
+  variant?: "modern" | "minimalist" | "dark-sidebar" | "developer" | "bold-left" | "business";
+  logoUrl?: string;
+  logoText?: string;
+  links?: NavbarLinkItemContent[];
+  showSearch?: boolean;
+  showButtons?: boolean;
+  actionIcon1?: string;
+  actionIcon2?: string;
+  primaryButtonLabel?: string;
+  primaryButtonUrl?: string;
+  primaryButtonIcon?: string;
+  secondaryButtonLabel?: string;
+  secondaryButtonUrl?: string;
+  secondaryButtonIcon?: string;
+}
+
 /** How the product slider is filled: manual/category picks, auto latest 6, or featured subset. */
 export type ProductSliderSource = "manual" | "latest" | "featured";
 
@@ -308,6 +334,7 @@ export interface ContentBlock {
     | WidgetActiveDealsContent
     | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
+    | WidgetNavbarContent
     | WidgetContactUsContent
     | ProductSliderBlockContent;
 }

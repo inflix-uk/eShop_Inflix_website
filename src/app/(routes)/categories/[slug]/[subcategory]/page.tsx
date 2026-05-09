@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Nav from "@/app/components/navbar/Nav";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 // import TopBar from "@/app/topbar/page";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -8,6 +9,7 @@ import SubCategoryContent from "./SubCategoryContent";
 import ProductList from "./ProductList";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -68,20 +70,24 @@ export default async function SubCategoryPage({
   params: Promise<{ slug: string; subcategory: string }>;
 }) {
   const { slug, subcategory } = await params;
-  const categoryData = await getSubCategoryData(subcategory);
-  const products = await getProducts(subcategory);
+  const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
+    getSubCategoryData(subcategory),
+    getProducts(subcategory),
+    getNavbarVariantTestPublicServer(),
+  ]);
   if (!categoryData) {
     notFound();
   }
   const bannerSrc = resolveCategoryImageSrc(categoryData.banner);
   return (
     <>
-      <header className="relative">
+      {/* <header className="relative">
         <nav className="" aria-label="Top">
-          {/* <TopBar /> */}
+          
           <Nav />
         </nav>
-      </header>
+      </header> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       <div className="max-w-7xl mx-auto p-3">
         <nav className="mb-4 text-sm text-gray-600">
           <Link href="/" className="hover:underline">

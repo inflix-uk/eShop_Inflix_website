@@ -5,9 +5,10 @@ import Link from "next/link";
 import CategoryContent from "./CategoryContent";
 import ProductList from "./ProductList";
 // import TopBar from "@/app/topbar/page";
-import Nav from "@/app/components/navbar/Nav";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -65,8 +66,11 @@ async function getProducts(categoryName: string) {
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const categoryName = (await params).slug;
-  const categoryData = await getCategoryData(categoryName);
-  const products = await getProducts(categoryName);
+  const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
+    getCategoryData(categoryName),
+    getProducts(categoryName),
+    getNavbarVariantTestPublicServer(),
+  ]);
 
   if (!categoryData) {
     notFound();
@@ -76,12 +80,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
 
   return (
     <>
-      <header className="relative">
-        <nav className="" aria-label="Top">
-          {/* <TopBar /> */}
-          <Nav />
-        </nav>
-      </header>
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       <div className="max-w-7xl mx-auto p-3">
 
         <nav className="mb-4 text-sm text-gray-600">

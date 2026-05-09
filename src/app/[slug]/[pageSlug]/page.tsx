@@ -1,8 +1,10 @@
 import DynamicPageClient from "@/app/[slug]/DynamicPageClient";
 import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import { notFound } from "next/navigation";
 import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
 import { fetchFooterPageBySlugFresh } from "@/app/services/footerPageService";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +35,18 @@ export default async function CategoryFooterDynamicPage({
     notFound();
   }
 
-  const page = await fetchFooterPageBySlugFresh(decodedPageSlug, decodedParentSlug);
+  const [page, navbarVariantTestConfig] = await Promise.all([
+    fetchFooterPageBySlugFresh(decodedPageSlug, decodedParentSlug),
+    getNavbarVariantTestPublicServer(),
+  ]);
   if (!page || !isPublishedWithBlocks(page)) {
     notFound();
   }
 
   return (
     <>
-      <SlugRouteHeader />
+      {/* <SlugRouteHeader /> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       <DynamicPageClient slug={decodedPageSlug} parentSlug={decodedParentSlug} />
     </>
   );

@@ -1,10 +1,12 @@
 import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import Link from "next/link";
 import React from "react";
 import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import { notFound } from "next/navigation";
 import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 
@@ -25,7 +27,10 @@ export default async function FooterPage({ params }: FooterPageProps) {
   
   console.log(`[FooterPage] Rendering page with slug: "${decodedSlug}"`);
   
-  const page = await fetchFooterPageBySlug(decodedSlug);
+  const [page, navbarVariantTestConfig] = await Promise.all([
+    fetchFooterPageBySlug(decodedSlug),
+    getNavbarVariantTestPublicServer(),
+  ]);
 
   if (!page) {
     console.warn(`[FooterPage] Page not found for slug: "${decodedSlug}"`);
@@ -37,7 +42,8 @@ export default async function FooterPage({ params }: FooterPageProps) {
 
   return (
     <>
-      <SlugRouteHeader />
+      {/* <SlugRouteHeader /> */}
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Breadcrumb Navigation */}
