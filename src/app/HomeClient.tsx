@@ -71,7 +71,8 @@ export default function HomeClient({
     categories: false,
     counts: false,
   });
-  const lastFetchedGroupIdRef = useRef<string | null>(null);
+  /** Tracks both pricing group and logged-in user so per-user custom prices refetch after login. */
+  const lastFetchedPricingScopeRef = useRef<string | null>(null);
 
   const [homepageBlocks, setHomepageBlocks] = useState<HomepageBlock[]>(() =>
     prefetched ? cmsPrefetch!.homepageBlocks : []
@@ -150,9 +151,11 @@ export default function HomeClient({
    */
   useEffect(() => {
     const normalizedGroupId = pricingGroupId || null;
+    const uidEarly = auth?.user?._id ? String(auth.user._id) : "";
+    const scopeKeyEarly = `${normalizedGroupId ?? "nogroup"}|${uidEarly || "nouid"}`;
     const shouldRefetchProducts =
       products.length === 0 ||
-      lastFetchedGroupIdRef.current !== normalizedGroupId;
+      lastFetchedPricingScopeRef.current !== scopeKeyEarly;
     const needCategories =
       !newCategories.categories.length && !homeBootstrapRef.current.categories;
     const needCounts =
@@ -181,12 +184,13 @@ export default function HomeClient({
           const uid = state.auth.user?._id ? String(state.auth.user._id) : "";
           const norm = pg || null;
           const productsList = state.products.products;
+          const scopeKey = `${norm ?? "nogroup"}|${uid || "nouid"}`;
           const refetchProducts =
             productsList.length === 0 ||
-            lastFetchedGroupIdRef.current !== norm;
+            lastFetchedPricingScopeRef.current !== scopeKey;
 
           if (refetchProducts) {
-            lastFetchedGroupIdRef.current = norm;
+            lastFetchedPricingScopeRef.current = scopeKey;
             dispatch(
               fetchProducts(
                 uid ? { userId: uid, ...(pg ? { groupId: pg } : {}) } : undefined
@@ -218,6 +222,7 @@ export default function HomeClient({
     store,
     category,
     pricingGroupId,
+    auth?.user?._id,
     products.length,
     newCategories.categories.length,
     categoryCounts.length,

@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import TrustpilotWidget from "./TrustpilotWidget";
+import { renderVariantOptionIcon } from "./variantOptionIcons";
 
 export interface TopSectionItem {
   slug: string;
@@ -20,19 +23,13 @@ const DefaultIcon = () => (
   </svg>
 );
 
-// Render icon - supports HTML icons from database
 const renderIcon = (item: TopSectionItem) => {
-  // Check if icon is HTML (like Flaticon <i class="fi fi-rr-truck-side"></i>)
-  if (item.icon && item.icon.trim().startsWith('<')) {
-    return (
-      <span
-        className="flex items-center justify-center [&>i]:text-lg [&>svg]:w-5 [&>svg]:h-5"
-        dangerouslySetInnerHTML={{ __html: item.icon }}
-      />
-    );
-  }
-
-  // Fallback to default icon
+  const node = renderVariantOptionIcon(
+    item,
+    "h-6 w-6",
+    "flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center text-gray-800 [&>i]:inline-block [&>i]:text-xl [&>svg]:h-6 [&>svg]:w-6"
+  );
+  if (node) return node;
   return <DefaultIcon />;
 };
 
@@ -85,7 +82,7 @@ export default function DeliverySection({
                       }`}
                       onClick={() => handleItemClick(item)}
                     >
-                      <div className="p-3 bg-green-100 rounded-lg flex items-center justify-center">
+                      <div className="p-3 bg-green-100 rounded-lg flex items-center justify-center text-gray-800">
                         {renderIcon(item)}
                       </div>
                       <p className="text-sm font-medium leading-6 text-gray-900 flex-1">

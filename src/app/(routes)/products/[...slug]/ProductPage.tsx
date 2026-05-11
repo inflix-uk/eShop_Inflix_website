@@ -40,6 +40,7 @@ import ComesWith, { ComesWithItem } from "../components/ComesWith";
 import ComesWithSlider from "../components/ComesWithSlider";
 import SimOptions from "../components/SimOptions";
 import DeliverySection from "../components/DeliverySection";
+import FlaticonStylesheetLoader from "../components/FlaticonStylesheetLoader";
 import ProductInfo from "../components/ProductInfo";
 import BatterySect from "../components/BatterySect";
 import VariantFields from "../components/VariantFields";
@@ -83,8 +84,51 @@ import { toast } from "react-toastify";
 import { useAuth } from "@/app/context/Auth";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 
+/** Same rules as backend `utils/pricingVariantKey.js` for group/user per-variant pricing. */
+function computeVariantKey(variant: Record<string, unknown> | null | undefined, idx = 0): string {
+  if (!variant) return "";
+  const id = String((variant as { variantId?: string }).variantId || "").trim();
+  if (id) return id;
+  const slug = String((variant as { slug?: string }).slug || "").trim();
+  if (slug) return slug;
+  return `__idx_${idx}`;
+}
+
+function mergeCatalogProductWithScopedListItem(
+  base: ProductData,
+  matched: { variantValues?: unknown[]; price?: number }
+): ProductData {
+  const matchedVars = Array.isArray(matched?.variantValues) ? matched.variantValues : [];
+  if (matchedVars.length === 0) {
+    return base;
+  }
+  const map = new Map<string, { salePrice?: string }>();
+  matchedVars.forEach((v, i) => {
+    const row = v as { salePrice?: string };
+    map.set(computeVariantKey(row as Record<string, unknown>, i), row);
+  });
+  const variantValues = (base.variantValues || []).map((v, i) => {
+    const row = v as Record<string, unknown>;
+    const k = computeVariantKey(row, i);
+    const m = map.get(k);
+    if (m && m.salePrice != null && String(m.salePrice).trim() !== "") {
+      return { ...v, salePrice: m.salePrice } as (typeof base.variantValues)[number];
+    }
+    return v;
+  });
+  const nextPrice =
+    typeof matched.price === "number" && Number.isFinite(matched.price) && matched.price > 0
+      ? matched.price
+      : base.price;
+  return {
+    ...base,
+    variantValues,
+    price: nextPrice,
+  };
+}
+
 export default function ProductPage({
-  product,
+  product: initialProduct,
   initialVariantSlug,
   navbarVariantTestConfig,
 }: {
@@ -93,6 +137,11 @@ export default function ProductPage({
   navbarVariantTestConfig?: NavbarVariantTestConfig | null;
 }) {
   const auth = useAuth();
+  const [product, setProduct] = useState<ProductData>(initialProduct);
+
+  useEffect(() => {
+    setProduct(initialProduct);
+  }, [initialProduct]);
   const { slug } = useParams();
   // slug is now an array: [productUrl] or [productUrl, variantSlug]
   const slugArray = Array.isArray(slug) ? slug : [slug];
@@ -127,6 +176,7 @@ export default function ProductPage({
   const [isBuyButtonDisabled, setIsBuyButtonDisabled] =
     useState<boolean>(false);
   const [initialLoad, setInitialLoad] = useState<boolean>(true);
+  const lastPricingProductIdRef = useRef<string | null>(null);
   const [averageRating, setAverageRating] = useState<number>(0);
   const [totalReviews, setTotalReviews] = useState<number>(0);
   const [variantDesc, setVariantDesc] = useState<Record<string, any>>({});
@@ -417,7 +467,8 @@ export default function ProductPage({
     const pricingGroupId = auth?.user?.pricingGroup
       ? String(auth.user.pricingGroup)
       : "";
-    if (!userId || !product?._id) {
+    if (!userId || !initialProduct?._id) {
+      setProduct(initialProduct);
       setGroupOverridePrice(null);
       setIsGroupPriceLoading(false);
       return;
@@ -438,16 +489,30 @@ export default function ProductPage({
         const body = await res.json();
         const list = Array.isArray(body?.products) ? body.products : [];
         const matched = list.find(
-          (item: any) => String(item?._id) === String(product._id)
+          (item: { _id?: string }) => String(item?._id) === String(initialProduct._id)
         );
-        const override = Number(matched?.userPrice ?? matched?.groupPrice);
         if (!cancelled) {
-          setGroupOverridePrice(
-            Number.isFinite(override) && override > 0 ? override : null
-          );
+          if (!matched) {
+            setProduct(initialProduct);
+            setGroupOverridePrice(null);
+          } else {
+            const hasVariants =
+              Array.isArray(matched.variantValues) && matched.variantValues.length > 0;
+            if (hasVariants) {
+              setProduct(mergeCatalogProductWithScopedListItem(initialProduct, matched));
+              setGroupOverridePrice(null);
+            } else {
+              setProduct(initialProduct);
+              const override = Number(matched?.userPrice ?? matched?.groupPrice);
+              setGroupOverridePrice(
+                Number.isFinite(override) && override > 0 ? override : null
+              );
+            }
+          }
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
+          setProduct(initialProduct);
           setGroupOverridePrice(null);
         }
       } finally {
@@ -461,19 +526,24 @@ export default function ProductPage({
     return () => {
       cancelled = true;
     };
-  }, [auth?.user?._id, auth?.user?.pricingGroup, product?._id]);
+  }, [auth?.user?._id, auth?.user?.pricingGroup, initialProduct]);
 
   const shouldDeferPriceRender = Boolean(auth?.user?._id) && isGroupPriceLoading;
 
   useEffect(() => {
     if (
-      product &&
-      Array.isArray(product.variantValues) &&
-      Array.isArray(product.variantNames) &&
-      product.variantValues.length > 0
+      !product ||
+      !Array.isArray(product.variantValues) ||
+      !Array.isArray(product.variantNames) ||
+      product.variantValues.length === 0
     ) {
+      return;
+    }
+    const pid = String(product._id ?? "");
+    const isNewCatalogProduct = lastPricingProductIdRef.current !== pid;
+    if (isNewCatalogProduct) {
+      lastPricingProductIdRef.current = pid;
       const initialSelectedVariant = findInitialSelectedVariant();
-
       if (initialSelectedVariant) {
         const initialSelectedOptions = product.variantNames.reduce(
           (acc: Record<string, string>, v) => {
@@ -486,14 +556,21 @@ export default function ProductPage({
           },
           {}
         );
-
         const isSelectedVariantSoldOut = checkIfSoldOut(initialSelectedVariant);
         setSelectedVariant(initialSelectedVariant);
         setIsBuyButtonDisabled(isSelectedVariantSoldOut);
         setSelectedOptions(initialSelectedOptions);
         updateSelectedVariant(initialSelectedOptions);
       }
+      return;
     }
+    setSelectedVariant((prev) => {
+      if (!prev || !product.variantValues?.length) return prev;
+      const found = product.variantValues.find(
+        (v: SelectedVariant) => String(v._id) === String(prev._id)
+      );
+      return found ?? prev;
+    });
   }, [product]);
   useEffect(() => {
     if (!initialLoad && selectedVariant) {
@@ -1076,6 +1153,7 @@ export default function ProductPage({
   const totalSalePrice = calculateTotalSalePrice(products);
   return (
     <>
+      <FlaticonStylesheetLoader />
       {/* Render variant schemas in React */}
       {variantSchemas.map((schema, index) => (
         <script

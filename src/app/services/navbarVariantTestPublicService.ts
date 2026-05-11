@@ -5,7 +5,7 @@ export type NavbarVariantTestLink = {
   label?: string;
   url?: string;
   icon?: string;
-  linkType?: "label" | "icon";
+  linkType?: "label" | "icon" | "icon_label";
   children?: Array<{
     id?: string;
     label?: string;
@@ -22,6 +22,11 @@ export type NavbarVariantTestConfig = {
   logoText?: string;
   logoUrl?: string;
   showOnStorefront?: boolean;
+  /**
+   * When true: non-retail variants use a sticky test bar; **retail-two-row** pins only the top
+   * row (logo/search/actions) for the full page scroll via `BlogNavbarWidget` `stickyNavbar`.
+   */
+  stickyNavbar?: boolean;
   showSearch?: boolean;
   showButtons?: boolean; // used as "show icons" for variant test flow
   showPrimaryButton?: boolean;

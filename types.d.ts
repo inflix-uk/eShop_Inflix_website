@@ -180,6 +180,8 @@ export interface ProductData {
       url?: string;
     } | null;
   }[];
+  /** Present when product payload includes a resolved list/catalog price (e.g. scoped pricing APIs). */
+  price?: number;
 }
 export interface SelectedVariant {
   metaImage: {
