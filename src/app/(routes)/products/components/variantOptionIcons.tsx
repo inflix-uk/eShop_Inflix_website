@@ -1,6 +1,10 @@
 "use client";
 
 import React from "react";
+import {
+  isCatalogPresetIconId,
+  renderPresetCatalogIcon,
+} from "./catalogPresetIcons";
 
 function apiBase(): string {
   const u = process.env.NEXT_PUBLIC_API_URL || "";
@@ -88,6 +92,11 @@ export function renderVariantOptionIcon(
 
   if (raw && looksLikeImageUrl(raw)) {
     return <img src={raw} alt="" className={`${className} object-contain`} />;
+  }
+
+  if (raw && isCatalogPresetIconId(raw)) {
+    const preset = renderPresetCatalogIcon(raw, className, innerClassName);
+    if (preset) return preset;
   }
 
   return null;

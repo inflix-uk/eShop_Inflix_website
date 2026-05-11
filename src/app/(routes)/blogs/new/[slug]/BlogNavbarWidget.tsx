@@ -13,7 +13,20 @@ import {
   FiX,
   FiChevronDown,
 } from "react-icons/fi";
-import { createContext, useContext, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import NavbarSearch from "@/app/components/navbar/NavbarSearch";
+import { useAuth } from "@/app/context/Auth";
+import Link from "next/link";
 import type { IconType } from "react-icons";
 import * as FaIcons from "react-icons/fa";
 import * as Fa6Icons from "react-icons/fa6";
@@ -35,7 +48,8 @@ type NavbarLinkItem = {
   label?: string;
   url?: string;
   icon?: string;
-  linkType?: "label" | "icon";
+  /** `icon_label` shows react-icons code from `icon` plus visible `label` text. */
+  linkType?: "label" | "icon" | "icon_label";
   children?: Array<{
     id?: string;
     label?: string;
@@ -85,6 +99,8 @@ export type NavbarWidgetContent = {
   menuLinkHoverColor?: string;
   navbarBgColor?: string;
   classicRightSectionBgColor?: string;
+  /** Retail two-row only: when true, logo/search/actions row stays pinned to viewport (admin “Sticky navbar”). */
+  stickyNavbar?: boolean;
 };
 
 function resolveNavbarIconByName(iconName: string | undefined, fallback: IconType): IconType {
@@ -127,6 +143,70 @@ function resolveHref(raw?: string): string {
   if (value.startsWith("/")) return value;
   return `/${value}`;
 }
+
+const CUSTOMER_DASHBOARD_HREF = "/customer/dashboard";
+
+/**
+ * Second action slot is normally account/profile. When logged in, ignore admin CMS URL
+ * and send users to the storefront customer dashboard.
+ */
+function resolveActionIcon2UrlForSession(
+  content: NavbarWidgetContent | undefined,
+  isLoggedIn: boolean
+): string | undefined {
+  if (!content) return undefined;
+  if (content.actionIcon2OpenCart === true) {
+    return content.actionIcon2Url;
+  }
+  if (isLoggedIn) {
+    return CUSTOMER_DASHBOARD_HREF;
+  }
+  return content.actionIcon2Url || "/login";
+}
+
+function LogoHomeLink({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href="/"
+      prefetch={false}
+      aria-label="Home"
+      className={
+        className ??
+        "inline-flex shrink-0 items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      }
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** Logo image dimensions — aligned with retail-two-row for every variant. */
+const NAV_LOGO_IMG_CLASS =
+  "h-12 w-auto max-w-full object-contain object-left md:h-14 md:w-full md:max-h-[3.5rem] md:object-left";
+/** Width cap on small screens; desktop column matches retail. */
+const NAV_LOGO_WRAPPER_CLASS =
+  "flex min-w-0 max-w-[46%] items-center gap-2.5 md:w-[18%] md:min-w-[160px] md:max-w-[220px] md:shrink-0";
+const NAV_LOGO_LINK_INNER_CLASS =
+  "inline-flex w-full min-w-0 items-center justify-start rounded-md";
+
+/** Primary/secondary CTAs: avoid extreme stadium pills when label is long (was rounded-full + fixed h). */
+const NAVBAR_CTA_SM =
+  "inline-flex min-h-9 max-w-full shrink items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-xs font-semibold leading-snug";
+const NAVBAR_CTA_MD =
+  "inline-flex min-h-9 max-w-full shrink items-center justify-center gap-2 rounded-xl px-4 py-2 text-center text-sm font-semibold leading-snug sm:min-h-10";
+/** Business desktop: compact single-row CTAs beside search/icons. */
+const NAVBAR_BUSINESS_CTA_CLASS =
+  "inline-flex h-8 min-w-0 max-w-[9.5rem] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight shadow-sm sm:h-8 sm:max-w-[11rem] sm:gap-1.5 sm:px-2.5 sm:text-[11px] md:max-w-[12rem] md:text-xs";
+
+/** Developer dark pill: keep CTAs on one row with icon rail. */
+const NAVBAR_DEVELOPER_CTA_CLASS =
+  "inline-flex h-8 min-w-0 max-w-[8.5rem] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight sm:max-w-[10rem] sm:gap-1.5 sm:px-2.5 sm:text-[11px] md:max-w-[11rem] md:text-xs";
 
 const CartCountContext = createContext<number>(0);
 const CartSubtotalContext = createContext<number>(0);
@@ -283,14 +363,36 @@ function resolveAssetSrc(raw?: string): string {
   return `${api}/uploads/${value}`;
 }
 
-function isIconLink(link: NavbarLinkItem): boolean {
-  return link?.linkType === "icon";
+function linkTypeNormalized(link: NavbarLinkItem | undefined): string {
+  return String(link?.linkType || "label").toLowerCase().replace(/-/g, "_");
+}
+
+function isIconOnlyLink(link: NavbarLinkItem): boolean {
+  return linkTypeNormalized(link) === "icon";
+}
+
+function isIconLabelLink(link: NavbarLinkItem): boolean {
+  return linkTypeNormalized(link) === "icon_label";
+}
+
+function navLinkAriaLabel(link: NavbarLinkItem): string {
+  return String(link?.label || link?.url || "Link").trim() || "Link";
 }
 
 function renderNavLinkContent(link: NavbarLinkItem, fallbackIcon: IconType = FiGrid) {
-  if (isIconLink(link)) {
+  if (isIconOnlyLink(link)) {
     const Icon = resolveNavbarIconByName(link?.icon, fallbackIcon);
-    return <Icon className="h-4 w-4" />;
+    return <Icon className="h-4 w-4" aria-hidden />;
+  }
+  if (isIconLabelLink(link)) {
+    const Icon = resolveNavbarIconByName(link?.icon, fallbackIcon);
+    const text = link?.label?.trim() || "";
+    return (
+      <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 sm:gap-2">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        {text ? <span className="min-w-0 truncate">{text}</span> : null}
+      </span>
+    );
   }
   return link?.label || "";
 }
@@ -315,6 +417,9 @@ function NavLinkItemNode({
   onNavigate?: () => void;
 }) {
   const children = getDropdownChildren(link);
+  const aria = navLinkAriaLabel(link);
+  const showAria = isIconOnlyLink(link) || (isIconLabelLink(link) && !String(link?.label || "").trim());
+
   if (children.length === 0) {
     return (
       <a
@@ -323,6 +428,7 @@ function NavLinkItemNode({
         data-nav-link="1"
         className={linkClassName}
         onClick={onNavigate}
+        aria-label={showAria ? aria : undefined}
       >
         {renderNavLinkContent(link, fallbackIcon)}
       </a>
@@ -331,7 +437,13 @@ function NavLinkItemNode({
 
   return (
     <div key={link.id || i} className="group relative">
-      <a href={resolveHref(link.url)} data-nav-link="1" className={linkClassName} onClick={onNavigate}>
+      <a
+        href={resolveHref(link.url)}
+        data-nav-link="1"
+        className={linkClassName}
+        onClick={onNavigate}
+        aria-label={showAria ? aria : undefined}
+      >
         <span className="inline-flex items-center gap-1">
           {renderNavLinkContent(link, fallbackIcon)}
           <FiChevronDown className="h-3 w-3" />
@@ -494,21 +606,21 @@ function NavbarModern({
       style={sectionStyle}
     >
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-3">
 
         {/* ================= LEFT: LOGO + mobile menu ================= */}
-        <div className="flex w-full items-center justify-between md:w-auto md:justify-start">
-          <div className="flex items-center gap-2.5">
+        <div className="flex w-full shrink-0 items-center justify-between md:w-auto md:justify-start">
+          <div className={NAV_LOGO_WRAPPER_CLASS}>
             {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt="logo"
-                className="h-10 w-auto max-w-[120px] rounded-md object-contain"
-              />
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
+              </LogoHomeLink>
             ) : (
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-emerald-600 to-emerald-800 text-[11px] font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-emerald-600 to-emerald-800 text-[11px] font-bold text-white">
+                  {logoText.slice(0, 2).toUpperCase()}
+                </span>
+              </LogoHomeLink>
             )}
           </div>
           <button
@@ -521,89 +633,104 @@ function NavbarModern({
           </button>
         </div>
 
-        {/* ================= RIGHT: MENU (desktop) ================= */}
+        {/* ================= RIGHT: MENU (desktop) — grid avoids nav/search/CTA overlap ================= */}
         <div
-          className={`hidden w-full flex-wrap items-center gap-2 rounded-2xl bg-[#DEE3DE] p-2 sm:gap-4 sm:px-6 md:flex md:px-8 overflow-visible ${
-            isClassicLayout ? "md:ml-auto md:w-auto" : "md:w-auto"
-          }`}
+          className={`hidden w-full min-w-0 rounded-2xl bg-[#DEE3DE] p-2 sm:px-4 md:px-3 lg:px-4 overflow-visible ${
+            hasRightEndContent
+              ? "md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-2"
+              : "md:flex md:items-center md:justify-center"
+          } ${isClassicLayout ? "md:ml-auto md:min-w-0 md:flex-1" : "md:min-w-0 md:flex-1"}`}
           style={classicRightSectionBgStyle}
         >
-
-          {/* LINKS */}
-          <nav
-            className={`flex w-full items-center gap-4 overflow-visible md:gap-6 ${
-              hasRightEndContent ? "md:w-auto" : "md:w-full md:justify-center"
-            }`}
-          >
-            {links.map((link, i) => (
-              <NavLinkItemNode
-                key={link.id || i}
-                link={link}
-                i={i}
-                fallbackIcon={FiGrid}
-                linkClassName="text-sm font-medium text-slate-700 transition hover:text-slate-900"
-              />
-            ))}
-          </nav>
-
-          {/* SEARCH */}
-          {showSearch ? (
-            <div className="hidden lg:flex items-center px-3 py-2">
-              <input
-                type="search"
-                placeholder="Search"
-                className="w-52 bg-transparent rounded-2xl text-sm text-slate-700 outline-none placeholder:text-slate-400"
-              />
-            </div>
-          ) : null}
-
-          {/* ================= ICONS (ADDED ONLY) ================= */}
-          {showIcons ? (
-          <div className="ml-auto flex items-center gap-2 md:ml-0">
-
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800" style={actionIcon1Style}>
-              <ActionIcon1 className="h-4 w-4" />
-            </ActionIconLink>
-
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800" style={actionIcon2Style}>
-              <ActionIcon2 className="h-4 w-4" />
-            </ActionIconLink>
-
-          </div>
-          ) : null}
-
-          {/* PRIMARY BUTTON */}
-          {showPrimaryButton || showSecondaryButton ? (
+          {hasRightEndContent ? (
             <>
-              {showPrimaryButton ? (
-                <a
-                  href={resolveHref(content?.primaryButtonUrl)}
-                  className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
-                  style={primaryButtonStyle}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <PrimaryButtonIcon className="h-4 w-4" />
-                  {primaryLabel}
-                  </span>
-                </a>
-              ) : null}
+              <nav className="flex min-w-0 flex-nowrap items-center justify-self-start gap-3 overflow-x-auto md:gap-4">
+                {links.map((link, i) => (
+                  <NavLinkItemNode
+                    key={link.id || i}
+                    link={link}
+                    i={i}
+                    fallbackIcon={FiGrid}
+                    linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                  />
+                ))}
+              </nav>
 
-              {/* SECONDARY BUTTON */}
-              {showSecondaryButton ? (
-                <a
-                  href={resolveHref(content?.secondaryButtonUrl)}
-                  className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600"
-                  style={secondaryButtonStyle}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <SecondaryButtonIcon className="h-4 w-4" />
-                  {secondaryLabel}
-                  </span>
-                </a>
-              ) : null}
+              {showSearch ? (
+                <div className="hidden min-w-0 max-w-[min(100%,14rem)] items-center justify-self-center px-1 py-1 md:flex md:max-w-[min(100%,12rem)] lg:max-w-[min(100%,16rem)]">
+                  <NavbarSearch variant="compact" placeholder="Search" className="w-full min-w-0" />
+                </div>
+              ) : (
+                <span className="hidden w-0 min-w-0 shrink-0 md:block" aria-hidden />
+              )}
+
+              <div className="flex min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 justify-self-end sm:gap-2">
+                {showIcons ? (
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <ActionIconLink
+                      href={content?.actionIcon1Url}
+                      openCartOnClick={content?.actionIcon1OpenCart === true}
+                      onOpenCart={content?.onOpenCart}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
+                      style={actionIcon1Style}
+                    >
+                      <ActionIcon1 className="h-4 w-4" />
+                    </ActionIconLink>
+                    <ActionIconLink
+                      href={content?.actionIcon2Url}
+                      openCartOnClick={content?.actionIcon2OpenCart === true}
+                      onOpenCart={content?.onOpenCart}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
+                      style={actionIcon2Style}
+                    >
+                      <ActionIcon2 className="h-4 w-4" />
+                    </ActionIconLink>
+                  </div>
+                ) : null}
+
+                {showPrimaryButton || showSecondaryButton ? (
+                  <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+                    {showPrimaryButton ? (
+                      <a
+                        href={resolveHref(content?.primaryButtonUrl)}
+                        className={`${NAVBAR_DEVELOPER_CTA_CLASS} max-w-[9.5rem] bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800`}
+                        style={primaryButtonStyle}
+                      >
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                          <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{primaryLabel}</span>
+                        </span>
+                      </a>
+                    ) : null}
+                    {showSecondaryButton ? (
+                      <a
+                        href={resolveHref(content?.secondaryButtonUrl)}
+                        className={`${NAVBAR_DEVELOPER_CTA_CLASS} max-w-[9.5rem] bg-orange-500 text-white shadow-sm transition hover:bg-orange-600`}
+                        style={secondaryButtonStyle}
+                      >
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                          <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{secondaryLabel}</span>
+                        </span>
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </>
-          ) : null}
-
+          ) : (
+            <nav className="flex min-w-0 flex-wrap items-center justify-center gap-3 overflow-x-auto md:flex-nowrap md:gap-4">
+              {links.map((link, i) => (
+                <NavLinkItemNode
+                  key={link.id || i}
+                  link={link}
+                  i={i}
+                  fallbackIcon={FiGrid}
+                  linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                />
+              ))}
+            </nav>
+          )}
         </div>
       </div>
 
@@ -627,10 +754,11 @@ function NavbarModern({
           ))}
         </nav>
         {showSearch ? (
-          <input
-            type="search"
+          <NavbarSearch
+            variant="compact"
             placeholder="Search"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
           />
         ) : null}
         {showIcons ? (
@@ -648,22 +776,22 @@ function NavbarModern({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
+                className={`${NAVBAR_CTA_MD} bg-emerald-700 text-white`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-4 w-4" />
+                <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white"
+                className={`${NAVBAR_CTA_MD} bg-orange-500 text-white`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-4 w-4" />
+                <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -694,8 +822,6 @@ function NavbarMinimalist({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton === true;
   const showSecondaryButton = content?.showSecondaryButton === true;
-  const primaryCtaLabel = content?.primaryButtonLabel?.trim() || "";
-  const secondaryCtaLabel = content?.secondaryButtonLabel?.trim() || "";
   const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
   const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
   const actionIcon1Style: CSSProperties = {
@@ -713,23 +839,21 @@ function NavbarMinimalist({
   const navbarBgStyle = content?.navbarBgColor
     ? { backgroundColor: content.navbarBgColor }
     : undefined;
-  const businessCenterNavBgStyle = content?.classicRightSectionBgColor
-    ? { backgroundColor: content.classicRightSectionBgColor }
-    : undefined;
-  const developerActionsBarStyle = content?.navbarBgColor
-    ? { backgroundColor: content.navbarBgColor }
-    : undefined;
   return (
     <header className="w-full bg-white" style={navbarBgStyle}>
-      <div className="mx-auto flex max-w-7xl flex-col px-4 py-3 sm:px-6 md:h-16 md:flex-row md:items-center md:justify-between md:py-0">
-        <div className="flex w-full items-center justify-between md:hidden">
-          <div className="flex items-center gap-3">
+      <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 px-4 py-3 sm:px-6 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-3 md:py-0">
+        <div className="col-span-full flex w-full min-w-0 items-center justify-between md:hidden">
+          <div className={NAV_LOGO_WRAPPER_CLASS}>
             {logoUrl ? (
-              <img src={logoUrl} alt={`${logoText} logo`} className="h-12 w-12 rounded-md object-contain" />
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+              </LogoHomeLink>
             ) : (
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
+                  {logoText.slice(0, 2).toUpperCase()}
+                </span>
+              </LogoHomeLink>
             )}
           </div>
           <button
@@ -742,77 +866,92 @@ function NavbarMinimalist({
           </button>
         </div>
 
-        <nav className="hidden w-full items-center gap-10 overflow-visible md:flex md:w-auto">
+        <nav className="hidden min-w-0 items-center justify-self-start gap-4 overflow-x-auto md:flex md:flex-nowrap md:gap-5">
           {links.map((link, i) => (
             <NavLinkItemNode
               key={link.id || i}
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900"
             />
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className={`hidden min-w-0 shrink-0 items-center justify-self-center md:flex ${NAV_LOGO_WRAPPER_CLASS}`}>
           {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-32 w-32 rounded-md object-contain" />
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
           ) : (
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
+                {logoText.slice(0, 2).toUpperCase()}
+              </span>
+            </LogoHomeLink>
           )}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex md:flex-nowrap">
+        <div className="hidden min-w-0 shrink-0 flex-nowrap items-center justify-end justify-self-end gap-2 sm:gap-3 md:flex">
           {showSearch ? (
-            <div className="hidden items-center px-3 py-2 lg:flex">
-              <input
-                type="search"
-                placeholder="Search"
-                className="w-52 rounded-2xl bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-              />
+            <div className="hidden min-w-0 max-w-[min(100%,12rem)] items-center px-1 py-1 md:flex lg:max-w-[min(100%,15rem)]">
+              <NavbarSearch variant="compact" placeholder="Search" className="w-full min-w-0" />
             </div>
           ) : null}
 
           {showIcons ? (
-            <>
-              <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50" style={actionIcon1Style}>
+            <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+              <ActionIconLink
+                href={content?.actionIcon1Url}
+                openCartOnClick={content?.actionIcon1OpenCart === true}
+                onOpenCart={content?.onOpenCart}
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
+                style={actionIcon1Style}
+              >
                 <ActionIcon1 className="h-4 w-4" />
                 <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                   1
                 </span>
               </ActionIconLink>
-
-              <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50" style={actionIcon2Style}>
+              <ActionIconLink
+                href={content?.actionIcon2Url}
+                openCartOnClick={content?.actionIcon2OpenCart === true}
+                onOpenCart={content?.onOpenCart}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
+                style={actionIcon2Style}
+              >
                 <ActionIcon2 className="h-4 w-4" />
               </ActionIconLink>
-            </>
+            </div>
           ) : null}
 
           {showPrimaryButton || showSecondaryButton ? (
-            <>
+            <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
               {showPrimaryButton ? (
                 <a
                   href={resolveHref(content?.primaryButtonUrl)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                  className={`${NAVBAR_DEVELOPER_CTA_CLASS} max-w-[9.5rem] bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800`}
                   style={primaryButtonStyle}
                 >
-                  <PrimaryButtonIcon className="h-3.5 w-3.5" />
-                  {primaryLabel}
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{primaryLabel}</span>
+                  </span>
                 </a>
               ) : null}
               {showSecondaryButton ? (
                 <a
                   href={resolveHref(content?.secondaryButtonUrl)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                  className={`${NAVBAR_DEVELOPER_CTA_CLASS} max-w-[9.5rem] bg-orange-500 text-white shadow-sm transition hover:bg-orange-600`}
                   style={secondaryButtonStyle}
                 >
-                  <SecondaryButtonIcon className="h-3.5 w-3.5" />
-                  {secondaryLabel}
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{secondaryLabel}</span>
+                  </span>
                 </a>
               ) : null}
-            </>
+            </div>
           ) : null}
         </div>
       </div>
@@ -837,10 +976,11 @@ function NavbarMinimalist({
           ))}
         </nav>
         {showSearch ? (
-          <input
-            type="search"
+          <NavbarSearch
+            variant="compact"
             placeholder="Search"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
           />
         ) : null}
         {showIcons ? (
@@ -861,22 +1001,22 @@ function NavbarMinimalist({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-emerald-700 text-white`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-3.5 w-3.5" />
+                <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-orange-500 text-white`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-3.5 w-3.5" />
+                <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -921,102 +1061,128 @@ function NavbarDarkSidebar({
   const navbarBgStyle = content?.navbarBgColor
     ? { backgroundColor: content.navbarBgColor }
     : undefined;
-  const businessCenterNavBgStyle = content?.classicRightSectionBgColor
-    ? { backgroundColor: content.classicRightSectionBgColor }
-    : undefined;
   return (
     <header
       className="relative w-full rounded-3xl border-slate-800 bg-slate-950 text-white md:rounded-full overflow-visible"
       style={navbarBgStyle}
     >
-      <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between px-4 py-3 sm:px-6 md:h-16 md:justify-between md:py-0">
+      <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between px-4 py-3 sm:px-6 md:h-16 md:justify-between md:py-0">
         <div className="flex items-center gap-3 md:hidden">
-          {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-12 w-12 rounded-md object-contain" />
-          ) : (
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
-          )}
+          <div className={NAV_LOGO_WRAPPER_CLASS}>
+            {logoUrl ? (
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+              </LogoHomeLink>
+            ) : (
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
+                  {logoText.slice(0, 2).toUpperCase()}
+                </span>
+              </LogoHomeLink>
+            )}
+          </div>
         </div>
         <button
           type="button"
           aria-label="Open menu"
-          className="rounded-lg p-2 text-white md:hidden"
+          className="rounded-lg border border-slate-200/90 bg-white p-2 text-slate-900 shadow-sm md:hidden"
           onClick={() => setMobileOpen(true)}
         >
           <FiMenu className="h-6 w-6" aria-hidden />
         </button>
 
-        <div className="relative hidden h-16 w-full items-center md:flex">
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              <img src={logoUrl} alt={`${logoText} logo`} className="h-24 w-24 rounded-md object-contain" />
-            ) : (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            )}
+        <div className="relative hidden h-16 w-full min-w-0 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-0 lg:gap-x-3">
+          <div className="flex min-w-0 items-center gap-2 md:gap-2.5">
+            <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
+              {logoUrl ? (
+                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                  <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+                </LogoHomeLink>
+              ) : (
+                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
+                    {logoText.slice(0, 2).toUpperCase()}
+                  </span>
+                </LogoHomeLink>
+              )}
+            </div>
             {showSearch ? (
-              <div className="hidden items-center gap-2 rounded-full px-6 py-1.5 text-slate-300 lg:flex">
-                <input
-                  type="search"
+              <div className="hidden min-w-0 max-w-[10rem] shrink md:flex md:max-w-[11rem] lg:max-w-[13rem] xl:max-w-[14rem]">
+                <NavbarSearch
+                  variant="compactDark"
                   placeholder="Search products..."
-                  className="w-56 rounded-2xl bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  className="min-w-0 w-full"
                 />
               </div>
             ) : null}
           </div>
 
-          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
+          <nav
+            className="flex min-w-0 max-w-full flex-nowrap items-center justify-center gap-3 overflow-visible px-1 md:gap-3 lg:gap-4"
+            aria-label="Primary"
+          >
             {links.map((link, i) => (
               <NavLinkItemNode
                 key={link.id || i}
                 link={link}
                 i={i}
                 fallbackIcon={FiGrid}
-                linkClassName="text-sm font-medium text-slate-300 transition hover:text-white"
+                linkClassName="shrink-0 whitespace-nowrap text-xs font-medium text-slate-300 transition hover:text-white sm:text-sm"
               />
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="flex w-full min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-visible pt-0.5 sm:gap-2">
             {showIcons ? (
-              <>
-                <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30" style={actionIcon1Style}>
-                  <ActionIcon1 className="h-4 w-4" />
-                  <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
+              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+                <ActionIconLink
+                  href={content?.actionIcon1Url}
+                  openCartOnClick={content?.actionIcon1OpenCart === true}
+                  onOpenCart={content?.onOpenCart}
+                  className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30 sm:h-9 sm:w-9"
+                  style={actionIcon1Style}
+                >
+                  <ActionIcon1 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-orange-500 text-[9px] text-white sm:-right-1 sm:-top-1 sm:h-4 sm:w-4 sm:text-[10px]">
                     2
                   </span>
                 </ActionIconLink>
-                <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30" style={actionIcon2Style}>
-                  <ActionIcon2 className="h-4 w-4" />
+                <ActionIconLink
+                  href={content?.actionIcon2Url}
+                  openCartOnClick={content?.actionIcon2OpenCart === true}
+                  onOpenCart={content?.onOpenCart}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30 sm:h-9 sm:w-9"
+                  style={actionIcon2Style}
+                >
+                  <ActionIcon2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </ActionIconLink>
-              </>
+              </div>
             ) : null}
             {showPrimaryButton || showSecondaryButton ? (
-              <>
+              <div className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-1.5">
                 {showPrimaryButton ? (
                   <a
                     href={resolveHref(content?.primaryButtonUrl)}
-                    className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                    className={`${NAVBAR_DEVELOPER_CTA_CLASS} border border-white/10 bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800`}
                     style={primaryButtonStyle}
                   >
-                    <PrimaryButtonIcon className="h-3.5 w-3.5" />
-                    {content?.primaryButtonLabel?.trim() || "Sign in"}
+                    <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                    <span className="min-w-0 truncate">
+                      {content?.primaryButtonLabel?.trim() || "Sign in"}
+                    </span>
                   </a>
                 ) : null}
                 {showSecondaryButton ? (
                   <a
                     href={resolveHref(content?.secondaryButtonUrl)}
-                    className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                    className={`${NAVBAR_DEVELOPER_CTA_CLASS} border border-white/10 bg-orange-500 text-white shadow-sm transition hover:bg-orange-600`}
                     style={secondaryButtonStyle}
                   >
-                    <SecondaryButtonIcon className="h-3.5 w-3.5" />
-                    {secondaryLabel}
+                    <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                    <span className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
-              </>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1025,9 +1191,9 @@ function NavbarDarkSidebar({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="border-l border-slate-700 bg-slate-950 text-white"
-        headerClassName="border-slate-700 text-white"
-        closeButtonClassName="hover:bg-white/10 text-white"
+        panelClassName="border-l border-slate-200 bg-white text-slate-900"
+        headerClassName="border-slate-200 text-slate-900"
+        closeButtonClassName="text-slate-600 hover:bg-slate-100"
       >
         <nav className="flex flex-col gap-2">
           {links.map((link, i) => (
@@ -1036,27 +1202,40 @@ function NavbarDarkSidebar({
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+              linkClassName="rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
               onNavigate={() => setMobileOpen(false)}
             />
           ))}
         </nav>
         {showSearch ? (
-          <input
-            type="search"
+          <NavbarSearch
+            variant="compactPill"
             placeholder="Search products..."
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
           />
         ) : null}
         {showIcons ? (
           <div className="flex gap-2">
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm" style={actionIcon1Style}>
+            <ActionIconLink
+              href={content?.actionIcon1Url}
+              openCartOnClick={content?.actionIcon1OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm hover:bg-slate-100"
+              style={actionIcon1Style}
+            >
               <ActionIcon1 className="h-4 w-4" />
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                 2
               </span>
             </ActionIconLink>
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm" style={actionIcon2Style}>
+            <ActionIconLink
+              href={content?.actionIcon2Url}
+              openCartOnClick={content?.actionIcon2OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm hover:bg-slate-100"
+              style={actionIcon2Style}
+            >
               <ActionIcon2 className="h-4 w-4" />
             </ActionIconLink>
           </div>
@@ -1066,22 +1245,22 @@ function NavbarDarkSidebar({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-emerald-700 text-white`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-3.5 w-3.5" />
+                <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-orange-500 text-white`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-3.5 w-3.5" />
+                <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -1128,15 +1307,19 @@ function NavbarBusiness({
         }
       : undefined;
   return (
-    <header className="relative w-full px-4 py-3 sm:px-6">
+    <header className="relative mx-auto w-full max-w-6xl overflow-visible px-4 py-3 sm:px-6">
       <div className="flex items-center justify-between md:hidden">
-        <div className="flex items-center gap-2.5">
+        <div className={NAV_LOGO_WRAPPER_CLASS}>
           {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-14 w-14 rounded-md object-contain" />
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
           ) : (
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
+                {logoText.slice(0, 2).toUpperCase()}
+              </span>
+            </LogoHomeLink>
           )}
         </div>
         <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
@@ -1144,80 +1327,99 @@ function NavbarBusiness({
         </button>
       </div>
 
-      <div className="relative hidden min-h-[5rem] items-center md:flex md:justify-between md:gap-6">
-        <div className="flex items-center gap-2.5">
-          {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-24 w-24 rounded-md object-contain" />
-          ) : (
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
-          )}
-          {showSearch ? (
-            <div className="hidden px-8 lg:flex">
-              <input
-                type="search"
-                placeholder="Search..."
-                className="w-58 rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-              />
-            </div>
-          ) : null}
+      {/* One row: 1fr | auto | 1fr — nav pill is true horizontal center; logo left, actions + search right. */}
+      <div className="relative hidden w-full min-w-0 overflow-visible md:grid md:min-h-[4.25rem] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-1 lg:gap-x-3">
+        <div className="flex min-w-0 items-center justify-start gap-2 md:gap-2.5">
+          <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
+            {logoUrl ? (
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+              </LogoHomeLink>
+            ) : (
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
+                  {logoText.slice(0, 2).toUpperCase()}
+                </span>
+              </LogoHomeLink>
+            )}
+          </div>
         </div>
 
-        <nav
-          className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-2 overflow-visible rounded-full bg-black px-3 py-1.5 md:flex"
-          style={businessCenterNavBgStyle}
-        >
-          {links.map((link, i) => (
-            <NavLinkItemNode
-              key={link.id || i}
-              link={link}
-              i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="rounded-full px-4 py-1.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
-            />
-          ))}
-        </nav>
+        <div className="flex min-w-0 items-center justify-center">
+          <nav
+            className="inline-flex max-w-full flex-nowrap items-center gap-1 rounded-full bg-black px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5"
+            style={businessCenterNavBgStyle}
+            aria-label="Primary"
+          >
+            {links.map((link, i) => (
+              <NavLinkItemNode
+                key={link.id || i}
+                link={link}
+                i={i}
+                fallbackIcon={FiGrid}
+                linkClassName="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium text-white/80 transition hover:bg-white/10 hover:text-white sm:px-3 sm:py-1.5 sm:text-[13px]"
+              />
+            ))}
+          </nav>
+        </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-3 md:flex-nowrap">
+        <div className="flex w-full min-w-0 flex-nowrap items-center justify-end gap-1 overflow-visible pt-1 sm:gap-1.5 md:gap-2">
           {showIcons ? (
-            <>
-              <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon1Style}>
-                <ActionIcon1 className="h-4 w-4" />
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <ActionIconLink
+                href={content?.actionIcon1Url}
+                openCartOnClick={content?.actionIcon1OpenCart === true}
+                onOpenCart={content?.onOpenCart}
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-full sm:h-9 sm:w-9"
+                style={actionIcon1Style}
+              >
+                <ActionIcon1 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                   2
                 </span>
               </ActionIconLink>
-              <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon2Style}>
-                <ActionIcon2 className="h-4 w-4" />
+              <ActionIconLink
+                href={content?.actionIcon2Url}
+                openCartOnClick={content?.actionIcon2OpenCart === true}
+                onOpenCart={content?.onOpenCart}
+                className="flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-full sm:h-9 sm:w-9"
+                style={actionIcon2Style}
+              >
+                <ActionIcon2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </ActionIconLink>
-            </>
+            </div>
           ) : null}
           {showPrimaryButton || showSecondaryButton ? (
-            <>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
               {showPrimaryButton ? (
                 <a
                   href={resolveHref(content?.primaryButtonUrl)}
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                  className={`${NAVBAR_BUSINESS_CTA_CLASS} bg-emerald-700 text-white transition hover:bg-emerald-800`}
                   style={primaryButtonStyle}
                 >
-                  <PrimaryButtonIcon className="h-4 w-4" />
-                  {primaryLabel}
+                  <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                  <span className="min-w-0 truncate">{primaryLabel}</span>
                 </a>
               ) : null}
               {showSecondaryButton ? (
                 <a
                   href={resolveHref(content?.secondaryButtonUrl)}
-                  className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                  className={`${NAVBAR_BUSINESS_CTA_CLASS} bg-orange-500 text-white transition hover:bg-orange-600`}
                   style={secondaryButtonStyle}
                 >
-                  <SecondaryButtonIcon className="h-4 w-4" />
-                  {secondaryLabel}
+                  <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                  <span className="min-w-0 truncate">{secondaryLabel}</span>
                 </a>
               ) : null}
-            </>
+            </div>
+          ) : null}
+          {showSearch ? (
+            <div className="min-w-0 max-w-[10rem] shrink sm:max-w-[11rem] md:max-w-[12rem] lg:max-w-[13rem] xl:max-w-[14rem]">
+              <NavbarSearch variant="compactPill" placeholder="Search..." className="min-w-0 w-full" />
+            </div>
           ) : null}
         </div>
+        
       </div>
 
       <NavbarMobileDrawer
@@ -1240,10 +1442,11 @@ function NavbarBusiness({
           ))}
         </nav>
         {showSearch ? (
-          <input
-            type="search"
+          <NavbarSearch
+            variant="compactPill"
             placeholder="Search..."
-            className="w-full rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
           />
         ) : null}
         {showIcons ? (
@@ -1264,22 +1467,22 @@ function NavbarBusiness({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
+                className={`${NAVBAR_CTA_MD} bg-emerald-700 text-white`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-4 w-4" />
+                <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white"
+                className={`${NAVBAR_CTA_MD} bg-orange-500 text-white`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-4 w-4" />
+                <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -1335,17 +1538,21 @@ function NavbarDeveloper({
 
   return (
     <header
-      className="w-full px-4 py-3 sm:px-6"
+      className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6"
       // style={navbarBgStyle}
     >
       <div className="flex items-center justify-between md:hidden">
-        <div className="flex items-center gap-3">
+        <div className={NAV_LOGO_WRAPPER_CLASS}>
           {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-14 w-14 rounded-lg object-contain" />
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
           ) : (
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                {logoText.slice(0, 2).toUpperCase()}
+              </span>
+            </LogoHomeLink>
           )}
         </div>
         <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
@@ -1353,58 +1560,76 @@ function NavbarDeveloper({
         </button>
       </div>
 
-      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between md:gap-6">
-        <div className="flex items-center gap-3">
+      <div className="hidden min-w-0 w-full flex-col gap-3 md:flex md:flex-nowrap md:flex-row md:items-center md:justify-between md:gap-3 lg:gap-4">
+        <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
           {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-24 w-24 rounded-lg object-contain" />
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
           ) : (
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                {logoText.slice(0, 2).toUpperCase()}
+              </span>
+            </LogoHomeLink>
           )}
         </div>
 
         {showSearch ? (
-          <div className="flex w-full md:flex-1 md:max-w-md">
-            <div className="relative w-full">
-              <input
-                type="search"
-                placeholder="Search anything..."
-                className="
-                  w-full rounded-full border border-slate-200 bg-slate-50
-                  px-4 py-2 text-sm text-slate-700
-                  outline-none transition
-                  focus:border-violet-400 focus:bg-white
-                "
-              />
-            </div>
+          <div className="flex min-w-0 w-full shrink md:max-w-[11rem] md:flex-1 lg:max-w-[14rem] xl:max-w-[16rem]">
+            <NavbarSearch variant="compact" placeholder="Search anything..." className="min-w-0 w-full" />
           </div>
         ) : (
-          <div className="hidden flex-1 md:block" />
+          <div className="hidden min-w-0 flex-1 md:block" />
         )}
 
-        <div className="flex w-full items-center gap-2 md:w-auto">
+        <div className="flex min-w-0 w-full items-center justify-end md:w-auto md:shrink-0">
           <div
-            className="flex w-full items-center gap-2 overflow-visible rounded-full bg-slate-900/95 p-1.5 px-4 shadow-lg backdrop-blur-md md:w-auto"
+            className="flex max-w-full flex-nowrap items-center gap-1 overflow-visible rounded-full bg-slate-900/95 p-1 px-2 shadow-lg backdrop-blur-md sm:gap-1.5 sm:px-2.5 md:max-w-[min(100vw-2rem,42rem)] lg:max-w-none"
             style={developerActionsBarStyle}
           >
-            <nav className="flex items-center gap-1">
+            <nav className="flex shrink-0 flex-nowrap items-center gap-0.5 sm:gap-1">
               {links.map((link, i) => {
                 const Icon = getLinkIcon(link.label, link.icon);
+                const lt = linkTypeNormalized(link);
+                if (lt === "icon_label") {
+                  return (
+                    <a
+                      key={link.id || i}
+                      href={resolveHref(link.url)}
+                      data-nav-link="1"
+                      className="
+                        group relative flex h-9 max-w-[9rem] shrink-0 items-center gap-1 rounded-full
+                        px-2 text-white/90 transition-all duration-200
+                        hover:-translate-y-0.5 hover:bg-white/10 hover:text-white
+                        sm:max-w-[11rem] sm:gap-1.5 sm:px-2.5
+                      "
+                      title={link.label || link.icon || "Link"}
+                    >
+                      <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
+                      <span className="min-w-0 truncate text-[11px] font-medium sm:text-xs">
+                        {link.label?.trim() || link.icon || "Link"}
+                      </span>
+                      <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-white opacity-0 transition group-hover:opacity-100" />
+                    </a>
+                  );
+                }
                 return (
                   <a
                     key={link.id || i}
                     href={resolveHref(link.url)}
                     data-nav-link="1"
                     className="
-                      group relative flex h-10 w-10 items-center justify-center
+                      group relative flex h-9 w-9 shrink-0 items-center justify-center
                       rounded-full text-white/80
                       transition-all duration-200
-                      hover:-translate-y-1 hover:bg-white/10 hover:text-white
+                      hover:-translate-y-0.5 hover:bg-white/10 hover:text-white
+                      sm:h-9 sm:w-9
                     "
                     title={link.label || link.icon || "Link"}
+                    aria-label={isIconOnlyLink(link) ? navLinkAriaLabel(link) : undefined}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span className="absolute bottom-1 h-1 w-1 rounded-full bg-white opacity-0 transition group-hover:opacity-100" />
                   </a>
                 );
@@ -1412,63 +1637,65 @@ function NavbarDeveloper({
             </nav>
 
             {showIcons ? (
-              <>
+              <div className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-1.5">
                 <button
                   className="
-                    relative flex h-11 w-11 items-center justify-center
+                    relative flex h-9 w-9 shrink-0 items-center justify-center overflow-visible
                     rounded-full bg-orange-500 text-white
                     transition-all duration-200
-                    hover:-translate-y-1 hover:shadow-lg hover:bg-orange-600
+                    hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-md
                   "
                   title="Cart"
                   type="button"
                   style={actionIcon1Style}
                 >
-                  <ActionIcon1 className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-orange-600">
+                  <ActionIcon1 className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[9px] font-bold text-orange-600 sm:h-4 sm:w-4 sm:text-[10px]">
                     2
                   </span>
                 </button>
 
                 <button
                   className="
-                    flex h-11 w-11 items-center justify-center
+                    flex h-9 w-9 shrink-0 items-center justify-center
                     rounded-full bg-violet-500 text-white
                     transition-all duration-200
-                    hover:-translate-y-1 hover:shadow-lg hover:bg-violet-600
+                    hover:-translate-y-0.5 hover:bg-violet-600 hover:shadow-md
                   "
                   title="User"
                   type="button"
                   style={actionIcon2Style}
                 >
-                  <ActionIcon2 className="h-5 w-5" />
+                  <ActionIcon2 className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                 </button>
-              </>
+              </div>
             ) : null}
 
             {showPrimaryButton || showSecondaryButton ? (
-              <>
+              <div className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-1.5">
                 {showPrimaryButton ? (
                   <a
                     href={resolveHref(content?.primaryButtonUrl)}
-                    className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                    className={`${NAVBAR_DEVELOPER_CTA_CLASS} bg-emerald-700 text-white shadow-sm transition hover:bg-emerald-800`}
                     style={primaryButtonStyle}
                   >
-                    <PrimaryButtonIcon className="h-3.5 w-3.5" />
-                    {content?.primaryButtonLabel?.trim() || "Sign in"}
+                    <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                    <span className="min-w-0 truncate">
+                      {content?.primaryButtonLabel?.trim() || "Sign in"}
+                    </span>
                   </a>
                 ) : null}
                 {showSecondaryButton ? (
                   <a
                     href={resolveHref(content?.secondaryButtonUrl)}
-                    className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                    className={`${NAVBAR_DEVELOPER_CTA_CLASS} bg-orange-500 text-white shadow-sm transition hover:bg-orange-600`}
                     style={secondaryButtonStyle}
                   >
-                    <SecondaryButtonIcon className="h-3.5 w-3.5" />
-                    {secondaryLabel}
+                    <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                    <span className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
-              </>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1484,6 +1711,36 @@ function NavbarDeveloper({
         <nav className="flex flex-col gap-1">
           {links.map((link, i) => {
             const Icon = getLinkIcon(link.label, link.icon);
+            const lt = linkTypeNormalized(link);
+            if (lt === "icon_label") {
+              return (
+                <a
+                  key={link.id || i}
+                  href={resolveHref(link.url)}
+                  data-nav-link="1"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
+                  <span className="min-w-0">{link.label?.trim() || link.icon || "Link"}</span>
+                </a>
+              );
+            }
+            if (lt === "icon") {
+              return (
+                <a
+                  key={link.id || i}
+                  href={resolveHref(link.url)}
+                  data-nav-link="1"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label={navLinkAriaLabel(link)}
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
+                  <span>{link.label?.trim() || "Link"}</span>
+                </a>
+              );
+            }
             return (
               <a
                 key={link.id || i}
@@ -1493,20 +1750,17 @@ function NavbarDeveloper({
                 onClick={() => setMobileOpen(false)}
               >
                 <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
-                {!isIconLink(link) ? (
-                  <span>{renderNavLinkContent(link, FiGrid)}</span>
-                ) : (
-                  <span>{link.label?.trim() || "Link"}</span>
-                )}
+                <span>{renderNavLinkContent(link, FiGrid)}</span>
               </a>
             );
           })}
         </nav>
         {showSearch ? (
-          <input
-            type="search"
+          <NavbarSearch
+            variant="compact"
             placeholder="Search anything..."
-            className="w-full rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 outline-none focus:border-violet-400 focus:bg-white"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
           />
         ) : null}
         {showIcons ? (
@@ -1527,22 +1781,22 @@ function NavbarDeveloper({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-emerald-700 text-white`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-3.5 w-3.5" />
+                <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-3 py-2 text-xs font-semibold text-white"
+                className={`${NAVBAR_CTA_SM} bg-orange-500 text-white`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-3.5 w-3.5" />
+                <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -1589,15 +1843,19 @@ function NavbarBoldLeft({
 
   return (
     <header className="w-full bg-white" style={navbarBgStyle}>
-      <div className="mx-auto max-w-7xl rounded-xl border border-slate-200 px-4 py-3 shadow-sm sm:px-6 md:h-16 md:py-0">
+      <div className="mx-auto w-full min-w-0 max-w-6xl rounded-xl border border-slate-200 px-4 py-3 shadow-sm sm:px-6 md:min-h-16 md:h-auto md:py-2">
         <div className="flex items-center justify-between md:hidden">
-          <div className="flex h-10 w-10 items-center justify-center overflow-visible">
+          <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
             {logoUrl ? (
-              <img src={logoUrl} alt="logo" className="h-14 w-14 object-contain" />
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
+              </LogoHomeLink>
             ) : (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
+              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
+                  {logoText.slice(0, 2).toUpperCase()}
+                </span>
+              </LogoHomeLink>
             )}
           </div>
           <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
@@ -1605,20 +1863,24 @@ function NavbarBoldLeft({
           </button>
         </div>
 
-        <div className="hidden md:flex md:h-16 md:items-center">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center overflow-visible">
+        <div className="hidden min-w-0 md:flex md:w-full md:items-center md:gap-2 lg:gap-3">
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+            <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
               {logoUrl ? (
-                <img src={logoUrl} alt="logo" className="h-14 w-14 object-contain" />
+                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                  <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
+                </LogoHomeLink>
               ) : (
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
+                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
+                    {logoText.slice(0, 2).toUpperCase()}
+                  </span>
+                </LogoHomeLink>
               )}
             </div>
           </div>
 
-          <nav className="flex shrink-0 items-center px-8 gap-4 md:gap-6 lg:gap-8">
+          <nav className="flex min-h-0 min-w-0 flex-1 basis-0 flex-wrap items-center gap-x-2 gap-y-1 px-1 md:gap-x-3 md:gap-y-1 md:px-2 lg:gap-x-4">
             {links.map((link, i) => {
               const isActive = link.label === active;
               return (
@@ -1626,7 +1888,7 @@ function NavbarBoldLeft({
                   key={i}
                   href={resolveHref(link.url)}
                   data-nav-link="1"
-                  className="relative text-sm font-medium text-slate-700 transition hover:text-orange-500"
+                  className="relative shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-orange-500"
                 >
                   {renderNavLinkContent(link, FiGrid)}
                   {isActive ? <span className="absolute -bottom-2 left-0 h-0.5 w-full rounded-full bg-orange-500" /> : null}
@@ -1635,84 +1897,63 @@ function NavbarBoldLeft({
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-[5px]">
-  {showSearch ? (
-    <div className="hidden lg:flex h-9 items-center rounded-full bg-slate-100 px-3">
-      <FiSearch className="h-3.5 w-3.5 text-slate-400" />
+          <div className="ml-auto flex min-w-0 shrink-0 flex-nowrap items-center gap-1 md:gap-1.5">
+            {showSearch ? (
+              <div className="hidden min-w-0 max-w-[10rem] shrink lg:block lg:max-w-[14rem] xl:max-w-[18rem]">
+                <NavbarSearch variant="compactPill" placeholder="Search..." className="min-w-0" />
+              </div>
+            ) : null}
 
-      <input
-        type="search"
-        placeholder="Search..."
-        className="
-          ml-2
-          w-40
-          border-0
-          bg-transparent
-          text-sm
-          text-slate-700
-          placeholder:text-slate-400
-          outline-none
-          ring-0
-          focus:border-0
-          focus:outline-none
-          focus:ring-0
-          focus-visible:outline-none
-          focus-visible:ring-0
-          appearance-none
-          [-webkit-appearance:none]
-        "
-      />
-    </div>
-  ) : null}
+            {showIcons ? (
+              <>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
+                  style={{
+                    backgroundColor: content?.actionIcon1BgColor || "#f1f5f9",
+                    color: content?.actionIcon1Color || "#334155",
+                    ...actionIcon1Style,
+                  }}
+                >
+                  <ActionIcon1 className="h-4 w-4" />
+                </button>
 
-  {showIcons ? (
-    <>
-      <button
-        className="flex h-9 w-9 items-center justify-center rounded-full transition"
-        style={{
-          backgroundColor: content?.actionIcon1BgColor || "#f1f5f9",
-          color: content?.actionIcon1Color || "#334155",
-          ...actionIcon1Style,
-        }}
-      >
-        <ActionIcon1 className="h-4 w-4" />
-      </button>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
+                  style={{
+                    backgroundColor: content?.actionIcon2BgColor || "#f1f5f9",
+                    color: content?.actionIcon2Color || "#334155",
+                    ...actionIcon2Style,
+                  }}
+                >
+                  <ActionIcon2 className="h-4 w-4" />
+                </button>
+              </>
+            ) : null}
 
-      <button
-        className="flex h-9 w-9 items-center justify-center rounded-full transition"
-        style={{
-          backgroundColor: content?.actionIcon2BgColor || "#f1f5f9",
-          color: content?.actionIcon2Color || "#334155",
-          ...actionIcon2Style,
-        }}
-      >
-        <ActionIcon2 className="h-4 w-4" />
-      </button>
-    </>
-  ) : null}
+            {showPrimaryButton ? (
+              <a
+                href={resolveHref(content?.primaryButtonUrl)}
+                className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-orange-500 text-white transition hover:bg-orange-600`}
+                style={primaryButtonStyle}
+              >
+                <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
+                {primaryLabel}
+              </a>
+            ) : null}
 
-  {showPrimaryButton ? (
-    <a
-      href={resolveHref(content?.primaryButtonUrl)}
-      className="inline-flex h-9 items-center gap-2 rounded-full bg-orange-500 px-4 text-sm font-semibold text-white transition hover:bg-orange-600"
-      style={primaryButtonStyle}
-    >
-      <PrimaryButtonIcon className="h-4 w-4" />
-      {primaryLabel}
-    </a>
-  ) : null}
-
-  {showSecondaryButton ? (
-    <a
-      href={resolveHref(content?.secondaryButtonUrl)}
-      className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
-      style={secondaryButtonStyle}
-    >
-      <SecondaryButtonIcon className="h-4 w-4" />
-      {secondaryLabel}
-    </a>
-  ) : null}
-</div>
+            {showSecondaryButton ? (
+              <a
+                href={resolveHref(content?.secondaryButtonUrl)}
+                className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-slate-900 text-white transition hover:bg-slate-800`}
+                style={secondaryButtonStyle}
+              >
+                <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
+                {secondaryLabel}
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -1740,14 +1981,12 @@ function NavbarBoldLeft({
           })}
         </nav>
         {showSearch ? (
-          <div className="flex items-center rounded-md border border-slate-200 bg-white px-3 py-2">
-            <FiSearch className="h-4 w-4 text-slate-500" />
-            <input
-              type="search"
-              placeholder="Search"
-              className="ml-2 w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-            />
-          </div>
+          <NavbarSearch
+            variant="compact"
+            placeholder="Search"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
+          />
         ) : null}
         {showIcons || showPrimaryButton || showSecondaryButton ? (
           <div className="flex flex-col gap-2">
@@ -1780,22 +2019,22 @@ function NavbarBoldLeft({
             {showPrimaryButton ? (
               <a
                 href={resolveHref(content?.primaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                className={`${NAVBAR_CTA_MD} bg-orange-500 text-white shadow-sm`}
                 style={primaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <PrimaryButtonIcon className="h-4 w-4" />
+                <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
                 {primaryLabel}
               </a>
             ) : null}
             {showSecondaryButton ? (
               <a
                 href={resolveHref(content?.secondaryButtonUrl)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                className={`${NAVBAR_CTA_MD} bg-slate-900 text-white shadow-sm`}
                 style={secondaryButtonStyle}
                 onClick={() => setMobileOpen(false)}
               >
-                <SecondaryButtonIcon className="h-4 w-4" />
+                <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
                 {secondaryLabel}
               </a>
             ) : null}
@@ -1819,6 +2058,7 @@ function NavbarRetailTwoRow({
   secondaryLabel: string;
   content: NavbarWidgetContent;
 }) {
+  const cartItemCount = useContext(CartCountContext);
   const cartSubtotal = useContext(CartSubtotalContext);
   const [mobileOpen, setMobileOpen] = useState(false);
   const showSearch = content?.showSearch !== false;
@@ -1842,132 +2082,198 @@ function NavbarRetailTwoRow({
     ? { backgroundColor: content.classicRightSectionBgColor }
     : undefined;
 
-  return (
-    <header className="w-full" style={navbarBgStyle}>
-      <div className="w-full px-4 py-3 sm:px-8 lg:px-12">
-        <div className="flex items-center gap-3 md:hidden">
+  const pinTopRow = content?.stickyNavbar === true;
+  const fixedDockRef = useRef<HTMLDivElement>(null);
+  const [dockH, setDockH] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!pinTopRow) {
+      setDockH(0);
+      return;
+    }
+    const el = fixedDockRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      if (h > 0) setDockH((prev) => (prev === h ? prev : h));
+    };
+    measure();
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => measure());
+      ro.observe(el);
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [pinTopRow]);
+
+  const topRowShellClass = "mx-auto w-full max-w-6xl px-4 py-3 sm:px-10 lg:px-10";
+
+  const topRowContent = (
+    <>
+      <div className="flex items-center gap-3 md:hidden">
+        <div className={NAV_LOGO_WRAPPER_CLASS}>
           {logoUrl ? (
-            <img src={logoUrl} alt={`${logoText} logo`} className="h-10 w-auto object-contain" />
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
           ) : (
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-              {logoText.slice(0, 2).toUpperCase()}
-            </span>
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
+                {logoText.slice(0, 2).toUpperCase()}
+              </span>
+            </LogoHomeLink>
           )}
-          <button
-            type="button"
-            aria-label="Open menu"
-            className="ml-auto rounded-lg p-2 text-slate-800"
-            onClick={() => setMobileOpen(true)}
-          >
-            <FiMenu className="h-6 w-6" aria-hidden />
-          </button>
         </div>
+        <button
+          type="button"
+          aria-label="Open menu"
+          className="ml-auto rounded-lg p-2 text-slate-800"
+          onClick={() => setMobileOpen(true)}
+        >
+          <FiMenu className="h-6 w-6" aria-hidden />
+        </button>
+      </div>
 
-        <div className="hidden items-center justify-between gap-8 lg:flex">
-          <div className="min-w-[170px]">
-            {logoUrl ? (
-              <img src={logoUrl} alt={`${logoText} logo`} className="h-12 w-auto object-contain" />
-            ) : (
+      <div className="hidden items-center justify-between gap-6 lg:flex lg:min-h-[52px]">
+        <div className={NAV_LOGO_WRAPPER_CLASS}>
+          {logoUrl ? (
+            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
+              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
+            </LogoHomeLink>
+          ) : (
+            <LogoHomeLink className="inline-flex min-w-0 items-center justify-start rounded-md">
               <span className="text-lg font-semibold text-slate-900">{logoText}</span>
-            )}
-          </div>
-
-          {showSearch ? (
-            <div className="w-[53%] px-2 lg:px-6">
-              <div className="flex h-12 items-center rounded-md border border-slate-300 bg-white px-4">
-                <input
-                  type="search"
-                  placeholder="Search for Products"
-                  className="w-full appearance-none border-0 bg-transparent text-sm text-slate-700 outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus-visible:outline-none placeholder:text-slate-400"
-                />
-                <FiSearch className="ml-3 h-4 w-4 text-slate-500" />
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1" />
+            </LogoHomeLink>
           )}
+        </div>
 
-          <div className="flex min-w-0 shrink items-center justify-end gap-2 text-slate-900 xl:gap-3">
-            <div className="shrink-0 text-right leading-tight">
-              <p className="text-[11px] text-slate-600">Need Help?</p>
-              <a
-                href={`tel:${String(content?.secondaryButtonLabel?.trim() || "0333 344 8147").replace(/[^\d+]/g, "")}`}
-                className="text-[13px] font-bold tracking-tight text-slate-700 hover:text-slate-900 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm xl:text-[14px]"
-              >
-                {content?.secondaryButtonLabel?.trim() || "0333 344 8147"}
-              </a>
-            </div>
-            {showIcons ? (
-              <>
-                <div className="flex items-center gap-2 xl:gap-3">
-
-                      {/* Cart */}
-                      <ActionIconLink
-                    href={content?.actionIcon2Url}
-                    openCartOnClick={content?.actionIcon2OpenCart === true}
-                    onOpenCart={content?.onOpenCart}
-                    className="inline-flex items-center justify-center"
-                    style={cartIconStyle}
-                  >
-                    <CartIcon className="h-6 w-6 xl:h-7 xl:w-7 text-slate-800" />
-                  </ActionIconLink>
-                  
-                  {/* Basket text */}
-                  <div className="text-right leading-tight">
-                    <p className="text-[10px] text-slate-600">Basket</p>
-                    <p className="text-[12px] font-bold leading-none text-slate-900 xl:text-[13px]">
-                      £{cartSubtotal.toFixed(2)}
-                    </p>
-                  </div>
-                  {/* User */}
-                  <ActionIconLink
-                    href={content?.actionIcon1Url}
-                    openCartOnClick={content?.actionIcon1OpenCart === true}
-                    onOpenCart={content?.onOpenCart}
-                    className="inline-flex items-center justify-center"
-                    style={userIconStyle}
-                  >
-                    <UserIcon className="h-6 w-6 xl:h-7 xl:w-7 text-slate-800" />
-                  </ActionIconLink>
-
-
-              
-                </div>
-              </>
-            ) : null}
-            {showPrimaryButton ? (
-              <div className="ml-1 flex items-center gap-2">
-                {showPrimaryButton && primaryCtaLabel ? (
-                  <a
-                    href={resolveHref(content?.primaryButtonUrl)}
-                    className="inline-flex items-center gap-1 rounded-md bg-emerald-700 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800"
-                    style={primaryButtonStyle}
-                  >
-                    <PrimaryButtonIcon className="h-3.5 w-3.5" />
-                    {primaryCtaLabel}
-                  </a>
-                ) : null}
-              </div>
-            ) : null}
+        {showSearch ? (
+          <div className="min-w-0 max-w-[60%] flex-[1_1_46%] px-2">
+            <NavbarSearch variant="compact" />
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-      <div className="w-full bg-[#fdf4df]" style={retailLinksBarBgStyle}>
-        <div className="w-full px-6 p-1 sm:px-10 lg:px-14">
-          <nav className="hidden h-12 items-center justify-center gap-10 overflow-visible lg:flex">
-            {links.map((link, i) => (
-              <NavLinkItemNode
-                key={link.id || i}
-                link={link}
-                i={i}
-                fallbackIcon={FiGrid}
-                linkClassName="relative text-base text-white transition hover:text-white/90"
-              />
-            ))}
-          </nav>
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-5 text-slate-900 xl:gap-6">
+          <div className="shrink-0 text-right leading-tight">
+            <p className="text-[11px] font-medium text-slate-500">Need Help?</p>
+            <a
+              href={`tel:${String(content?.secondaryButtonLabel?.trim() || "0333 344 8147").replace(/[^\d+]/g, "")}`}
+              className="text-[14px] font-bold tracking-tight text-slate-900 hover:text-slate-700 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+            >
+              {content?.secondaryButtonLabel?.trim() || "0333 344 8147"}
+            </a>
+          </div>
+          {showIcons ? (
+            <div className="flex items-center gap-5 xl:gap-2">
+              <ActionIconLink
+                href={content?.actionIcon2Url}
+                openCartOnClick={content?.actionIcon2OpenCart === true}
+                onOpenCart={content?.onOpenCart}
+                className="relative inline-flex items-center gap-1 p-0.5"
+                style={cartIconStyle}
+                title="Basket"
+              >
+                <CartIcon className="h-9 w-9 text-slate-900" strokeWidth={1.5} />
+             
+              </ActionIconLink>
+
+              <div className="flex items-center gap-2.5">
+                <div className="text-right leading-tight">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Basket</p>
+                  <p className="text-[13px] font-bold tabular-nums leading-none text-slate-900">
+                    £{cartSubtotal.toFixed(2)}
+                  </p>
+                </div>
+
+                <ActionIconLink
+                  href={content?.actionIcon1Url}
+                  openCartOnClick={content?.actionIcon1OpenCart === true}
+                  onOpenCart={content?.onOpenCart}
+                  className="inline-flex items-center justify-center p-0.5"
+                  style={userIconStyle}
+                  title="Account"
+                >
+                  <UserIcon className="h-9 w-9 text-slate-900" strokeWidth={1.5} />
+                     {cartItemCount === 0 ? (
+                  <span className="text-[11px] font-semibold tabular-nums leading-none text-slate-800">0</span>
+                ) : null}
+                </ActionIconLink>
+              </div>
+            </div>
+          ) : null}
+          {showPrimaryButton ? (
+            <div className="ml-1 flex items-center gap-2">
+              {showPrimaryButton && primaryCtaLabel ? (
+                <a
+                  href={resolveHref(content?.primaryButtonUrl)}
+                  className={`${NAVBAR_CTA_SM} bg-emerald-700 px-2.5 text-white transition hover:bg-emerald-800`}
+                  style={primaryButtonStyle}
+                >
+                  <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                  {primaryCtaLabel}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
+    </>
+  );
+
+  const retailLinksSection = (
+    <div
+      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-[#fdf4df]"
+      style={retailLinksBarBgStyle}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-1 sm:px-6 md:px-10 lg:px-14">
+        <nav className="hidden h-12 w-full items-center justify-center gap-8 overflow-visible sm:gap-10 lg:flex">
+          {links.map((link, i) => (
+            <NavLinkItemNode
+              key={link.id || i}
+              link={link}
+              i={i}
+              fallbackIcon={FiGrid}
+              linkClassName="relative text-base text-white transition hover:text-white/90"
+            />
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+
+  return (
+    <header className="w-full" style={pinTopRow ? undefined : navbarBgStyle}>
+      {pinTopRow ? (
+        <>
+          <div
+            aria-hidden
+            className="w-full shrink-0"
+            style={{
+              height: dockH > 0 ? dockH : undefined,
+              minHeight: dockH > 0 ? undefined : "4.25rem",
+            }}
+          />
+          <div
+            ref={fixedDockRef}
+            className="fixed inset-x-0 top-0 z-[55] w-full bg-white shadow-sm"
+            style={navbarBgStyle}
+          >
+            <div className={topRowShellClass}>{topRowContent}</div>
+          </div>
+          {retailLinksSection}
+        </>
+      ) : (
+        <>
+          <div className={topRowShellClass}>{topRowContent}</div>
+          {retailLinksSection}
+        </>
+      )}
 
       <NavbarMobileDrawer
         open={mobileOpen}
@@ -1977,14 +2283,11 @@ function NavbarRetailTwoRow({
         closeButtonClassName="text-slate-700 hover:bg-slate-100"
       >
         {showSearch ? (
-          <div className="flex items-center rounded-md border border-slate-300 px-3">
-            <input
-              type="search"
-              placeholder="Search for Products"
-              className="h-11 w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-            />
-            <FiSearch className="h-4 w-4 text-slate-500" />
-          </div>
+          <NavbarSearch
+            variant="compact"
+            className="mb-3"
+            onSearchNavigate={() => setMobileOpen(false)}
+          />
         ) : null}
         <nav className="flex flex-col gap-1">
           {links.map((link, i) => (
@@ -2005,8 +2308,17 @@ function NavbarRetailTwoRow({
 
 
 export default function BlogNavbarWidget({ content }: { content: NavbarWidgetContent }) {
+  const auth = useAuth();
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartSubtotal, setCartSubtotal] = useState(0);
+
+  const contentForRender = useMemo((): NavbarWidgetContent => {
+    const base = content || {};
+    return {
+      ...base,
+      actionIcon2Url: resolveActionIcon2UrlForSession(base, Boolean(auth?.user)),
+    };
+  }, [content, auth?.user]);
 
   useEffect(() => {
     const syncCartSummary = () => {
@@ -2029,11 +2341,11 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     minimal: "developer",
   };
   const variant =
-    content?.variant ||
-    fallbackVariantByLayout[String(content?.layout || "classic")] ||
+    contentForRender?.variant ||
+    fallbackVariantByLayout[String(contentForRender?.layout || "classic")] ||
     "modern";
-  const logoText = content?.logoText?.trim() || "";
-  const widgetLogoUrl = resolveAssetSrc(content?.logoUrl);
+  const logoText = contentForRender?.logoText?.trim() || "";
+  const widgetLogoUrl = resolveAssetSrc(contentForRender?.logoUrl);
   const [fallbackLogoUrl, setFallbackLogoUrl] = useState("");
 
   useEffect(() => {
@@ -2077,31 +2389,50 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     widgetLogoUrl ||
     fallbackLogoUrl ||
     "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
-  const linkTextColor = content?.menuLinkTextColor?.trim() || "#334155";
-  const linkHoverColor = content?.menuLinkHoverColor?.trim() || "#0f172a";
+  const linkTextColor = contentForRender?.menuLinkTextColor?.trim() || "#334155";
+  const linkHoverColor = contentForRender?.menuLinkHoverColor?.trim() || "#0f172a";
   const linkColorVars = {
     "--nav-link-text": linkTextColor,
     "--nav-link-hover": linkHoverColor,
   } as CSSProperties;
   const linkColorStyle = (
     <style jsx global>{`
-      .navbar-widget-link-colors nav a[data-nav-link="1"] {
-        color: var(--nav-link-text) !important;
+      @media (max-width: 767px) {
+        .navbar-widget-link-colors nav.nav-mobile-dark-drawer a[data-nav-link="1"] {
+          color: #e2e8f0 !important;
+        }
+        .navbar-widget-link-colors nav.nav-mobile-dark-drawer a[data-nav-link="1"]:hover {
+          color: #ffffff !important;
+        }
+        .navbar-widget-link-colors nav:not(.nav-mobile-dark-drawer) a[data-nav-link="1"] {
+          color: #0a0a0a !important;
+        }
+        .navbar-widget-link-colors nav:not(.nav-mobile-dark-drawer) a[data-nav-link="1"]:hover {
+          color: #171717 !important;
+        }
       }
-      .navbar-widget-link-colors nav a[data-nav-link="1"]:hover {
-        color: var(--nav-link-hover) !important;
+      @media (min-width: 768px) {
+        .navbar-widget-link-colors nav a[data-nav-link="1"] {
+          color: var(--nav-link-text) !important;
+        }
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover {
+          color: var(--nav-link-hover) !important;
+        }
       }
     `}</style>
   );
-  const links = (content?.links || []).filter((l) => {
-    const type = String(l?.linkType || "label").toLowerCase();
+  const links = (contentForRender?.links || []).filter((l) => {
+    const type = linkTypeNormalized(l);
     if (type === "icon") return String(l?.icon || "").trim();
+    if (type === "icon_label") {
+      return Boolean(String(l?.icon || "").trim() || String(l?.label || "").trim());
+    }
     return String(l?.label || "").trim();
   });
-  const primaryLabel = content?.primaryButtonLabel?.trim() || "Sign in";
-  const secondaryLabel = content?.secondaryButtonLabel?.trim() || "Register";
+  const primaryLabel = contentForRender?.primaryButtonLabel?.trim() || "Sign in";
+  const secondaryLabel = contentForRender?.secondaryButtonLabel?.trim() || "Register";
 
-  const commonProps = { logoText, logoUrl, links, primaryLabel, secondaryLabel, content };
+  const commonProps = { logoText, logoUrl, links, primaryLabel, secondaryLabel, content: contentForRender };
 
   let variantNode: ReactNode;
   switch (variant) {

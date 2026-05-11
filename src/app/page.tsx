@@ -189,12 +189,7 @@ export default async function Home() {
       ))}
       {showOverallNavbar ? (
         <>
-       
-   {/* <header className="relative">
-            <nav className="" aria-label="Top">
-              <Nav serverBootstrap={navServerBootstrap} />
-            </nav>
-          </header> */}
+          {/* Sticky when enabled is handled inside NavbarVariantTestBar (admin "Sticky navbar"). */}
           <NavbarVariantTestBar config={navbarVariantTestConfig} />
         </>
       ) : null}

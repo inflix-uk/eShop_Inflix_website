@@ -8,6 +8,10 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { Fragment } from "react";
+import {
+  getVariantValueImageSrc,
+  renderVariantOptionIcon,
+} from "./variantOptionIcons";
 
 export interface TopSectionItem {
   slug: string;
@@ -28,19 +32,13 @@ const DefaultIcon = () => (
   </svg>
 );
 
-// Render icon - supports HTML icons from database
 const renderIcon = (item: TopSectionItem) => {
-  // Check if icon is HTML (like Flaticon <i class="fi fi-rr-truck-side"></i>)
-  if (item.icon && item.icon.trim().startsWith('<')) {
-    return (
-      <span
-        className="flex items-center justify-center [&>i]:text-3xl [&>svg]:w-8 [&>svg]:h-8"
-        dangerouslySetInnerHTML={{ __html: item.icon }}
-      />
-    );
-  }
-
-  // Fallback to default icon
+  const node = renderVariantOptionIcon(
+    item,
+    "h-8 w-8",
+    "flex min-h-8 min-w-8 items-center justify-center text-gray-800 [&>i]:inline-block [&>i]:text-3xl [&>svg]:h-8 [&>svg]:w-8"
+  );
+  if (node) return node;
   return <DefaultIcon />;
 };
 
@@ -106,7 +104,7 @@ export default function ProductTopSection({
                         <div>
                           {/* Icon and Name */}
                           <div className="flex items-center gap-4 mb-6">
-                            <div className="p-4 bg-green-100 rounded-xl flex items-center justify-center">
+                            <div className="p-4 bg-green-100 rounded-xl flex items-center justify-center text-gray-800">
                               {renderIcon(selectedItem)}
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900">
@@ -124,16 +122,21 @@ export default function ProductTopSection({
                             />
                           )}
 
-                          {/* Image if available */}
-                          {selectedItem.image?.url && (
-                            <div className="mt-6">
-                              <img
-                                src={selectedItem.image.url}
-                                alt={selectedItem.name}
-                                className="w-full rounded-lg object-cover"
-                              />
-                            </div>
-                          )}
+                          {(() => {
+                            const detailImg = getVariantValueImageSrc(
+                              selectedItem.image ?? null
+                            );
+                            if (!detailImg) return null;
+                            return (
+                              <div className="mt-6">
+                                <img
+                                  src={detailImg}
+                                  alt={selectedItem.name}
+                                  className="w-full rounded-lg object-cover"
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-center py-8">

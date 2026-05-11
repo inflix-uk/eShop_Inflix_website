@@ -21,26 +21,19 @@ export default function ShopAll() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
   const productsPerPage = 50;
-  const lastFetchedGroupIdRef = useRef<string | null>(null);
+  const lastFetchedPricingScopeRef = useRef<string | null>(null);
   const pricingGroupId = auth?.user?.pricingGroup
     ? String(auth.user.pricingGroup)
     : null;
   const userId = auth?.user?._id ? String(auth.user._id) : null;
 
   useEffect(() => {
+    const scopeKey = `${pricingGroupId ?? "nogroup"}|${userId ?? "nouid"}`;
     const shouldRefetch =
-      lastFetchedGroupIdRef.current !== pricingGroupId || products.length === 0;
-
-    console.log("[pricing-debug] ShopAll pricing scope", {
-      userId: auth?.user?._id ?? null,
-      pricingGroupId,
-      productsCount: products.length,
-      lastFetchedGroupId: lastFetchedGroupIdRef.current,
-      shouldRefetch,
-    });
+      lastFetchedPricingScopeRef.current !== scopeKey || products.length === 0;
 
     if (shouldRefetch) {
-      lastFetchedGroupIdRef.current = pricingGroupId;
+      lastFetchedPricingScopeRef.current = scopeKey;
       dispatch(
         fetchProducts(
           userId

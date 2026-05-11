@@ -280,17 +280,28 @@ export interface NavbarLinkItemContent {
   label?: string;
   url?: string;
   icon?: string;
+  linkType?: "label" | "icon" | "icon_label";
+  children?: Array<{ id?: string; label?: string; url?: string }>;
 }
 
 export interface WidgetNavbarContent {
   widgetType: "navbar";
   layout?: "classic" | "centered" | "split" | "minimal";
-  variant?: "modern" | "minimalist" | "dark-sidebar" | "developer" | "bold-left" | "business";
+  variant?:
+    | "modern"
+    | "minimalist"
+    | "dark-sidebar"
+    | "developer"
+    | "bold-left"
+    | "business"
+    | "retail-two-row";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItemContent[];
   showSearch?: boolean;
   showButtons?: boolean;
+  /** Retail two-row: pin top row to viewport when true (same meaning as Product Central “Sticky navbar”). */
+  stickyNavbar?: boolean;
   actionIcon1?: string;
   actionIcon2?: string;
   primaryButtonLabel?: string;
