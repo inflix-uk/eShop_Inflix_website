@@ -20,6 +20,15 @@ export function isCmsFetchAbortError(e: unknown): boolean {
   return false;
 }
 
+/** Typical Node/undici failure when CMS is down or URL is wrong — not worth console.error spam. */
+export function isCmsUnreachableFetchError(e: unknown): boolean {
+  if (isCmsFetchAbortError(e)) return false;
+  const msg = e instanceof Error ? e.message : String(e);
+  return /fetch failed|ECONNREFUSED|ENOTFOUND|ECONNRESET|ETIMEDOUT|certificate|getaddrinfo/i.test(
+    msg
+  );
+}
+
 /**
  * Abort when any input signal aborts (timeout + framework cancellation).
  * Uses AbortSignal.any when available (Node 20+, modern browsers).

@@ -5,6 +5,8 @@ import BlogNavbarWidget, {
   type NavbarWidgetContent,
 } from "@/app/(routes)/blogs/new/[slug]/BlogNavbarWidget";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
+import { SITE_ANNOUNCEMENT_TOP_OFFSET } from "@/app/components/AnnouncementBar";
+import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
 import NavbarCart from "@/app/components/navbar/NavbarCart";
 
 interface NavbarVariantTestBarProps {
@@ -31,26 +33,27 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
     cfg.variant && variantsWithTopNudge.has(cfg.variant) ? "pt-2" : "pt-0";
 
   const containerClassName =
-    cfg.variant === "retail-two-row"
-      ? "w-full px-0 pb-3 pt-0"
+    cfg.variant === "retail-two-row" || cfg.variant === "wing-split"
+      ? "w-full px-0 pt-0 pb-0"
       : cfg.id === "classic"
       ? `px-10 pb-10 ${topNudgeClass}`
       : `w-full px-4 pb-3 ${topNudgeClass} sm:px-6 lg:px-8`;
 
   const isRetailTwoRow = cfg.variant === "retail-two-row";
-  const widthShellClass = isRetailTwoRow ? "w-full" : "mx-auto w-full max-w-6xl";
+  const isFullBleedVariant = isRetailTwoRow || cfg.variant === "wing-split";
+  const widthShellClass = isFullBleedVariant ? "w-full" : "mx-auto w-full max-w-6xl";
 
-  const sticky = cfg.stickyNavbar === true;
-  /** Retail top row uses `fixed` inside `BlogNavbarWidget`; avoid a second outer sticky wrapper. */
+  const sticky = parseStickyNavbarFlag(cfg.stickyNavbar);
   const outerSticky = sticky && !isRetailTwoRow;
 
   return (
     <section
       className={
         outerSticky
-          ? "navbar-variant-test-scope sticky top-0 z-50 w-full bg-white shadow-sm"
+          ? "navbar-variant-test-scope sticky z-50 w-full bg-white shadow-sm"
           : "navbar-variant-test-scope relative z-40 w-full bg-white"
       }
+      style={outerSticky ? { top: SITE_ANNOUNCEMENT_TOP_OFFSET } : undefined}
       aria-label="Saved navbar variant test"
     >
       <div className={widthShellClass}>
@@ -67,7 +70,8 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
                     | "developer"
                     | "bold-left"
                     | "business"
-                    | "retail-two-row") || "modern",
+                    | "retail-two-row"
+                    | "wing-split") || "modern",
                 logoUrl: cfg.logoUrl,
                 logoText: cfg.logoText,
                 navbarBgColor: cfg.navbarBgColor,
@@ -123,7 +127,7 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
                 secondaryButtonTextColor: cfg.secondaryButtonTextColor,
                 menuLinkTextColor: cfg.menuLinkTextColor,
                 menuLinkHoverColor: cfg.menuLinkHoverColor,
-                stickyNavbar: cfg.stickyNavbar === true,
+                stickyNavbar: parseStickyNavbarFlag(cfg.stickyNavbar),
                 onOpenCart: () => setOpenCart(true),
               } as NavbarWidgetContent}
             />

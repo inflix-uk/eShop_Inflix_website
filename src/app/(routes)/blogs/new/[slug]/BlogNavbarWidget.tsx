@@ -25,6 +25,8 @@ import {
   type ReactNode,
 } from "react";
 import NavbarSearch from "@/app/components/navbar/NavbarSearch";
+import { SITE_ANNOUNCEMENT_TOP_OFFSET } from "@/app/components/AnnouncementBar";
+import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
 import { useAuth } from "@/app/context/Auth";
 import Link from "next/link";
 import type { IconType } from "react-icons";
@@ -66,7 +68,8 @@ export type NavbarWidgetContent = {
     | "developer"
     | "bold-left"
     | "business"
-    | "retail-two-row";
+    | "retail-two-row"
+    | "wing-split";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItem[];
@@ -194,6 +197,124 @@ const NAV_LOGO_WRAPPER_CLASS =
   "flex min-w-0 max-w-[46%] items-center gap-2.5 md:w-[18%] md:min-w-[160px] md:max-w-[220px] md:shrink-0";
 const NAV_LOGO_LINK_INNER_CLASS =
   "inline-flex w-full min-w-0 items-center justify-start rounded-md";
+/** Centered logo inside a round slot (NavbarWingSplit) — no `object-left` / `md:w-full` clipping. */
+const NAV_LOGO_LINK_CIRCLE_CLASS =
+  "inline-flex h-full w-full min-w-0 max-h-full max-w-full items-center justify-center rounded-md p-0.5 sm:p-1";
+const NAV_LOGO_IMG_CIRCLE_CLASS =
+  "mx-auto block h-auto w-auto max-h-full max-w-full object-contain object-center";
+const NAV_LOGO_PLACEHOLDER_CIRCLE_CLASS =
+  "mx-auto aspect-square h-full max-h-full w-auto max-w-full shrink-0 rounded-full bg-slate-100 animate-pulse";
+
+const NAVBAR_WIDGET_PUBLIC_LOGO_SESSION_KEY = "navbarWidgetPublicLogoUrl";
+
+function extractPublicLogoPathFromJson(json: unknown): string {
+  if (!json || typeof json !== "object") return "";
+  const o = json as Record<string, unknown>;
+  const data = o.data;
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    for (const key of ["logoUrl", "url", "image", "src"] as const) {
+      const v = d[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  for (const key of ["logoUrl", "url"] as const) {
+    const v = o[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function getNavbarLogoApiBase(): string {
+  const fromEnv = String(
+    process.env.NEXT_PUBLIC_LOGO_API_URL ||
+      process.env.NEXT_PUBLIC_CMS_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  if (fromEnv) {
+    return fromEnv.replace(/^http:\/\/localhost(?=[:/]|$)/i, "http://127.0.0.1");
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return "http://127.0.0.1:3001";
+  }
+  return "";
+}
+
+function buildNavbarPublicLogoFetchUrls(apiBase: string): string[] {
+  const base = apiBase.replace(/\/+$/, "");
+  const unique: string[] = [];
+  const add = (u: string) => {
+    const t = u.trim();
+    if (!t || unique.includes(t)) return;
+    unique.push(t);
+  };
+  if (base) {
+    add(`${base}/get/logo/public`);
+    add(`${base}/api/get/logo/public`);
+    add(`${base}/admin/logo`);
+    add(`${base}/api/admin/logo`);
+    add(`${base}/get/logo`);
+    add(`${base}/api/get/logo`);
+    return unique;
+  }
+  const sameOrigin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin.replace(/\/+$/, "")
+      : "";
+  if (sameOrigin) {
+    add(`${sameOrigin}/get/logo/public`);
+    add(`${sameOrigin}/api/get/logo/public`);
+    add(`${sameOrigin}/admin/logo`);
+    add(`${sameOrigin}/api/admin/logo`);
+  }
+  return unique;
+}
+
+function NavbarWidgetLogo({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="eager"
+      decoding="async"
+      fetchPriority="high"
+    />
+  );
+}
+
+/** Same footprint as NAV_LOGO_IMG_CLASS while URL loads — no initials/text flash. */
+const NAV_LOGO_PLACEHOLDER_CLASS =
+  "block h-12 w-[min(100%,10rem)] max-w-[160px] shrink-0 rounded-md bg-slate-100 animate-pulse md:h-14 md:max-h-[3.5rem]";
+
+function NavbarLogoHomeSlot({
+  logoUrl,
+  logoText,
+  layout = "default",
+}: {
+  logoUrl: string;
+  logoText: string;
+  /** `circle` — logo scales to fit inside a circular frame (fully visible). */
+  layout?: "default" | "circle";
+}) {
+  const alt = logoText.trim() ? `${logoText} logo` : "Store logo";
+  const linkClass = layout === "circle" ? NAV_LOGO_LINK_CIRCLE_CLASS : NAV_LOGO_LINK_INNER_CLASS;
+  const imgClass = layout === "circle" ? NAV_LOGO_IMG_CIRCLE_CLASS : NAV_LOGO_IMG_CLASS;
+  const placeholderClass =
+    layout === "circle" ? NAV_LOGO_PLACEHOLDER_CIRCLE_CLASS : NAV_LOGO_PLACEHOLDER_CLASS;
+  return (
+    <LogoHomeLink className={linkClass}>
+      {logoUrl ? (
+        <NavbarWidgetLogo src={logoUrl} alt={alt} className={imgClass} />
+      ) : (
+        <span className={placeholderClass} aria-hidden />
+      )}
+    </LogoHomeLink>
+  );
+}
 
 /** Primary/secondary CTAs: avoid extreme stadium pills when label is long (was rounded-full + fixed h). */
 const NAVBAR_CTA_SM =
@@ -292,7 +413,7 @@ function ActionIconLink({
       >
         {children}
         {showCartCount ? (
-          <span className="absolute -right-1 -top-1 flex min-w-[16px] h-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-semibold leading-none text-white">
+          <span className="absolute -right-1 -top-1 z-[1] flex min-h-4 min-w-[16px] max-w-none items-center justify-center whitespace-nowrap rounded-full bg-orange-500 px-1 py-0.5 text-[10px] font-semibold leading-none text-white">
             {countLabel}
           </span>
         ) : null}
@@ -310,7 +431,7 @@ function ActionIconLink({
     >
       {children}
       {showCartCount ? (
-        <span className="absolute -right-1 -top-1 flex min-w-[16px] h-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-semibold leading-none text-white">
+        <span className="absolute -right-1 -top-1 z-[1] flex min-h-4 min-w-[16px] max-w-none items-center justify-center whitespace-nowrap rounded-full bg-orange-500 px-1 py-0.5 text-[10px] font-semibold leading-none text-white">
           {countLabel}
         </span>
       ) : null}
@@ -388,9 +509,9 @@ function renderNavLinkContent(link: NavbarLinkItem, fallbackIcon: IconType = FiG
     const Icon = resolveNavbarIconByName(link?.icon, fallbackIcon);
     const text = link?.label?.trim() || "";
     return (
-      <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 sm:gap-2">
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-        {text ? <span className="min-w-0 truncate">{text}</span> : null}
+      <span className="inline-flex max-w-full min-w-0 items-center gap-2.5 sm:gap-3">
+        <Icon className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
+        {text ? <span className="min-w-0 font-medium">{text}</span> : null}
       </span>
     );
   }
@@ -403,7 +524,8 @@ function getDropdownChildren(link: NavbarLinkItem) {
   );
 }
 
-function NavLinkItemNode({
+/** Touch-friendly expand/collapse for nav links with children (mobile drawer). */
+function NavLinkItemMobileAccordion({
   link,
   i,
   linkClassName,
@@ -415,6 +537,81 @@ function NavLinkItemNode({
   linkClassName: string;
   fallbackIcon?: IconType;
   onNavigate?: () => void;
+}) {
+  const children = getDropdownChildren(link);
+  const [open, setOpen] = useState(false);
+  const subId = `nav-drawer-sub-${String(link.id ?? i)}`;
+  const showAria = isIconOnlyLink(link) || (isIconLabelLink(link) && !String(link?.label || "").trim());
+  const aria = navLinkAriaLabel(link);
+  const submenuLabel = String(link.label || "Category").trim() || "Category";
+
+  return (
+    <div className="relative">
+      <div className="flex w-full min-w-0 items-stretch gap-1">
+        <a
+          href={resolveHref(link.url)}
+          data-nav-link="1"
+          className={`${linkClassName} min-w-0 flex-1 text-left`}
+          onClick={onNavigate}
+          aria-label={showAria ? aria : undefined}
+        >
+          {renderNavLinkContent(link, fallbackIcon)}
+        </a>
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center justify-center self-stretch rounded-md px-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary"
+          aria-expanded={open}
+          aria-controls={subId}
+          aria-label={open ? `Hide ${submenuLabel} sublinks` : `Show ${submenuLabel} sublinks`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+        >
+          <FiChevronDown
+            className={`h-5 w-5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            aria-hidden
+            strokeWidth={2}
+          />
+        </button>
+      </div>
+      <div
+        id={subId}
+        role="region"
+        aria-label={`${String(link.label || "Category").trim()} sublinks`}
+        className={`ml-2 mt-2 flex flex-col gap-1.5 py-1 pl-3 ${open ? "" : "hidden"}`}
+      >
+        {children.map((child, childIndex) => (
+          <a
+            key={child.id || `${link.id || i}-child-${childIndex}`}
+            href={resolveHref(child.url)}
+            onClick={onNavigate}
+            className="py-2 text-[15px] font-medium text-slate-700 transition hover:text-slate-900"
+          >
+            {child.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NavLinkItemNode({
+  link,
+  i,
+  linkClassName,
+  fallbackIcon = FiGrid,
+  onNavigate,
+  touchExpandable = false,
+}: {
+  link: NavbarLinkItem;
+  i: number;
+  linkClassName: string;
+  fallbackIcon?: IconType;
+  onNavigate?: () => void;
+  /** When true, links with children use tap-to-expand instead of hover flyout (required in mobile drawers). */
+  touchExpandable?: boolean;
 }) {
   const children = getDropdownChildren(link);
   const aria = navLinkAriaLabel(link);
@@ -435,6 +632,18 @@ function NavLinkItemNode({
     );
   }
 
+  if (touchExpandable) {
+    return (
+      <NavLinkItemMobileAccordion
+        link={link}
+        i={i}
+        linkClassName={linkClassName}
+        fallbackIcon={fallbackIcon}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
   return (
     <div key={link.id || i} className="group relative">
       <a
@@ -444,45 +653,44 @@ function NavLinkItemNode({
         onClick={onNavigate}
         aria-label={showAria ? aria : undefined}
       >
-        <span className="inline-flex items-center gap-1">
-          {renderNavLinkContent(link, fallbackIcon)}
-          <FiChevronDown className="h-3 w-3" />
+        <span className="flex w-full min-w-0 items-center justify-between gap-4">
+          <span className="min-w-0 flex-1">{renderNavLinkContent(link, fallbackIcon)}</span>
+          <FiChevronDown className="h-5 w-5 shrink-0 text-slate-400" aria-hidden strokeWidth={2} />
         </span>
       </a>
       <div className="absolute left-0 top-full z-[80] hidden pt-1 group-hover:block group-focus-within:block">
-  <div className="min-w-[220px] overflow-hidden rounded-md border border-slate-200/70 bg-white/95 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-    {children.map((child, childIndex) => (
-      <a
-        key={child.id || `${link.id || i}-child-${childIndex}`}
-        href={resolveHref(child.url)}
-        onClick={onNavigate}
-        className="
-          group/item flex items-center justify-between
-          px-4 py-3 text-sm font-medium text-slate-700
-          transition-all duration-200
-          hover:bg-slate-50 hover:text-black
-          hover:translate-x-1
-        "
-      >
-        <span>{child.label}</span>
-
-        <svg
-          className="h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
-      </a>
-    ))}
-  </div>
-</div>
+        <div className="min-w-[220px] overflow-hidden rounded-md border border-slate-200/70 bg-white/95 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+          {children.map((child, childIndex) => (
+            <a
+              key={child.id || `${link.id || i}-child-${childIndex}`}
+              href={resolveHref(child.url)}
+              onClick={onNavigate}
+              className="
+                group/item flex items-center justify-between
+                px-4 py-3 text-sm font-medium text-slate-700
+                transition-all duration-200
+                hover:bg-slate-50 hover:text-black
+                hover:translate-x-1
+              "
+            >
+              <span>{child.label}</span>
+              <svg
+                className="h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -518,7 +726,7 @@ function NavbarMobileDrawer({
         type="button"
         aria-label={open ? "Close menu overlay" : undefined}
         aria-hidden={!open}
-        className={`fixed inset-0 z-[100] bg-black/40 md:hidden ${open ? "" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${open ? "" : "pointer-events-none opacity-0"}`}
         onClick={onClose}
         tabIndex={open ? 0 : -1}
       />
@@ -526,15 +734,27 @@ function NavbarMobileDrawer({
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-[101] flex max-h-[100dvh] w-[min(100vw-2rem,20rem)] flex-col overflow-y-auto border-l border-black/10 shadow-2xl transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
+        className={`fixed inset-y-0 right-0 z-[101] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l border-slate-200/90 bg-[#f8f9fb] text-slate-900 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
       >
-        <div className={`flex shrink-0 items-center justify-between border-b border-black/10 px-4 py-3 ${headerClassName}`}>
-          <span className="text-sm font-semibold">Menu</span>
-          <button type="button" aria-label="Close menu" onClick={onClose} className={`rounded-lg p-2 ${closeButtonClassName}`}>
-            <FiX className="h-5 w-5" aria-hidden />
-          </button>
+        <div
+          className={`flex shrink-0 flex-col gap-1 border-b border-slate-200/80 bg-white px-6 pb-5 pt-6 ${headerClassName}`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+            
+              <h2 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-slate-900">Menu</h2>
+            </div>
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={onClose}
+              className={`shrink-0 rounded-full border border-slate-200/90 bg-slate-50 p-2.5 text-slate-600 shadow-sm transition hover:bg-white hover:text-slate-900 ${closeButtonClassName}`}
+            >
+              <FiX className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 p-4">{children}</div>
+        <div className="flex flex-col gap-8 px-6 pb-10 pt-7">{children}</div>
       </div>
     </>
   );
@@ -611,17 +831,7 @@ function NavbarModern({
         {/* ================= LEFT: LOGO + mobile menu ================= */}
         <div className="flex w-full shrink-0 items-center justify-between md:w-auto md:justify-start">
           <div className={NAV_LOGO_WRAPPER_CLASS}>
-            {logoUrl ? (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
-              </LogoHomeLink>
-            ) : (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-emerald-600 to-emerald-800 text-[11px] font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
-              </LogoHomeLink>
-            )}
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
           <button
             type="button"
@@ -737,7 +947,7 @@ function NavbarModern({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="hover:bg-slate-100 text-slate-700"
       >
@@ -748,7 +958,8 @@ function NavbarModern({
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
           ))}
@@ -844,17 +1055,7 @@ function NavbarMinimalist({
       <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 px-4 py-3 sm:px-6 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-3 md:py-0">
         <div className="col-span-full flex w-full min-w-0 items-center justify-between md:hidden">
           <div className={NAV_LOGO_WRAPPER_CLASS}>
-            {logoUrl ? (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-              </LogoHomeLink>
-            ) : (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
-              </LogoHomeLink>
-            )}
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
           <button
             type="button"
@@ -879,17 +1080,7 @@ function NavbarMinimalist({
         </nav>
 
         <div className={`hidden min-w-0 shrink-0 items-center justify-self-center md:flex ${NAV_LOGO_WRAPPER_CLASS}`}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            </LogoHomeLink>
-          )}
+          <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
 
         <div className="hidden min-w-0 shrink-0 flex-nowrap items-center justify-end justify-self-end gap-2 sm:gap-3 md:flex">
@@ -959,7 +1150,7 @@ function NavbarMinimalist({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="hover:bg-slate-100 text-slate-700"
       >
@@ -970,7 +1161,8 @@ function NavbarMinimalist({
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
           ))}
@@ -1069,17 +1261,7 @@ function NavbarDarkSidebar({
       <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between px-4 py-3 sm:px-6 md:h-16 md:justify-between md:py-0">
         <div className="flex items-center gap-3 md:hidden">
           <div className={NAV_LOGO_WRAPPER_CLASS}>
-            {logoUrl ? (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-              </LogoHomeLink>
-            ) : (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
-              </LogoHomeLink>
-            )}
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
         </div>
         <button
@@ -1094,17 +1276,7 @@ function NavbarDarkSidebar({
         <div className="relative hidden h-16 w-full min-w-0 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-0 lg:gap-x-3">
           <div className="flex min-w-0 items-center gap-2 md:gap-2.5">
             <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
-              {logoUrl ? (
-                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                  <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-                </LogoHomeLink>
-              ) : (
-                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-                    {logoText.slice(0, 2).toUpperCase()}
-                  </span>
-                </LogoHomeLink>
-              )}
+              <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
             </div>
             {showSearch ? (
               <div className="hidden min-w-0 max-w-[10rem] shrink md:flex md:max-w-[11rem] lg:max-w-[13rem] xl:max-w-[14rem]">
@@ -1191,7 +1363,7 @@ function NavbarDarkSidebar({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="border-l border-slate-200 bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="text-slate-600 hover:bg-slate-100"
       >
@@ -1202,7 +1374,8 @@ function NavbarDarkSidebar({
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100"
+              linkClassName="rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+              touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
           ))}
@@ -1310,17 +1483,7 @@ function NavbarBusiness({
     <header className="relative mx-auto w-full max-w-6xl overflow-visible px-4 py-3 sm:px-6">
       <div className="flex items-center justify-between md:hidden">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            </LogoHomeLink>
-          )}
+          <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
         <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
           <FiMenu className="h-6 w-6" aria-hidden />
@@ -1331,23 +1494,13 @@ function NavbarBusiness({
       <div className="relative hidden w-full min-w-0 overflow-visible md:grid md:min-h-[4.25rem] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-1 lg:gap-x-3">
         <div className="flex min-w-0 items-center justify-start gap-2 md:gap-2.5">
           <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
-            {logoUrl ? (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-              </LogoHomeLink>
-            ) : (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
-              </LogoHomeLink>
-            )}
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
         </div>
 
         <div className="flex min-w-0 items-center justify-center">
           <nav
-            className="inline-flex max-w-full flex-nowrap items-center gap-1 rounded-full bg-black px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5"
+            className="inline-flex max-w-full flex-nowrap items-center gap-1 rounded-md bg-black px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5"
             style={businessCenterNavBgStyle}
             aria-label="Primary"
           >
@@ -1425,7 +1578,7 @@ function NavbarBusiness({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="hover:bg-slate-100 text-slate-700"
       >
@@ -1436,7 +1589,8 @@ function NavbarBusiness({
               link={link}
               i={i}
               fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
           ))}
@@ -1543,17 +1697,7 @@ function NavbarDeveloper({
     >
       <div className="flex items-center justify-between md:hidden">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            </LogoHomeLink>
-          )}
+          <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
         <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
           <FiMenu className="h-6 w-6" aria-hidden />
@@ -1562,17 +1706,7 @@ function NavbarDeveloper({
 
       <div className="hidden min-w-0 w-full flex-col gap-3 md:flex md:flex-nowrap md:flex-row md:items-center md:justify-between md:gap-3 lg:gap-4">
         <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            </LogoHomeLink>
-          )}
+          <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
 
         {showSearch ? (
@@ -1704,56 +1838,22 @@ function NavbarDeveloper({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="text-slate-700 hover:bg-slate-100"
       >
         <nav className="flex flex-col gap-1">
-          {links.map((link, i) => {
-            const Icon = getLinkIcon(link.label, link.icon);
-            const lt = linkTypeNormalized(link);
-            if (lt === "icon_label") {
-              return (
-                <a
-                  key={link.id || i}
-                  href={resolveHref(link.url)}
-                  data-nav-link="1"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
-                  <span className="min-w-0">{link.label?.trim() || link.icon || "Link"}</span>
-                </a>
-              );
-            }
-            if (lt === "icon") {
-              return (
-                <a
-                  key={link.id || i}
-                  href={resolveHref(link.url)}
-                  data-nav-link="1"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                  onClick={() => setMobileOpen(false)}
-                  aria-label={navLinkAriaLabel(link)}
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
-                  <span>{link.label?.trim() || "Link"}</span>
-                </a>
-              );
-            }
-            return (
-              <a
-                key={link.id || i}
-                href={resolveHref(link.url)}
-                data-nav-link="1"
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                onClick={() => setMobileOpen(false)}
-              >
-                <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden />
-                <span>{renderNavLinkContent(link, FiGrid)}</span>
-              </a>
-            );
-          })}
+          {links.map((link, i) => (
+            <NavLinkItemNode
+              key={link.id || i}
+              link={link}
+              i={i}
+              fallbackIcon={FiGrid}
+              linkClassName="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              touchExpandable
+              onNavigate={() => setMobileOpen(false)}
+            />
+          ))}
         </nav>
         {showSearch ? (
           <NavbarSearch
@@ -1846,17 +1946,7 @@ function NavbarBoldLeft({
       <div className="mx-auto w-full min-w-0 max-w-6xl rounded-xl border border-slate-200 px-4 py-3 shadow-sm sm:px-6 md:min-h-16 md:h-auto md:py-2">
         <div className="flex items-center justify-between md:hidden">
           <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
-            {logoUrl ? (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
-              </LogoHomeLink>
-            ) : (
-              <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-                  {logoText.slice(0, 2).toUpperCase()}
-                </span>
-              </LogoHomeLink>
-            )}
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
           <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
             <FiMenu className="h-6 w-6" aria-hidden />
@@ -1866,17 +1956,7 @@ function NavbarBoldLeft({
         <div className="hidden min-w-0 md:flex md:w-full md:items-center md:gap-2 lg:gap-3">
           <div className="flex shrink-0 items-center gap-2 md:gap-3">
             <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
-              {logoUrl ? (
-                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                  <img src={logoUrl} alt="logo" className={NAV_LOGO_IMG_CLASS} />
-                </LogoHomeLink>
-              ) : (
-                <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-                    {logoText.slice(0, 2).toUpperCase()}
-                  </span>
-                </LogoHomeLink>
-              )}
+              <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
             </div>
           </div>
 
@@ -1960,7 +2040,7 @@ function NavbarBoldLeft({
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="text-slate-700 hover:bg-slate-100"
       >
@@ -1968,15 +2048,15 @@ function NavbarBoldLeft({
           {links.map((link, i) => {
             const isActive = link.label === active;
             return (
-              <a
-                key={i}
-                href={resolveHref(link.url)}
-                data-nav-link="1"
-                className={`relative rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-slate-100 ${isActive ? "text-orange-600" : "text-slate-700"}`}
-                onClick={() => setMobileOpen(false)}
-              >
-                {renderNavLinkContent(link, FiGrid)}
-              </a>
+              <NavLinkItemNode
+                key={link.id ?? i}
+                link={link}
+                i={i}
+                fallbackIcon={FiGrid}
+                linkClassName={`relative rounded-lg px-3 py-2 text-sm font-medium transition hover:text-slate-900 ${isActive ? "text-orange-600" : "text-slate-700"}`}
+                touchExpandable
+                onNavigate={() => setMobileOpen(false)}
+              />
             );
           })}
         </nav>
@@ -2045,6 +2125,306 @@ function NavbarBoldLeft({
   );
 }
 
+/** Horizontal padding (px) around the pill inside `max-w-6xl`. */
+const WING_SPLIT_SIDE_INSET_LEFT_PX = 12;
+const WING_SPLIT_SIDE_INSET_RIGHT_PX = 12;
+/** Inner padding (px) on the right end of the right strip. */
+const WING_SPLIT_RIGHT_STRIP_PADDING_RIGHT_PX = 12;
+/** Logo circle diameter: 20rem on desktop; on narrow phones cap width so the row still fits. */
+const WING_SPLIT_LOGO_CIRCLE_DESKTOP = "8rem";
+const WING_SPLIT_LOGO_CIRCLE_MOBILE = "min(20rem, 92vw)";
+/** Left vs right strip flex ratio (share of row after circle + gaps). Higher = wider strips vs previous 2:6. */
+const WING_SPLIT_LEFT_STRIP_FLEX = 2;
+const WING_SPLIT_RIGHT_STRIP_FLEX = 7;
+
+function NavbarWingSplit({
+  logoText,
+  logoUrl,
+  links,
+  primaryLabel,
+  secondaryLabel,
+  content,
+}: {
+  logoText: string;
+  logoUrl: string;
+  links: NavbarLinkItem[];
+  primaryLabel: string;
+  secondaryLabel: string;
+  content: NavbarWidgetContent;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const showSearch = content?.showSearch !== false;
+  const showIcons = content?.showButtons !== false;
+  const showPrimaryButton = content?.showPrimaryButton === true;
+  const showSecondaryButton = content?.showSecondaryButton === true;
+  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
+  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
+  const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
+  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
+  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const primaryButtonStyle = resolvePrimaryButtonStyle(content);
+  const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
+  const pillBg =
+    content?.navbarBgColor || content?.classicRightSectionBgColor || "#2563eb";
+  const primaryBarBg: CSSProperties = { backgroundColor: pillBg };
+  const logoCircleBorderStyle: CSSProperties = { borderColor: pillBg };
+  const resolvedLogoUrl = resolveAssetSrc(logoUrl);
+  const hasLogoImg = Boolean(resolvedLogoUrl.trim());
+  const trimmedLogoText = logoText.trim();
+
+  const desktopCircleBox: CSSProperties = {
+    width: WING_SPLIT_LOGO_CIRCLE_DESKTOP,
+    height: WING_SPLIT_LOGO_CIRCLE_DESKTOP,
+  };
+  const mobileCircleBox: CSSProperties = {
+    width: WING_SPLIT_LOGO_CIRCLE_MOBILE,
+    height: WING_SPLIT_LOGO_CIRCLE_MOBILE,
+  };
+
+  return (
+    <header className="mx-auto w-full min-w-0 max-w-6xl">
+      <div
+        className="w-full"
+        style={{
+          paddingLeft: WING_SPLIT_SIDE_INSET_LEFT_PX,
+          paddingRight: WING_SPLIT_SIDE_INSET_RIGHT_PX,
+        }}
+      >
+        {/* Mobile: split strips + separate circle + menu (30:60 ratio via flex) */}
+        <div className="relative py-2 md:hidden">
+          <div className="flex w-full min-w-0 items-center gap-2 pl-2 pr-0 sm:gap-2.5 sm:pl-3">
+            <div
+              className="min-h-10 min-w-0 rounded-l-full rounded-r-2xl shadow-md ring-1 ring-black/5"
+              style={{ ...primaryBarBg, flex: `${WING_SPLIT_LEFT_STRIP_FLEX} 1 0` }}
+              aria-hidden
+            />
+            <div
+              className="z-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white shadow-md"
+              style={{ ...logoCircleBorderStyle, ...mobileCircleBox }}
+            >
+              {hasLogoImg ? (
+                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
+                  <NavbarLogoHomeSlot layout="circle" logoUrl={resolvedLogoUrl} logoText={logoText} />
+                </div>
+              ) : trimmedLogoText ? (
+                <LogoHomeLink className="inline-flex max-w-[min(17rem,88%)] items-center justify-center px-2">
+                  <span className="truncate text-center text-[clamp(1rem,4vw,2.75rem)] font-bold italic leading-tight tracking-tight text-slate-900">
+                    {trimmedLogoText}
+                  </span>
+                </LogoHomeLink>
+              ) : (
+                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
+                  <NavbarLogoHomeSlot layout="circle" logoUrl="" logoText={logoText} />
+                </div>
+              )}
+            </div>
+            <div
+              className="flex min-h-10 min-w-0 items-center justify-end rounded-l-2xl rounded-r-full py-0.5 pl-1 pr-1 shadow-md ring-1 ring-black/5"
+              style={{ ...primaryBarBg, flex: `${WING_SPLIT_RIGHT_STRIP_FLEX} 1 0` }}
+            >
+              <button
+                type="button"
+                aria-label="Open menu"
+                className="rounded-full p-2 text-white transition hover:bg-white/15"
+                onClick={() => setMobileOpen(true)}
+              >
+                <FiMenu className="h-6 w-6" aria-hidden />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop: left strip (~30%) + gap + circle + gap + right strip (~60%), links flush right */}
+        <div className="relative hidden py-3 md:block">
+          <div className="flex w-full min-w-0 items-center gap-3 pl-3 md:gap-4 md:pl-4 lg:pl-5">
+            <div
+              className="min-h-10 min-w-0 rounded-l-full rounded-r-2xl shadow-lg ring-1 ring-black/10 md:min-h-11"
+              style={{ ...primaryBarBg, flex: `${WING_SPLIT_LEFT_STRIP_FLEX} 1 0` }}
+              aria-hidden
+            />
+            <div
+              className="z-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white shadow-md"
+              style={{ ...logoCircleBorderStyle, ...desktopCircleBox }}
+            >
+              {hasLogoImg ? (
+                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
+                  <NavbarLogoHomeSlot layout="circle" logoUrl={resolvedLogoUrl} logoText={logoText} />
+                </div>
+              ) : trimmedLogoText ? (
+                <LogoHomeLink className="inline-flex max-w-[min(18rem,90%)] items-center justify-center px-3">
+                  <span className="truncate text-center text-3xl font-bold italic leading-tight tracking-tight text-slate-900 md:text-4xl lg:text-5xl">
+                    {trimmedLogoText}
+                  </span>
+                </LogoHomeLink>
+              ) : (
+                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
+                  <NavbarLogoHomeSlot layout="circle" logoUrl="" logoText={logoText} />
+                </div>
+              )}
+            </div>
+            <div
+              className="flex min-h-10 min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-2 rounded-l-2xl rounded-r-full py-1 pl-2 shadow-lg ring-1 ring-black/10 md:min-h-11 md:gap-x-3 md:pl-3 md:py-1.5"
+              style={{
+                ...primaryBarBg,
+                flex: `${WING_SPLIT_RIGHT_STRIP_FLEX} 1 0`,
+                paddingRight: WING_SPLIT_RIGHT_STRIP_PADDING_RIGHT_PX,
+              }}
+            >
+              {showSearch ? (
+                <div className="hidden min-w-0 max-w-[10rem] shrink-0 lg:block xl:max-w-[13rem]">
+                  <NavbarSearch
+                    variant="compactDark"
+                    placeholder="Search"
+                    className="min-w-0 w-full [&_form>div>div]:shadow-md"
+                  />
+                </div>
+              ) : null}
+              {showIcons ? (
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                  <ActionIconLink
+                    href={content?.actionIcon1Url}
+                    openCartOnClick={content?.actionIcon1OpenCart === true}
+                    onOpenCart={content?.onOpenCart}
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
+                    style={actionIcon1Style}
+                    title="Basket"
+                  >
+                    <ActionIcon1 className="h-4 w-4" />
+                  </ActionIconLink>
+                  <ActionIconLink
+                    href={content?.actionIcon2Url}
+                    openCartOnClick={content?.actionIcon2OpenCart === true}
+                    onOpenCart={content?.onOpenCart}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
+                    style={actionIcon2Style}
+                    title="Account"
+                  >
+                    <ActionIcon2 className="h-4 w-4" />
+                  </ActionIconLink>
+                </div>
+              ) : null}
+              {showPrimaryButton || showSecondaryButton ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                  {showPrimaryButton ? (
+                    <a
+                      href={resolveHref(content?.primaryButtonUrl)}
+                      className={`${NAVBAR_CTA_SM} bg-white/95 text-slate-900 shadow-sm ring-1 ring-white/80 transition hover:bg-white`}
+                      style={primaryButtonStyle}
+                    >
+                      <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
+                    </a>
+                  ) : null}
+                  {showSecondaryButton ? (
+                    <a
+                      href={resolveHref(content?.secondaryButtonUrl)}
+                      className={`${NAVBAR_CTA_SM} border border-white/70 bg-transparent text-white shadow-sm transition hover:bg-white/15`}
+                      style={secondaryButtonStyle}
+                    >
+                      <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+              <nav className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 md:gap-x-5">
+                {links.map((link, i) => (
+                  <NavLinkItemNode
+                    key={link.id || i}
+                    link={link}
+                    i={i}
+                    fallbackIcon={FiGrid}
+                    linkClassName="shrink-0 whitespace-nowrap text-sm font-semibold transition hover:opacity-90 md:text-[15px]"
+                  />
+                ))}
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <NavbarMobileDrawer
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        panelClassName="text-slate-900"
+        headerClassName="border-slate-200 text-slate-900"
+        closeButtonClassName="text-slate-700 hover:bg-slate-100"
+      >
+        <nav className="flex flex-col gap-1">
+          {links.map((link, i) => (
+            <NavLinkItemNode
+              key={link.id || i}
+              link={link}
+              i={i}
+              fallbackIcon={FiGrid}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              touchExpandable
+              onNavigate={() => setMobileOpen(false)}
+            />
+          ))}
+        </nav>
+        {showSearch ? (
+          <NavbarSearch
+            variant="compact"
+            placeholder="Search"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
+          />
+        ) : null}
+        {showIcons ? (
+          <div className="mt-2 flex gap-2">
+            <ActionIconLink
+              href={content?.actionIcon1Url}
+              openCartOnClick={content?.actionIcon1OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              style={actionIcon1Style}
+            >
+              <ActionIcon1 className="h-4 w-4" />
+            </ActionIconLink>
+            <ActionIconLink
+              href={content?.actionIcon2Url}
+              openCartOnClick={content?.actionIcon2OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              style={actionIcon2Style}
+            >
+              <ActionIcon2 className="h-4 w-4" />
+            </ActionIconLink>
+          </div>
+        ) : null}
+        {showPrimaryButton || showSecondaryButton ? (
+          <div className="mt-2 flex flex-col gap-2">
+            {showPrimaryButton ? (
+              <a
+                href={resolveHref(content?.primaryButtonUrl)}
+                className={`${NAVBAR_CTA_SM} bg-emerald-700 text-white`}
+                style={primaryButtonStyle}
+                onClick={() => setMobileOpen(false)}
+              >
+                <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                {primaryLabel}
+              </a>
+            ) : null}
+            {showSecondaryButton ? (
+              <a
+                href={resolveHref(content?.secondaryButtonUrl)}
+                className={`${NAVBAR_CTA_SM} bg-orange-500 text-white`}
+                style={secondaryButtonStyle}
+                onClick={() => setMobileOpen(false)}
+              >
+                <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                {secondaryLabel}
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+      </NavbarMobileDrawer>
+    </header>
+  );
+}
+
 function NavbarRetailTwoRow({
   logoText,
   logoUrl,
@@ -2082,73 +2462,84 @@ function NavbarRetailTwoRow({
     ? { backgroundColor: content.classicRightSectionBgColor }
     : undefined;
 
-  const pinTopRow = content?.stickyNavbar === true;
-  const fixedDockRef = useRef<HTMLDivElement>(null);
-  const [dockH, setDockH] = useState(0);
+  /** Product Central → Variants → “Sticky navbar”: fixed top row + `pt-[44px]` above links bar. */
+  const pinTopRow = parseStickyNavbarFlag(content?.stickyNavbar);
 
-  useLayoutEffect(() => {
-    if (!pinTopRow) {
-      setDockH(0);
-      return;
-    }
-    const el = fixedDockRef.current;
-    if (!el) return;
-    const measure = () => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      if (h > 0) setDockH((prev) => (prev === h ? prev : h));
-    };
-    measure();
-    let ro: ResizeObserver | undefined;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(() => measure());
-      ro.observe(el);
-    }
-    window.addEventListener("resize", measure);
-    return () => {
-      ro?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [pinTopRow]);
-
+  /** Fixed top row only; links offset only when sticky is enabled in admin. */
   const topRowShellClass = "mx-auto w-full max-w-6xl px-4 py-3 sm:px-10 lg:px-10";
+
+  const phoneDisplay = content?.secondaryButtonLabel?.trim() || "0333 344 8147";
+  const phoneHref = `tel:${String(phoneDisplay).replace(/[^\d+]/g, "")}`;
 
   const topRowContent = (
     <>
-      <div className="flex items-center gap-3 md:hidden">
-        <div className={NAV_LOGO_WRAPPER_CLASS}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-xs font-bold text-white">
-                {logoText.slice(0, 2).toUpperCase()}
-              </span>
-            </LogoHomeLink>
-          )}
+      <div className="flex flex-col gap-1.5 lg:hidden">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <div className={`${NAV_LOGO_WRAPPER_CLASS} min-w-0 shrink`}>
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
+          </div>
+          <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-1 gap-y-0.5 sm:gap-x-1.5">
+            <div className="shrink-0 text-right leading-tight">
+              <p className="text-[8px] font-medium leading-tight text-slate-500 sm:text-[9px]">Need Help?</p>
+              <a
+                href={phoneHref}
+                className="block whitespace-nowrap text-[10px] font-bold leading-tight tracking-tight text-slate-900 hover:text-slate-700 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary sm:text-[11px]"
+              >
+                {phoneDisplay}
+              </a>
+            </div>
+            {showIcons ? (
+              <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+                <ActionIconLink
+                  href={content?.actionIcon2Url}
+                  openCartOnClick={content?.actionIcon2OpenCart === true}
+                  onOpenCart={content?.onOpenCart}
+                  className="relative inline-flex items-center gap-0 p-0.5"
+                  style={cartIconStyle}
+                  title="Basket"
+                >
+                  <CartIcon className="h-5 w-5 shrink-0 text-slate-900" strokeWidth={1.35} />
+                </ActionIconLink>
+                <div className="shrink-0 text-right leading-tight">
+                  <p className="text-[7px] font-medium uppercase leading-tight tracking-wide text-slate-500 sm:text-[8px]">
+                    Basket
+                  </p>
+                  <p className="whitespace-nowrap text-[10px] font-bold tabular-nums leading-none text-slate-900 sm:text-[11px]">
+                    £{cartSubtotal.toFixed(2)}
+                  </p>
+                </div>
+                <ActionIconLink
+                  href={content?.actionIcon1Url}
+                  openCartOnClick={content?.actionIcon1OpenCart === true}
+                  onOpenCart={content?.onOpenCart}
+                  className="relative inline-flex items-center justify-center p-0.5"
+                  style={userIconStyle}
+                  title="Account"
+                >
+                  <UserIcon className="h-7 w-7 shrink-0 text-slate-900" strokeWidth={1.35} />
+                  {cartItemCount === 0 ? (
+                    <span className="text-[8px] font-semibold tabular-nums leading-none text-slate-800 sm:text-[9px]">
+                      0
+                    </span>
+                  ) : null}
+                </ActionIconLink>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="rounded-md p-1.5 text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary sm:p-2"
+              onClick={() => setMobileOpen(true)}
+            >
+              <FiMenu className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          aria-label="Open menu"
-          className="ml-auto rounded-lg p-2 text-slate-800"
-          onClick={() => setMobileOpen(true)}
-        >
-          <FiMenu className="h-6 w-6" aria-hidden />
-        </button>
       </div>
 
       <div className="hidden items-center justify-between gap-6 lg:flex lg:min-h-[52px]">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
-          {logoUrl ? (
-            <LogoHomeLink className={NAV_LOGO_LINK_INNER_CLASS}>
-              <img src={logoUrl} alt={`${logoText} logo`} className={NAV_LOGO_IMG_CLASS} />
-            </LogoHomeLink>
-          ) : (
-            <LogoHomeLink className="inline-flex min-w-0 items-center justify-start rounded-md">
-              <span className="text-lg font-semibold text-slate-900">{logoText}</span>
-            </LogoHomeLink>
-          )}
+          <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
 
         {showSearch ? (
@@ -2161,12 +2552,12 @@ function NavbarRetailTwoRow({
 
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-5 text-slate-900 xl:gap-6">
           <div className="shrink-0 text-right leading-tight">
-            <p className="text-[11px] font-medium text-slate-500">Need Help?</p>
+            <p className="text-[13px] text-slate-500">Need Help?</p>
             <a
-              href={`tel:${String(content?.secondaryButtonLabel?.trim() || "0333 344 8147").replace(/[^\d+]/g, "")}`}
-              className="text-[14px] font-bold tracking-tight text-slate-900 hover:text-slate-700 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+              href={phoneHref}
+              className="text-[16px] font-bold tracking-tight text-slate-900 hover:text-slate-700 hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
             >
-              {content?.secondaryButtonLabel?.trim() || "0333 344 8147"}
+              {phoneDisplay}
             </a>
           </div>
           {showIcons ? (
@@ -2179,13 +2570,12 @@ function NavbarRetailTwoRow({
                 style={cartIconStyle}
                 title="Basket"
               >
-                <CartIcon className="h-9 w-9 text-slate-900" strokeWidth={1.5} />
-             
+                <CartIcon className="h-8 w-8 font-semibold shrink-0 text-slate-900"  />
               </ActionIconLink>
 
               <div className="flex items-center gap-2.5">
                 <div className="text-right leading-tight">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Basket</p>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Basket</p>
                   <p className="text-[13px] font-bold tabular-nums leading-none text-slate-900">
                     £{cartSubtotal.toFixed(2)}
                   </p>
@@ -2199,10 +2589,10 @@ function NavbarRetailTwoRow({
                   style={userIconStyle}
                   title="Account"
                 >
-                  <UserIcon className="h-9 w-9 text-slate-900" strokeWidth={1.5} />
-                     {cartItemCount === 0 ? (
-                  <span className="text-[11px] font-semibold tabular-nums leading-none text-slate-800">0</span>
-                ) : null}
+                  <UserIcon className="h-8 w-8 font-semibold shrink-0 text-slate-900"  />
+                  {cartItemCount === 0 ? (
+                    <span className="text-[11px] font-semibold tabular-nums leading-none text-slate-800">0</span>
+                  ) : null}
                 </ActionIconLink>
               </div>
             </div>
@@ -2228,7 +2618,7 @@ function NavbarRetailTwoRow({
 
   const retailLinksSection = (
     <div
-      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-[#fdf4df]"
+      className="relative left-1/2 w-screen sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df]"
       style={retailLinksBarBgStyle}
     >
       <div className="mx-auto w-full max-w-6xl px-4 py-1 sm:px-6 md:px-10 lg:px-14">
@@ -2248,61 +2638,63 @@ function NavbarRetailTwoRow({
   );
 
   return (
-    <header className="w-full" style={pinTopRow ? undefined : navbarBgStyle}>
+    <>
       {pinTopRow ? (
         <>
           <div
-            aria-hidden
-            className="w-full shrink-0"
+            className="fixed left-0 right-0 z-[55] w-full overflow-visible bg-white shadow-sm"
             style={{
-              height: dockH > 0 ? dockH : undefined,
-              minHeight: dockH > 0 ? undefined : "4.25rem",
+              ...(navbarBgStyle ?? {}),
+              top: SITE_ANNOUNCEMENT_TOP_OFFSET,
             }}
-          />
-          <div
-            ref={fixedDockRef}
-            className="fixed inset-x-0 top-0 z-[55] w-full bg-white shadow-sm"
-            style={navbarBgStyle}
           >
             <div className={topRowShellClass}>{topRowContent}</div>
           </div>
-          {retailLinksSection}
+          <div className="w-full overflow-visible pt-[5.5rem]">{retailLinksSection}</div>
         </>
       ) : (
-        <>
-          <div className={topRowShellClass}>{topRowContent}</div>
-          {retailLinksSection}
-        </>
+        <header className="w-full overflow-visible" style={navbarBgStyle}>
+          <div className="flex w-full flex-col overflow-visible">
+            <div className={topRowShellClass}>{topRowContent}</div>
+            {retailLinksSection}
+          </div>
+        </header>
       )}
 
       <NavbarMobileDrawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        panelClassName="bg-white text-slate-900"
+        panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="text-slate-700 hover:bg-slate-100"
       >
         {showSearch ? (
-          <NavbarSearch
-            variant="compact"
-            className="mb-3"
-            onSearchNavigate={() => setMobileOpen(false)}
-          />
-        ) : null}
-        <nav className="flex flex-col gap-1">
-          {links.map((link, i) => (
-            <NavLinkItemNode
-              key={link.id || i}
-              link={link}
-              i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
-              onNavigate={() => setMobileOpen(false)}
+          <section className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Search</p>
+            <NavbarSearch
+              variant="compact"
+              className="min-w-0 w-full"
+              onSearchNavigate={() => setMobileOpen(false)}
             />
-          ))}
-        </nav>
+          </section>
+        ) : null}
+        <section>
+          <nav className="flex flex-col gap-3">
+            {links.map((link, i) => (
+              <NavLinkItemNode
+                key={link.id || i}
+                link={link}
+                i={i}
+                fallbackIcon={FiGrid}
+                linkClassName="flex w-full min-w-0 items-center px-4 py-3.5 text-lg font-medium leading-snug text-slate-800 transition hover:text-slate-600"
+                touchExpandable
+                onNavigate={() => setMobileOpen(false)}
+              />
+            ))}
+          </nav>
+        </section>
       </NavbarMobileDrawer>
-    </header>
+    </>
   );
 }
 
@@ -2346,31 +2738,56 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     "modern";
   const logoText = contentForRender?.logoText?.trim() || "";
   const widgetLogoUrl = resolveAssetSrc(contentForRender?.logoUrl);
+  /** Must start empty on server and client so hydration matches; session cache applies in useLayoutEffect. */
   const [fallbackLogoUrl, setFallbackLogoUrl] = useState("");
+
+  useLayoutEffect(() => {
+    if (widgetLogoUrl) return;
+    try {
+      const cached = sessionStorage.getItem(NAVBAR_WIDGET_PUBLIC_LOGO_SESSION_KEY);
+      if (cached) setFallbackLogoUrl(cached);
+    } catch {
+      /* private mode / quota */
+    }
+  }, [widgetLogoUrl]);
 
   useEffect(() => {
     let cancelled = false;
     if (widgetLogoUrl) return () => void 0;
 
-    const base = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+    const base = getNavbarLogoApiBase();
     if (!base) return () => void 0;
 
-    const endpoints = [
-      `${base}/get/logo/public`,
-      `${base}/api/get/logo/public`,
-      `${base}/get/logo`,
-      `${base}/api/get/logo`,
-    ];
+    const endpoints = buildNavbarPublicLogoFetchUrls(base);
 
     const loadLogo = async () => {
       for (const endpoint of endpoints) {
         try {
-          const res = await fetch(endpoint, { method: "GET" });
+          const res = await fetch(endpoint, {
+            method: "GET",
+            headers: { Accept: "application/json, text/plain, */*" },
+            mode: "cors",
+            cache: "no-store",
+          });
           if (!res.ok) continue;
-          const json = await res.json();
-          const resolved = resolveAssetSrc(json?.data?.logoUrl);
+          let json: unknown;
+          try {
+            json = await res.json();
+          } catch {
+            continue;
+          }
+          const rawPath = extractPublicLogoPathFromJson(json);
+          if (!rawPath) continue;
+          const resolved = resolveAssetSrc(rawPath);
           if (!resolved) continue;
-          if (!cancelled) setFallbackLogoUrl(resolved);
+          if (!cancelled) {
+            setFallbackLogoUrl(resolved);
+            try {
+              sessionStorage.setItem(NAVBAR_WIDGET_PUBLIC_LOGO_SESSION_KEY, resolved);
+            } catch {
+              /* ignore quota / private mode */
+            }
+          }
           return;
         } catch {
           // try next endpoint
@@ -2384,11 +2801,20 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     };
   }, [widgetLogoUrl]);
 
-  // Keep logo-only rendering across all variants. Use transparent pixel until actual logo resolves.
-  const logoUrl =
-    widgetLogoUrl ||
-    fallbackLogoUrl ||
-    "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+  useEffect(() => {
+    if (!widgetLogoUrl || typeof document === "undefined") return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = widgetLogoUrl;
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, [widgetLogoUrl]);
+
+  const effectiveLogoUrl = (widgetLogoUrl || fallbackLogoUrl || "").trim();
+  const logoUrl = effectiveLogoUrl;
   const linkTextColor = contentForRender?.menuLinkTextColor?.trim() || "#334155";
   const linkHoverColor = contentForRender?.menuLinkHoverColor?.trim() || "#0f172a";
   const linkColorVars = {
@@ -2417,6 +2843,13 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
         }
         .navbar-widget-link-colors nav a[data-nav-link="1"]:hover {
           color: var(--nav-link-hover) !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav a[data-nav-link="1"] {
+          color: #ffffff !important;
+          font-weight: 600 !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav a[data-nav-link="1"]:hover {
+          color: rgba(255, 255, 255, 0.88) !important;
         }
       }
     `}</style>
@@ -2481,6 +2914,20 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
         <>
           <div className="navbar-widget-link-colors relative z-[70]" style={linkColorVars}>
             <NavbarBoldLeft {...commonProps} />
+          </div>
+          {linkColorStyle}
+        </>
+      );
+      break;
+    case "wing-split":
+      variantNode = (
+        <>
+          <div
+            className="navbar-widget-link-colors relative z-[70]"
+            style={linkColorVars}
+            data-navbar-variant="wing-split-pill"
+          >
+            <NavbarWingSplit {...commonProps} />
           </div>
           {linkColorStyle}
         </>

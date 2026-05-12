@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -12,6 +12,12 @@ import type {
 } from "@/app/services/announcementBannerService";
 
 const STORAGE_KEY = "zextons_announcement_dismissed_updated_at";
+
+/** Synced to `document.documentElement` so fixed/sticky navbars can sit below the bar (see `BlogNavbarWidget`, `NavbarVariantTestBar`). */
+export const SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR = "--site-announcement-banner-height";
+
+/** Use as `top` / `padding-top` so layout works when the variable is unset (no banner). */
+export const SITE_ANNOUNCEMENT_TOP_OFFSET = `var(${SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR}, 0px)`;
 
 type Props = {
   initial: AnnouncementBannerPublic;
@@ -126,6 +132,7 @@ function AnnouncementSlide({
 
 export default function AnnouncementBar({ initial }: Props) {
   const [show, setShow] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const items = initial.items ?? [];
   const socialLinks = initial.socialLinks ?? [];
   const multi = items.length > 1;
@@ -163,6 +170,31 @@ export default function AnnouncementBar({ initial }: Props) {
     return () => window.clearInterval(id);
   }, [emblaApi, multi, show]);
 
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!show || !items.length) {
+      root.style.removeProperty(SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR);
+      return;
+    }
+    const el = rootRef.current;
+    if (!el) return;
+    const sync = () => {
+      root.style.setProperty(
+        SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR,
+        `${Math.ceil(el.getBoundingClientRect().height)}px`
+      );
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    window.addEventListener("resize", sync);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", sync);
+      root.style.removeProperty(SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR);
+    };
+  }, [show, items.length, itemsRevKey, socialKey]);
+
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
@@ -186,9 +218,10 @@ export default function AnnouncementBar({ initial }: Props) {
 
   return (
     <div
+      ref={rootRef}
       role="region"
       aria-label="Site announcements"
-      className="w-full shrink-0 border-b border-white/10"
+      className="sticky top-0 z-[60] w-full shrink-0 border-b border-white/10"
     >
       <div className="relative min-w-0">
         <div className="overflow-hidden" ref={emblaRef}>

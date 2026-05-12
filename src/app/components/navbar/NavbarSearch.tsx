@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Product } from "../../../../types";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
@@ -121,7 +121,6 @@ export default function NavbarSearch({
   const [searchTerm, setSearchTerm] = useState<string>("");
   const router = useRouter();
   const pathname = usePathname();
-  const inputId = useId();
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -245,13 +244,9 @@ export default function NavbarSearch({
     return (
       <div className={`relative w-full ${className}`.trim()}>
         <form className="w-full" onSubmit={handleSearchSubmit}>
-          <label htmlFor={inputId} className="sr-only">
-            Search products
-          </label>
           <div className="relative">
             <div className={shellClass}>
               <input
-                id={inputId}
                 type="search"
                 enterKeyHint="search"
                 className={inputClass}
@@ -259,6 +254,7 @@ export default function NavbarSearch({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoComplete="off"
+                aria-label="Search products"
                 style={{
                   WebkitAppearance: "none",
                   MozAppearance: "none",
@@ -284,9 +280,6 @@ export default function NavbarSearch({
   return (
     <div className={`relative w-full ${className}`.trim()}>
       <form className="w-full" onSubmit={handleSearchSubmit}>
-        <label htmlFor={inputId} className="mb-2 text-sm font-medium text-gray-900 sr-only">
-          Search
-        </label>
         <div className="relative">
           <button
             type="submit"
@@ -302,13 +295,13 @@ export default function NavbarSearch({
           </button>
           <input
             type="search"
-            id={inputId}
             className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-4 pr-14 text-sm text-gray-900 focus:border-primary focus:ring-primary"
             placeholder={placeholder}
             required
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             autoComplete="off"
+            aria-label="Search"
             style={{
               WebkitAppearance: "none",
               MozAppearance: "none",
