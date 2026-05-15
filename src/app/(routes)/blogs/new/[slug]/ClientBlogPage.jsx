@@ -539,13 +539,16 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                                 return (
                                 <div
                                   key={`col-${rowIndex}-${colIndex}`}
-                                  className={`blog-layout-col space-y-3 sm:space-y-4 ${
+                                  className={`blog-layout-col relative space-y-3 sm:space-y-4 ${
                                     hasSized ? "blog-layout-col--sized" : "blog-layout-col--fluid"
                                   }`}
                                   style={
                                     hasSized
-                                      ? { "--blog-col-pct": `${pct}%` }
-                                      : undefined
+                                      ? {
+                                          "--blog-col-pct": `${pct}%`,
+                                          zIndex: row.columns.length - colIndex,
+                                        }
+                                      : { zIndex: row.columns.length - colIndex }
                                   }
                                 >
                                   {column.blocks.map((block, blockIndex) => {

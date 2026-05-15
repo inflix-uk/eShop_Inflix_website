@@ -30,9 +30,14 @@ import {
   type SellBuyCards,
   type TinyPhoneBanner,
 } from "@/app/services/promotionalSectionsService";
+import { getLogo } from "@/app/services/logoService";
+import { mergePublicStoreLogoIntoHomepageBlocks } from "@/app/lib/mergePublicStoreLogoIntoHomepageBlocks";
+import type { PublicStoreLogoPayload } from "@/app/lib/mergePublicStoreLogoIntoHomepageBlocks";
 
 export type HomeServerCmsBundle = {
   homepageBlocks: HomepageBlock[];
+  /** Same public logo as global header; used to patch navbar widgets + client refetch merge. */
+  publicStoreLogo: PublicStoreLogoPayload | null;
   newsletterWidget: HomepageNewsletterSingleton | null;
   widgetVisibility: SiteWidgetVisibility;
   trustpilotSettings: TrustpilotSettings | null;
@@ -54,6 +59,7 @@ const FALLBACK_CATEGORY_CARDS: CategoryCardsSectionSettings = {
 export function createFallbackHomeServerCmsBundle(): HomeServerCmsBundle {
   return {
     homepageBlocks: [],
+    publicStoreLogo: null,
     newsletterWidget: null,
     widgetVisibility: DEFAULT_SITE_WIDGET_VISIBILITY,
     trustpilotSettings: null,
@@ -80,6 +86,7 @@ export const getHomeServerCmsBundle = cache(
       getBuyNowPayLater(live),
       getSellBuyCards(live),
       getTinyPhoneBanner(live),
+      getLogo().catch(() => null),
     ]);
 
     const valueOrFallback = <T,>(index: number, defaultValue: T): T => {
@@ -121,9 +128,26 @@ export const getHomeServerCmsBundle = cache(
       8,
       fallback.tinyPhoneBanner
     );
+    const logoRow = valueOrFallback<{ logoUrl: string; altText: string } | null>(
+      9,
+      null
+    );
+    const publicStoreLogo: PublicStoreLogoPayload | null =
+      logoRow?.logoUrl?.trim() && logoRow.logoUrl.trim().length > 0
+        ? {
+            logoUrl: logoRow.logoUrl.trim(),
+            altText: logoRow.altText?.trim() || "Zextons",
+          }
+        : null;
+    const rawHomepageBlocks = homepageData?.blocks?.length ? homepageData.blocks : [];
+    const homepageBlocks = mergePublicStoreLogoIntoHomepageBlocks(
+      rawHomepageBlocks,
+      publicStoreLogo
+    );
 
     return {
-      homepageBlocks: homepageData?.blocks?.length ? homepageData.blocks : [],
+      homepageBlocks,
+      publicStoreLogo,
       newsletterWidget,
       widgetVisibility,
       trustpilotSettings,

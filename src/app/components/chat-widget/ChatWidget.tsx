@@ -94,7 +94,7 @@ const ChatWidget: React.FC = () => {
           </div>
 
           {/* Desktop: Fixed Window */}
-          <div className="hidden sm:flex fixed bottom-24 right-6 z-50 w-full max-w-md h-[600px] max-h-[85vh] bg-white rounded-3xl shadow-2xl flex-col overflow-hidden transform transition-all duration-300 ease-out animate-slideUp border border-gray-100">
+          <div className="hidden sm:flex fixed bottom-24 right-6 z-[100] w-full max-w-md h-[600px] max-h-[85vh] bg-white rounded-3xl shadow-2xl flex-col overflow-hidden transform transition-all duration-300 ease-out animate-slideUp border border-gray-100">
             {/* Header */}
             <ChatHeader onClose={handleClose} />
 

@@ -190,7 +190,13 @@ export default async function Home() {
       {showOverallNavbar ? (
         <>
           {/* Sticky when enabled is handled inside NavbarVariantTestBar (admin "Sticky navbar"). */}
-          <NavbarVariantTestBar config={navbarVariantTestConfig} />
+          <NavbarVariantTestBar
+            config={navbarVariantTestConfig}
+            serverBootstrapLogo={{
+              logoUrl: navServerBootstrap.logoUrl,
+              logoAlt: navServerBootstrap.logoAlt,
+            }}
+          />
         </>
       ) : null}
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}

@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -22,8 +23,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import NavbarSearch from "@/app/components/navbar/NavbarSearch";
 import { SITE_ANNOUNCEMENT_TOP_OFFSET } from "@/app/components/AnnouncementBar";
 import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
@@ -69,7 +72,8 @@ export type NavbarWidgetContent = {
     | "bold-left"
     | "business"
     | "retail-two-row"
-    | "wing-split";
+    | "wing-split"
+    | "pill-black";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItem[];
@@ -274,9 +278,11 @@ function buildNavbarPublicLogoFetchUrls(apiBase: string): string[] {
 }
 
 function NavbarWidgetLogo({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const url = String(src || "").trim();
+  if (!url) return null;
   return (
     <img
-      src={src}
+      src={url}
       alt={alt}
       className={className}
       loading="eager"
@@ -597,6 +603,8 @@ function NavLinkItemMobileAccordion({
   );
 }
 
+const NAV_FLYOUT_HOVER_CLOSE_MS = 180;
+
 function NavLinkItemNode({
   link,
   i,
@@ -604,6 +612,7 @@ function NavLinkItemNode({
   fallbackIcon = FiGrid,
   onNavigate,
   touchExpandable = false,
+  bodyPortalFlyout = false,
 }: {
   link: NavbarLinkItem;
   i: number;
@@ -612,10 +621,122 @@ function NavLinkItemNode({
   onNavigate?: () => void;
   /** When true, links with children use tap-to-expand instead of hover flyout (required in mobile drawers). */
   touchExpandable?: boolean;
+  /**
+   * When true (NavbarWingSplit desktop), the flyout renders in `document.body` with `position: fixed` so it
+   * stacks above in-page heroes/banners and survives hover moves without losing the group.
+   */
+  bodyPortalFlyout?: boolean;
 }) {
   const children = getDropdownChildren(link);
   const aria = navLinkAriaLabel(link);
   const showAria = isIconOnlyLink(link) || (isIconLabelLink(link) && !String(link?.label || "").trim());
+  const flyoutPanelId = useMemo(
+    () => `nav-flyout-${String(link.id || i).replace(/\W/g, "")}-${i}`,
+    [link.id, i]
+  );
+
+  const [flyoutOpen, setFlyoutOpen] = useState(false);
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLAnchorElement>(null);
+  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0, minWidth: 220, overlap: 10 });
+
+  const clearHoverClose = () => {
+    if (hoverCloseTimer.current != null) {
+      clearTimeout(hoverCloseTimer.current);
+      hoverCloseTimer.current = null;
+    }
+  };
+
+  const scheduleHoverClose = () => {
+    clearHoverClose();
+    hoverCloseTimer.current = setTimeout(() => setFlyoutOpen(false), NAV_FLYOUT_HOVER_CLOSE_MS);
+  };
+
+  const openFlyout = () => {
+    clearHoverClose();
+    setFlyoutOpen(true);
+  };
+
+  const updateFlyoutPosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const minWidth = Math.max(220, r.width);
+    const margin = 8;
+    const overlap = 10;
+    let left = r.left;
+    if (left + minWidth > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - margin - minWidth);
+    }
+    setFlyoutPos({ top: r.bottom - overlap, left, minWidth, overlap });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!bodyPortalFlyout || !flyoutOpen) return;
+    updateFlyoutPosition();
+    const sync = () => updateFlyoutPosition();
+    window.addEventListener("scroll", sync, true);
+    window.addEventListener("resize", sync);
+    return () => {
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
+    };
+  }, [bodyPortalFlyout, flyoutOpen, updateFlyoutPosition]);
+
+  useEffect(() => {
+    return () => clearHoverClose();
+  }, []);
+
+  useEffect(() => {
+    if (!bodyPortalFlyout || !flyoutOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFlyoutOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bodyPortalFlyout, flyoutOpen]);
+
+  const onTriggerBlur = (e: FocusEvent<HTMLAnchorElement>) => {
+    if (!bodyPortalFlyout) return;
+    requestAnimationFrame(() => {
+      const panel = document.getElementById(flyoutPanelId);
+      const next = e.relatedTarget as Node | null;
+      if (next && (panel?.contains(next) || triggerRef.current?.contains(next))) return;
+      if (panel?.contains(document.activeElement)) return;
+      setFlyoutOpen(false);
+    });
+  };
+
+  const flyoutLinkClass =
+    "group/item flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-800 transition-all duration-200 hover:bg-slate-100 hover:text-slate-950 hover:translate-x-1";
+
+  const flyoutInner = (
+    <div
+      data-nav-flyout-panel
+      className={`min-w-[220px] w-full overflow-hidden rounded-md border border-slate-200/90 p-2 shadow-[0_16px_48px_rgba(15,23,42,0.18)] ${
+        bodyPortalFlyout ? "bg-white backdrop-blur-xl" : "bg-white/95 backdrop-blur-xl"
+      }`}
+    >
+      {children.map((child, childIndex) => (
+        <a
+          key={child.id || `${link.id || i}-child-${childIndex}`}
+          href={resolveHref(child.url)}
+          onClick={onNavigate}
+          className={flyoutLinkClass}
+        >
+          <span>{child.label}</span>
+          <svg
+            className="h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      ))}
+    </div>
+  );
 
   if (children.length === 0) {
     return (
@@ -644,6 +765,68 @@ function NavLinkItemNode({
     );
   }
 
+  if (bodyPortalFlyout) {
+    return (
+      <div
+        key={link.id || i}
+        className="relative"
+        onMouseEnter={() => {
+          openFlyout();
+          updateFlyoutPosition();
+        }}
+        onMouseLeave={scheduleHoverClose}
+      >
+        <a
+          ref={triggerRef}
+          href={resolveHref(link.url)}
+          data-nav-link="1"
+          className={linkClassName}
+          onClick={onNavigate}
+          aria-expanded={flyoutOpen}
+          aria-haspopup="true"
+          aria-controls={flyoutPanelId}
+          aria-label={showAria ? aria : undefined}
+          onFocus={() => {
+            openFlyout();
+            updateFlyoutPosition();
+          }}
+          onBlur={onTriggerBlur}
+        >
+          <span className="flex w-full min-w-0 items-center justify-between gap-4">
+            <span className="min-w-0 flex-1">{renderNavLinkContent(link, fallbackIcon)}</span>
+            <FiChevronDown
+              className={`h-5 w-5 shrink-0 transition-transform duration-200 ${
+                flyoutOpen ? "rotate-180" : ""
+              } text-white/80`}
+              aria-hidden
+              strokeWidth={2}
+            />
+          </span>
+        </a>
+        {flyoutOpen &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div
+              id={flyoutPanelId}
+              role="menu"
+              className="fixed z-[9990]"
+              style={{
+                top: flyoutPos.top,
+                left: flyoutPos.left,
+                minWidth: flyoutPos.minWidth,
+                paddingTop: flyoutPos.overlap,
+              }}
+              onMouseEnter={clearHoverClose}
+              onMouseLeave={scheduleHoverClose}
+            >
+              {flyoutInner}
+            </div>,
+            document.body
+          )}
+      </div>
+    );
+  }
+
   return (
     <div key={link.id || i} className="group relative">
       <a
@@ -658,38 +841,8 @@ function NavLinkItemNode({
           <FiChevronDown className="h-5 w-5 shrink-0 text-slate-400" aria-hidden strokeWidth={2} />
         </span>
       </a>
-      <div className="absolute left-0 top-full z-[80] hidden pt-1 group-hover:block group-focus-within:block">
-        <div className="min-w-[220px] overflow-hidden rounded-md border border-slate-200/70 bg-white/95 p-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-          {children.map((child, childIndex) => (
-            <a
-              key={child.id || `${link.id || i}-child-${childIndex}`}
-              href={resolveHref(child.url)}
-              onClick={onNavigate}
-              className="
-                group/item flex items-center justify-between
-                px-4 py-3 text-sm font-medium text-slate-700
-                transition-all duration-200
-                hover:bg-slate-50 hover:text-black
-                hover:translate-x-1
-              "
-            >
-              <span>{child.label}</span>
-              <svg
-                className="h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </a>
-          ))}
-        </div>
+      <div className="absolute left-0 top-full z-[150] hidden pt-1 group-hover:block group-focus-within:block">
+        {flyoutInner}
       </div>
     </div>
   );
@@ -726,7 +879,7 @@ function NavbarMobileDrawer({
         type="button"
         aria-label={open ? "Close menu overlay" : undefined}
         aria-hidden={!open}
-        className={`fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${open ? "" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${open ? "" : "pointer-events-none opacity-0"}`}
         onClick={onClose}
         tabIndex={open ? 0 : -1}
       />
@@ -734,7 +887,7 @@ function NavbarMobileDrawer({
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-[101] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l border-slate-200/90 bg-[#f8f9fb] text-slate-900 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
+        className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l border-slate-200/90 bg-[#f8f9fb] text-slate-900 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
       >
         <div
           className={`flex shrink-0 flex-col gap-1 border-b border-slate-200/80 bg-white px-6 pb-5 pt-6 ${headerClassName}`}
@@ -818,7 +971,7 @@ function NavbarModern({
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   return (
     <section
-      className={`py-3 ${
+      className={`pt-1 pb-2 ${
         isClassicLayout
           ? "w-full px-0 sm:px-0"
           : "w-full px-3 sm:px-10"
@@ -845,11 +998,11 @@ function NavbarModern({
 
         {/* ================= RIGHT: MENU (desktop) — grid avoids nav/search/CTA overlap ================= */}
         <div
-          className={`hidden w-full min-w-0 rounded-2xl bg-[#DEE3DE] p-2 sm:px-4 md:px-3 lg:px-4 overflow-visible ${
+          className={`hidden w-full min-w-0 rounded-2xl bg-[#DEE3DE] px-2 py-1.5 sm:px-4 sm:py-1.5 md:px-3 md:py-1.5 lg:px-4 lg:py-1.5 overflow-visible md:w-auto md:max-w-full ${
             hasRightEndContent
-              ? "md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-2"
+              ? "md:grid md:grid-cols-[minmax(0,auto)_auto_minmax(0,auto)] md:items-center md:gap-2"
               : "md:flex md:items-center md:justify-center"
-          } ${isClassicLayout ? "md:ml-auto md:min-w-0 md:flex-1" : "md:min-w-0 md:flex-1"}`}
+          } ${isClassicLayout ? "md:ml-auto md:min-w-0" : "md:min-w-0"}`}
           style={classicRightSectionBgStyle}
         >
           {hasRightEndContent ? (
@@ -1052,7 +1205,7 @@ function NavbarMinimalist({
     : undefined;
   return (
     <header className="w-full bg-white" style={navbarBgStyle}>
-      <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 px-4 py-3 sm:px-6 md:h-16 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-3 md:py-0">
+      <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 px-4 py-3 sm:px-6 md:h-16 md:grid-cols-[minmax(0,auto)_auto_minmax(0,auto)] md:items-center md:gap-x-6 md:gap-y-0 md:py-0">
         <div className="col-span-full flex w-full min-w-0 items-center justify-between md:hidden">
           <div className={NAV_LOGO_WRAPPER_CLASS}>
             <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
@@ -1067,7 +1220,7 @@ function NavbarMinimalist({
           </button>
         </div>
 
-        <nav className="hidden min-w-0 items-center justify-self-start gap-4 overflow-x-auto md:flex md:flex-nowrap md:gap-5">
+        <nav className="hidden max-w-full min-w-0 items-center justify-self-start gap-4 overflow-x-auto md:flex md:flex-nowrap md:gap-5">
           {links.map((link, i) => (
             <NavLinkItemNode
               key={link.id || i}
@@ -1079,14 +1232,18 @@ function NavbarMinimalist({
           ))}
         </nav>
 
-        <div className={`hidden min-w-0 shrink-0 items-center justify-self-center md:flex ${NAV_LOGO_WRAPPER_CLASS}`}>
+        <div className={`hidden max-w-full min-w-0 shrink-0 items-center justify-self-center md:flex ${NAV_LOGO_WRAPPER_CLASS}`}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
 
-        <div className="hidden min-w-0 shrink-0 flex-nowrap items-center justify-end justify-self-end gap-2 sm:gap-3 md:flex">
+        <div className="hidden min-w-0 max-w-full shrink-0 flex-nowrap items-center justify-end justify-self-end gap-2 sm:gap-2.5 md:flex">
           {showSearch ? (
-            <div className="hidden min-w-0 max-w-[min(100%,12rem)] items-center px-1 py-1 md:flex lg:max-w-[min(100%,15rem)]">
-              <NavbarSearch variant="compact" placeholder="Search" className="w-full min-w-0" />
+            <div className="hidden min-w-0 max-w-[min(100%,10rem)] items-center md:flex lg:max-w-[min(100%,13rem)]">
+              <NavbarSearch
+                variant="compactDense"
+                placeholder="Search"
+                className="min-w-0 w-full"
+              />
             </div>
           ) : null}
 
@@ -1169,7 +1326,7 @@ function NavbarMinimalist({
         </nav>
         {showSearch ? (
           <NavbarSearch
-            variant="compact"
+            variant="compactDense"
             placeholder="Search"
             className="mt-2"
             onSearchNavigate={() => setMobileOpen(false)}
@@ -1273,15 +1430,15 @@ function NavbarDarkSidebar({
           <FiMenu className="h-6 w-6" aria-hidden />
         </button>
 
-        <div className="relative hidden h-16 w-full min-w-0 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-0 lg:gap-x-3">
-          <div className="flex min-w-0 items-center gap-2 md:gap-2.5">
+        <div className="relative hidden h-16 w-full min-w-0 md:grid md:grid-cols-[minmax(0,auto)_auto_minmax(0,auto)] md:items-center md:gap-x-2 md:py-0 lg:gap-x-3">
+          <div className="flex max-w-full min-w-0 items-center gap-2 md:gap-2.5">
             <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
               <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
             </div>
             {showSearch ? (
-              <div className="hidden min-w-0 max-w-[10rem] shrink md:flex md:max-w-[11rem] lg:max-w-[13rem] xl:max-w-[14rem]">
+              <div className="hidden min-w-0 max-w-[min(100%,10rem)] md:flex lg:max-w-[min(100%,13rem)]">
                 <NavbarSearch
-                  variant="compactDark"
+                  variant="compactDarkDense"
                   placeholder="Search products..."
                   className="min-w-0 w-full"
                 />
@@ -1304,7 +1461,7 @@ function NavbarDarkSidebar({
             ))}
           </nav>
 
-          <div className="flex w-full min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-visible pt-0.5 sm:gap-2">
+          <div className="flex min-w-0 max-w-full flex-nowrap items-center justify-end gap-1.5 overflow-visible pt-0.5 sm:gap-2">
             {showIcons ? (
               <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
                 <ActionIconLink
@@ -1382,7 +1539,7 @@ function NavbarDarkSidebar({
         </nav>
         {showSearch ? (
           <NavbarSearch
-            variant="compactPill"
+            variant="compactDarkDense"
             placeholder="Search products..."
             className="mt-2"
             onSearchNavigate={() => setMobileOpen(false)}
@@ -1492,15 +1649,15 @@ function NavbarBusiness({
 
       {/* One row: 1fr | auto | 1fr — nav pill is true horizontal center; logo left, actions + search right. */}
       <div className="relative hidden w-full min-w-0 overflow-visible md:grid md:min-h-[4.25rem] md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-2 md:py-1 lg:gap-x-3">
-        <div className="flex min-w-0 items-center justify-start gap-2 md:gap-2.5">
+        <div className="flex min-w-0 max-w-full items-center justify-start gap-2 md:gap-2.5">
           <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
             <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
         </div>
 
-        <div className="flex min-w-0 items-center justify-center">
+        <div className="flex min-w-0 max-w-full items-center justify-center">
           <nav
-            className="inline-flex max-w-full flex-nowrap items-center gap-1 rounded-md bg-black px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5"
+            className="inline-flex max-w-full min-w-0 flex-nowrap items-center gap-1 overflow-x-auto rounded-md bg-black px-1.5 py-1.5 sm:gap-1.5 sm:px-2 sm:py-1.5"
             style={businessCenterNavBgStyle}
             aria-label="Primary"
           >
@@ -1516,7 +1673,7 @@ function NavbarBusiness({
           </nav>
         </div>
 
-        <div className="flex w-full min-w-0 flex-nowrap items-center justify-end gap-1 overflow-visible pt-1 sm:gap-1.5 md:gap-2">
+        <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center justify-end gap-1 overflow-visible pt-1 sm:gap-1.5 md:gap-2">
           {showIcons ? (
             <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
               <ActionIconLink
@@ -1704,25 +1861,17 @@ function NavbarDeveloper({
         </button>
       </div>
 
-      <div className="hidden min-w-0 w-full flex-col gap-3 md:flex md:flex-nowrap md:flex-row md:items-center md:justify-between md:gap-3 lg:gap-4">
-        <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
+      <div className="hidden min-w-0 w-full flex-col gap-3 md:flex md:flex-nowrap md:flex-row md:items-center md:gap-x-3 md:gap-y-0 lg:gap-x-4">
+        <div className={`${NAV_LOGO_WRAPPER_CLASS} max-w-full min-w-0 shrink-0`}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
 
-        {showSearch ? (
-          <div className="flex min-w-0 w-full shrink md:max-w-[11rem] md:flex-1 lg:max-w-[14rem] xl:max-w-[16rem]">
-            <NavbarSearch variant="compact" placeholder="Search anything..." className="min-w-0 w-full" />
-          </div>
-        ) : (
-          <div className="hidden min-w-0 flex-1 md:block" />
-        )}
-
-        <div className="flex min-w-0 w-full items-center justify-end md:w-auto md:shrink-0">
+        <div className="flex min-h-0 min-w-0 max-w-full flex-1 items-center justify-center md:px-2">
           <div
-            className="flex max-w-full flex-nowrap items-center gap-1 overflow-visible rounded-full bg-slate-900/95 p-1 px-2 shadow-lg backdrop-blur-md sm:gap-1.5 sm:px-2.5 md:max-w-[min(100vw-2rem,42rem)] lg:max-w-none"
+            className="flex max-w-full min-w-0 flex-nowrap items-center gap-1 overflow-visible rounded-xl bg-slate-900/95 p-2 px-4 shadow-lg backdrop-blur-md sm:gap-1.5 sm:px-2.5 md:max-w-[min(100%,42rem)]"
             style={developerActionsBarStyle}
           >
-            <nav className="flex shrink-0 flex-nowrap items-center gap-0.5 sm:gap-1">
+            <nav className="flex max-w-full min-w-0 shrink-0 flex-nowrap items-center gap-0.5 overflow-x-auto sm:gap-1">
               {links.map((link, i) => {
                 const Icon = getLinkIcon(link.label, link.icon);
                 const lt = linkTypeNormalized(link);
@@ -1833,6 +1982,18 @@ function NavbarDeveloper({
             ) : null}
           </div>
         </div>
+
+        {showSearch ? (
+          <div className="flex shrink-0 items-center justify-end md:min-w-0">
+            <div className="flex min-w-0 max-w-[min(100%,10rem)] md:max-w-[min(100%,13rem)]">
+              <NavbarSearch
+                variant="compactDenseTall"
+                placeholder="Search anything..."
+                className="min-w-0 w-full"
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <NavbarMobileDrawer
@@ -1857,7 +2018,7 @@ function NavbarDeveloper({
         </nav>
         {showSearch ? (
           <NavbarSearch
-            variant="compact"
+            variant="compactDenseTall"
             placeholder="Search anything..."
             className="mt-2"
             onSearchNavigate={() => setMobileOpen(false)}
@@ -1942,97 +2103,103 @@ function NavbarBoldLeft({
     : undefined;
 
   return (
-    <header className="w-full bg-white" style={navbarBgStyle}>
-      <div className="mx-auto w-full min-w-0 max-w-6xl rounded-xl border border-slate-200 px-4 py-3 shadow-sm sm:px-6 md:min-h-16 md:h-auto md:py-2">
-        <div className="flex items-center justify-between md:hidden">
-          <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
-            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
-          </div>
-          <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
-            <FiMenu className="h-6 w-6" aria-hidden />
-          </button>
-        </div>
-
-        <div className="hidden min-w-0 md:flex md:w-full md:items-center md:gap-2 lg:gap-3">
-          <div className="flex shrink-0 items-center gap-2 md:gap-3">
-            <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
-              <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
-            </div>
-          </div>
-
-          <nav className="flex min-h-0 min-w-0 flex-1 basis-0 flex-wrap items-center gap-x-2 gap-y-1 px-1 md:gap-x-3 md:gap-y-1 md:px-2 lg:gap-x-4">
-            {links.map((link, i) => {
-              const isActive = link.label === active;
-              return (
-                <a
-                  key={i}
-                  href={resolveHref(link.url)}
-                  data-nav-link="1"
-                  className="relative shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-orange-500"
-                >
-                  {renderNavLinkContent(link, FiGrid)}
-                  {isActive ? <span className="absolute -bottom-2 left-0 h-0.5 w-full rounded-full bg-orange-500" /> : null}
-                </a>
-              );
-            })}
-          </nav>
-
-          <div className="ml-auto flex min-w-0 shrink-0 flex-nowrap items-center gap-1 md:gap-1.5">
-            {showSearch ? (
-              <div className="hidden min-w-0 max-w-[10rem] shrink lg:block lg:max-w-[14rem] xl:max-w-[18rem]">
-                <NavbarSearch variant="compactPill" placeholder="Search..." className="min-w-0" />
+    <header className="w-full bg-white py-3" style={navbarBgStyle}>
+      <div className="w-full min-w-0 px-0 md:px-4 lg:px-5">
+        <div className="w-full rounded-none border-0 border-transparent bg-white shadow-none ring-0 outline-none md:rounded-xl md:border md:border-slate-200 md:shadow-sm">
+          <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-3 sm:px-6 md:min-h-16 md:h-auto md:py-2">
+            <div className="flex items-center justify-between md:hidden">
+              <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
+                <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
               </div>
-            ) : null}
+              <button type="button" aria-label="Open menu" className="rounded-lg p-2 text-slate-800" onClick={() => setMobileOpen(true)}>
+                <FiMenu className="h-6 w-6" aria-hidden />
+              </button>
+            </div>
 
-            {showIcons ? (
-              <>
-                <button
-                  type="button"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
-                  style={{
-                    backgroundColor: content?.actionIcon1BgColor || "#f1f5f9",
-                    color: content?.actionIcon1Color || "#334155",
-                    ...actionIcon1Style,
-                  }}
-                >
-                  <ActionIcon1 className="h-4 w-4" />
-                </button>
+            <div className="hidden min-w-0 md:grid md:w-full md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-x-3 md:gap-y-2 lg:gap-x-4">
+              <div className="flex shrink-0 items-center justify-self-start gap-2 md:gap-3">
+                <div className={`${NAV_LOGO_WRAPPER_CLASS} items-center justify-center overflow-visible`}>
+                  <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
+                </div>
+              </div>
 
-                <button
-                  type="button"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
-                  style={{
-                    backgroundColor: content?.actionIcon2BgColor || "#f1f5f9",
-                    color: content?.actionIcon2Color || "#334155",
-                    ...actionIcon2Style,
-                  }}
-                >
-                  <ActionIcon2 className="h-4 w-4" />
-                </button>
-              </>
-            ) : null}
+              <div className="flex min-w-0 justify-center justify-self-stretch md:min-w-0">
+                <nav className="flex min-h-0 min-w-0 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-1 md:gap-x-3 md:gap-y-1 md:px-2 lg:gap-x-4">
+                  {links.map((link, i) => {
+                    const isActive = link.label === active;
+                    return (
+                      <a
+                        key={i}
+                        href={resolveHref(link.url)}
+                        data-nav-link="1"
+                        className="relative shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-orange-500"
+                      >
+                        {renderNavLinkContent(link, FiGrid)}
+                        {isActive ? <span className="absolute -bottom-2 left-0 h-0.5 w-full rounded-full bg-orange-500" /> : null}
+                      </a>
+                    );
+                  })}
+                </nav>
+              </div>
 
-            {showPrimaryButton ? (
-              <a
-                href={resolveHref(content?.primaryButtonUrl)}
-                className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-orange-500 text-white transition hover:bg-orange-600`}
-                style={primaryButtonStyle}
-              >
-                <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
-                {primaryLabel}
-              </a>
-            ) : null}
+              <div className="flex min-w-0 shrink-0 flex-nowrap items-center justify-end justify-self-end gap-1 md:gap-1.5">
+                {showSearch ? (
+                  <div className="hidden min-w-0 max-w-[10rem] shrink lg:block lg:max-w-[14rem] xl:max-w-[18rem]">
+                    <NavbarSearch variant="compactPill" placeholder="Search..." className="min-w-0" />
+                  </div>
+                ) : null}
 
-            {showSecondaryButton ? (
-              <a
-                href={resolveHref(content?.secondaryButtonUrl)}
-                className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-slate-900 text-white transition hover:bg-slate-800`}
-                style={secondaryButtonStyle}
-              >
-                <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
-                {secondaryLabel}
-              </a>
-            ) : null}
+                {showIcons ? (
+                  <>
+                    <button
+                      type="button"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
+                      style={{
+                        backgroundColor: content?.actionIcon1BgColor || "#f1f5f9",
+                        color: content?.actionIcon1Color || "#334155",
+                        ...actionIcon1Style,
+                      }}
+                    >
+                      <ActionIcon1 className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition"
+                      style={{
+                        backgroundColor: content?.actionIcon2BgColor || "#f1f5f9",
+                        color: content?.actionIcon2Color || "#334155",
+                        ...actionIcon2Style,
+                      }}
+                    >
+                      <ActionIcon2 className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : null}
+
+                {showPrimaryButton ? (
+                  <a
+                    href={resolveHref(content?.primaryButtonUrl)}
+                    className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-orange-500 text-white transition hover:bg-orange-600`}
+                    style={primaryButtonStyle}
+                  >
+                    <PrimaryButtonIcon className="h-4 w-4 shrink-0" />
+                    {primaryLabel}
+                  </a>
+                ) : null}
+
+                {showSecondaryButton ? (
+                  <a
+                    href={resolveHref(content?.secondaryButtonUrl)}
+                    className={`${NAVBAR_CTA_MD} !shrink-0 whitespace-nowrap bg-slate-900 text-white transition hover:bg-slate-800`}
+                    style={secondaryButtonStyle}
+                  >
+                    <SecondaryButtonIcon className="h-4 w-4 shrink-0" />
+                    {secondaryLabel}
+                  </a>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2125,15 +2292,261 @@ function NavbarBoldLeft({
   );
 }
 
-/** Horizontal padding (px) around the pill inside `max-w-6xl`. */
-const WING_SPLIT_SIDE_INSET_LEFT_PX = 12;
-const WING_SPLIT_SIDE_INSET_RIGHT_PX = 12;
+/** Black pill bar: logo disc | centered links | optional search, icons, CTAs (admin toggles). */
+function NavbarPillBlack({
+  logoText,
+  logoUrl,
+  links,
+  primaryLabel,
+  secondaryLabel,
+  content,
+}: {
+  logoText: string;
+  logoUrl: string;
+  links: NavbarLinkItem[];
+  primaryLabel: string;
+  secondaryLabel: string;
+  content: NavbarWidgetContent;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const resolvedLogoUrl = resolveAssetSrc(logoUrl);
+  const trimmedLogo = resolvedLogoUrl.trim();
+  const showSearch = content?.showSearch !== false;
+  const showIcons = content?.showButtons !== false;
+  const showPrimaryButton = content?.showPrimaryButton === true;
+  const showSecondaryButton = content?.showSecondaryButton === true;
+  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
+  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
+  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const hasRightEnd = showSearch || showIcons || showPrimaryButton || showSecondaryButton;
+  const pillBarBgStyle: CSSProperties = {
+    backgroundColor: String(content?.navbarBgColor || "").trim() || "#000000",
+  };
+
+  const primRes = resolvePrimaryButtonStyle(content) || {};
+  const pillPrimaryMerged: CSSProperties = {
+    backgroundColor: primRes.backgroundColor ?? "#fafafa",
+    color: primRes.color ?? "#0f172a",
+  };
+  const secRes = resolveSecondaryButtonStyle(content) || {};
+  const pillSecondaryMerged: CSSProperties = {
+    backgroundColor: secRes.backgroundColor ?? "transparent",
+    color: secRes.color ?? "#ffffff",
+  };
+  const i1 = resolveActionIconButtonStyle(content, 1) || {};
+  const i2 = resolveActionIconButtonStyle(content, 2) || {};
+  const pillIcon1Merged: CSSProperties = {
+    backgroundColor: i1.backgroundColor ?? "rgba(255,255,255,0.1)",
+    color: i1.color ?? "#ffffff",
+  };
+  const pillIcon2Merged: CSSProperties = {
+    backgroundColor: i2.backgroundColor ?? "rgba(255,255,255,0.1)",
+    color: i2.color ?? "#ffffff",
+  };
+
+  return (
+    <>
+      <header className="w-full py-3">
+        <div className="w-full min-w-0 px-4 sm:px-5">
+          <div
+            className="w-full rounded-xl shadow-[0_10px_36px_rgba(0,0,0,0.28)]"
+            style={pillBarBgStyle}
+          >
+            <div className="mx-auto grid min-h-[52px] w-full min-w-0 max-w-5xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 sm:min-h-[56px] sm:gap-3 sm:px-6 sm:py-2.5 md:gap-x-4 md:gap-y-0 lg:max-w-6xl">
+              <div className="flex min-w-0 shrink-0 items-center justify-self-start sm:gap-3">
+                <LogoHomeLink className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md sm:h-11 sm:w-11">
+                  {trimmedLogo ? (
+                    <NavbarWidgetLogo
+                      src={trimmedLogo}
+                      alt={logoText.trim() ? `${logoText} logo` : "Store logo"}
+                      className="h-full w-full min-h-0 min-w-0 max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <GiIcons.GiFlame className="h-6 w-6 shrink-0 text-[#2563eb] sm:h-7 sm:w-7" aria-hidden />
+                  )}
+                </LogoHomeLink>
+              </div>
+
+              <div className="flex min-w-0 max-w-full justify-center justify-self-stretch">
+                <nav className="nav-pill-black-desktop hidden min-w-0 max-w-full flex-nowrap items-center justify-center gap-4 overflow-x-auto md:flex md:gap-6 lg:gap-9">
+                  {links.map((link, i) => (
+                    <NavLinkItemNode
+                      key={link.id || i}
+                      link={link}
+                      i={i}
+                      fallbackIcon={FiGrid}
+                      bodyPortalFlyout
+                      linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-white transition hover:opacity-80 md:text-[15px]"
+                    />
+                  ))}
+                </nav>
+              </div>
+
+              <div className="flex min-w-0 shrink-0 items-center justify-end justify-self-end gap-2 lg:gap-2.5">
+                {hasRightEnd ? (
+                  <div className="hidden min-w-0 flex-nowrap items-center justify-end gap-2 md:flex lg:gap-2.5">
+                    {showSearch ? (
+                      <div className="hidden min-w-0 max-w-[10rem] shrink-0 lg:block xl:max-w-[13rem]">
+                        <NavbarSearch
+                          variant="compactDark"
+                          placeholder="Search"
+                          className="min-w-0 w-full [&_form>div>div]:shadow-md"
+                        />
+                      </div>
+                    ) : null}
+                    {showIcons ? (
+                      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                        <ActionIconLink
+                          href={content?.actionIcon1Url}
+                          openCartOnClick={content?.actionIcon1OpenCart === true}
+                          onOpenCart={content?.onOpenCart}
+                          className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 ring-white/40 transition hover:opacity-90"
+                          style={pillIcon1Merged}
+                          title="Basket"
+                        >
+                          <ActionIcon1 className="h-4 w-4 shrink-0" />
+                        </ActionIconLink>
+                        <ActionIconLink
+                          href={content?.actionIcon2Url}
+                          openCartOnClick={content?.actionIcon2OpenCart === true}
+                          onOpenCart={content?.onOpenCart}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 ring-white/40 transition hover:opacity-90"
+                          style={pillIcon2Merged}
+                          title="Account"
+                        >
+                          <ActionIcon2 className="h-4 w-4 shrink-0" />
+                        </ActionIconLink>
+                      </div>
+                    ) : null}
+                    {showPrimaryButton || showSecondaryButton ? (
+                      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+                        {showPrimaryButton ? (
+                          <a
+                            href={resolveHref(content?.primaryButtonUrl)}
+                            className={`${NAVBAR_CTA_SM} shadow-sm ring-1 ring-white/45 transition hover:opacity-95`}
+                            style={pillPrimaryMerged}
+                          >
+                            <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
+                          </a>
+                        ) : null}
+                        {showSecondaryButton ? (
+                          <a
+                            href={resolveHref(content?.secondaryButtonUrl)}
+                            className={`${NAVBAR_CTA_SM} border border-white/65 shadow-sm transition hover:opacity-95`}
+                            style={pillSecondaryMerged}
+                          >
+                            <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label="Open menu"
+                  className="shrink-0 rounded-full p-2 text-white transition hover:bg-white/10 md:hidden"
+                  onClick={() => setMobileOpen(true)}
+                >
+                  <FiMenu className="h-6 w-6" aria-hidden />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <NavbarMobileDrawer
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        panelClassName="text-slate-900"
+        headerClassName="border-slate-200 text-slate-900"
+        closeButtonClassName="text-slate-700 hover:bg-slate-100"
+      >
+        <nav className="flex flex-col gap-1">
+          {links.map((link, i) => (
+            <NavLinkItemNode
+              key={link.id || i}
+              link={link}
+              i={i}
+              fallbackIcon={FiGrid}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              touchExpandable
+              onNavigate={() => setMobileOpen(false)}
+            />
+          ))}
+        </nav>
+        {showSearch ? (
+          <NavbarSearch
+            variant="compact"
+            placeholder="Search"
+            className="mt-2"
+            onSearchNavigate={() => setMobileOpen(false)}
+          />
+        ) : null}
+        {showIcons ? (
+          <div className="mt-2 flex gap-2">
+            <ActionIconLink
+              href={content?.actionIcon1Url}
+              openCartOnClick={content?.actionIcon1OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm ring-1 ring-slate-200"
+              style={pillIcon1Merged}
+            >
+              <ActionIcon1 className="h-4 w-4 shrink-0" />
+            </ActionIconLink>
+            <ActionIconLink
+              href={content?.actionIcon2Url}
+              openCartOnClick={content?.actionIcon2OpenCart === true}
+              onOpenCart={content?.onOpenCart}
+              className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm ring-1 ring-slate-200"
+              style={pillIcon2Merged}
+            >
+              <ActionIcon2 className="h-4 w-4 shrink-0" />
+            </ActionIconLink>
+          </div>
+        ) : null}
+        {showPrimaryButton || showSecondaryButton ? (
+          <div className="mt-2 flex flex-col gap-2">
+            {showPrimaryButton ? (
+              <a
+                href={resolveHref(content?.primaryButtonUrl)}
+                className={`${NAVBAR_CTA_SM} shadow-sm ring-1 ring-slate-200 transition hover:opacity-95`}
+                style={pillPrimaryMerged}
+                onClick={() => setMobileOpen(false)}
+              >
+                <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                {primaryLabel}
+              </a>
+            ) : null}
+            {showSecondaryButton ? (
+              <a
+                href={resolveHref(content?.secondaryButtonUrl)}
+                className={`${NAVBAR_CTA_SM} border border-slate-200 shadow-sm transition hover:opacity-95`}
+                style={pillSecondaryMerged}
+                onClick={() => setMobileOpen(false)}
+              >
+                <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                {secondaryLabel}
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+      </NavbarMobileDrawer>
+    </>
+  );
+}
+
+/** Row width below `2xl` (1536px). At `2xl+`, header uses full viewport width. */
+const WING_SPLIT_ROW_WIDTH_VW = 99;
 /** Inner padding (px) on the right end of the right strip. */
 const WING_SPLIT_RIGHT_STRIP_PADDING_RIGHT_PX = 12;
 /** Logo circle diameter: 20rem on desktop; on narrow phones cap width so the row still fits. */
 const WING_SPLIT_LOGO_CIRCLE_DESKTOP = "8rem";
-const WING_SPLIT_LOGO_CIRCLE_MOBILE = "min(20rem, 92vw)";
-/** Left vs right strip flex ratio (share of row after circle + gaps). Higher = wider strips vs previous 2:6. */
+/** Left vs right strip flex ratio (share of row after circle + gaps). */
 const WING_SPLIT_LEFT_STRIP_FLEX = 2;
 const WING_SPLIT_RIGHT_STRIP_FLEX = 7;
 
@@ -2177,70 +2590,61 @@ function NavbarWingSplit({
     width: WING_SPLIT_LOGO_CIRCLE_DESKTOP,
     height: WING_SPLIT_LOGO_CIRCLE_DESKTOP,
   };
-  const mobileCircleBox: CSSProperties = {
-    width: WING_SPLIT_LOGO_CIRCLE_MOBILE,
-    height: WING_SPLIT_LOGO_CIRCLE_MOBILE,
-  };
+
+  /** Concave end toward logo: semicircular bite (mask), radius = half logo circle. */
+  const wingSplitLeftStripNotchMask = (diameterExpr: string): CSSProperties => ({
+    WebkitMaskImage: `radial-gradient(circle calc(${diameterExpr} / 2) at 100% 50%, transparent 99.6%, black 100%)`,
+    maskImage: `radial-gradient(circle calc(${diameterExpr} / 2) at 100% 50%, transparent 99.6%, black 100%)`,
+    WebkitMaskSize: "100% 100%",
+    maskSize: "100% 100%",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+  });
+  const wingSplitRightStripNotchMask = (diameterExpr: string): CSSProperties => ({
+    WebkitMaskImage: `radial-gradient(circle calc(${diameterExpr} / 2) at 0% 50%, transparent 99.6%, black 100%)`,
+    maskImage: `radial-gradient(circle calc(${diameterExpr} / 2) at 0% 50%, transparent 99.6%, black 100%)`,
+    WebkitMaskSize: "100% 100%",
+    maskSize: "100% 100%",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+  });
 
   return (
-    <header className="mx-auto w-full min-w-0 max-w-6xl">
-      <div
-        className="w-full"
-        style={{
-          paddingLeft: WING_SPLIT_SIDE_INSET_LEFT_PX,
-          paddingRight: WING_SPLIT_SIDE_INSET_RIGHT_PX,
-        }}
-      >
-        {/* Mobile: split strips + separate circle + menu (30:60 ratio via flex) */}
-        <div className="relative py-2 md:hidden">
-          <div className="flex w-full min-w-0 items-center gap-2 pl-2 pr-0 sm:gap-2.5 sm:pl-3">
-            <div
-              className="min-h-10 min-w-0 rounded-l-full rounded-r-2xl shadow-md ring-1 ring-black/5"
-              style={{ ...primaryBarBg, flex: `${WING_SPLIT_LEFT_STRIP_FLEX} 1 0` }}
-              aria-hidden
-            />
-            <div
-              className="z-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] bg-white shadow-md"
-              style={{ ...logoCircleBorderStyle, ...mobileCircleBox }}
-            >
-              {hasLogoImg ? (
-                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
-                  <NavbarLogoHomeSlot layout="circle" logoUrl={resolvedLogoUrl} logoText={logoText} />
-                </div>
-              ) : trimmedLogoText ? (
-                <LogoHomeLink className="inline-flex max-w-[min(17rem,88%)] items-center justify-center px-2">
-                  <span className="truncate text-center text-[clamp(1rem,4vw,2.75rem)] font-bold italic leading-tight tracking-tight text-slate-900">
-                    {trimmedLogoText}
-                  </span>
-                </LogoHomeLink>
-              ) : (
-                <div className="box-border flex h-[82%] w-[82%] min-h-0 min-w-0 items-center justify-center">
-                  <NavbarLogoHomeSlot layout="circle" logoUrl="" logoText={logoText} />
-                </div>
-              )}
+    <header
+      className="relative z-0 mx-auto min-w-0 overflow-visible 2xl:!w-[100vw] 2xl:!max-w-[100vw]"
+      style={{
+        width: `${WING_SPLIT_ROW_WIDTH_VW}vw`,
+        maxWidth: `${WING_SPLIT_ROW_WIDTH_VW}vw`,
+      }}
+    >
+      <div className="w-full min-w-0">
+        {/* Mobile: logo left, menu right — no bar/logo backgrounds (transparent) */}
+        <div className="relative md:hidden">
+          <div className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2.5">
+            <div className="min-w-0 max-w-[calc(100%-3.5rem)]">
+              <NavbarLogoHomeSlot logoUrl={resolvedLogoUrl} logoText={logoText} />
             </div>
-            <div
-              className="flex min-h-10 min-w-0 items-center justify-end rounded-l-2xl rounded-r-full py-0.5 pl-1 pr-1 shadow-md ring-1 ring-black/5"
-              style={{ ...primaryBarBg, flex: `${WING_SPLIT_RIGHT_STRIP_FLEX} 1 0` }}
+            <button
+              type="button"
+              aria-label="Open menu"
+              className="shrink-0 rounded-lg p-2 text-slate-800 transition hover:bg-slate-100/90"
+              onClick={() => setMobileOpen(true)}
             >
-              <button
-                type="button"
-                aria-label="Open menu"
-                className="rounded-full p-2 text-white transition hover:bg-white/15"
-                onClick={() => setMobileOpen(true)}
-              >
-                <FiMenu className="h-6 w-6" aria-hidden />
-              </button>
-            </div>
+              <FiMenu className="h-6 w-6" aria-hidden />
+            </button>
           </div>
         </div>
 
         {/* Desktop: left strip (~30%) + gap + circle + gap + right strip (~60%), links flush right */}
-        <div className="relative hidden py-3 md:block">
-          <div className="flex w-full min-w-0 items-center gap-3 pl-3 md:gap-4 md:pl-4 lg:pl-5">
+        <div className="relative z-0 hidden overflow-visible py-3 md:block">
+          <div className="flex w-full min-w-0 items-center gap-0 overflow-visible px-3 md:px-4 lg:px-5">
             <div
-              className="min-h-10 min-w-0 rounded-l-full rounded-r-2xl shadow-lg ring-1 ring-black/10 md:min-h-11"
-              style={{ ...primaryBarBg, flex: `${WING_SPLIT_LEFT_STRIP_FLEX} 1 0` }}
+              className="-mr-3 min-h-10 min-w-0 shrink rounded-l-xl shadow-lg ring-1 ring-black/10 md:-mr-4 md:min-h-11 lg:-mr-14"
+              style={{
+                ...primaryBarBg,
+                ...wingSplitLeftStripNotchMask(WING_SPLIT_LOGO_CIRCLE_DESKTOP),
+                flex: `${WING_SPLIT_LEFT_STRIP_FLEX} 1 0`,
+              }}
               aria-hidden
             />
             <div
@@ -2264,81 +2668,89 @@ function NavbarWingSplit({
               )}
             </div>
             <div
-              className="flex min-h-10 min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-2 rounded-l-2xl rounded-r-full py-1 pl-2 shadow-lg ring-1 ring-black/10 md:min-h-11 md:gap-x-3 md:pl-3 md:py-1.5"
+              className="-ml-3 grid min-h-10 min-w-0 max-w-full shrink grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 overflow-visible rounded-r-xl py-1 pl-2 shadow-lg ring-1 ring-black/10 md:-ml-4 md:min-h-11 md:gap-x-3 md:py-1.5 lg:-ml-14"
               style={{
                 ...primaryBarBg,
+                ...wingSplitRightStripNotchMask(WING_SPLIT_LOGO_CIRCLE_DESKTOP),
                 flex: `${WING_SPLIT_RIGHT_STRIP_FLEX} 1 0`,
                 paddingRight: WING_SPLIT_RIGHT_STRIP_PADDING_RIGHT_PX,
               }}
             >
-              {showSearch ? (
-                <div className="hidden min-w-0 max-w-[10rem] shrink-0 lg:block xl:max-w-[13rem]">
-                  <NavbarSearch
-                    variant="compactDark"
-                    placeholder="Search"
-                    className="min-w-0 w-full [&_form>div>div]:shadow-md"
-                  />
-                </div>
-              ) : null}
-              {showIcons ? (
-                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                  <ActionIconLink
-                    href={content?.actionIcon1Url}
-                    openCartOnClick={content?.actionIcon1OpenCart === true}
-                    onOpenCart={content?.onOpenCart}
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
-                    style={actionIcon1Style}
-                    title="Basket"
-                  >
-                    <ActionIcon1 className="h-4 w-4" />
-                  </ActionIconLink>
-                  <ActionIconLink
-                    href={content?.actionIcon2Url}
-                    openCartOnClick={content?.actionIcon2OpenCart === true}
-                    onOpenCart={content?.onOpenCart}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
-                    style={actionIcon2Style}
-                    title="Account"
-                  >
-                    <ActionIcon2 className="h-4 w-4" />
-                  </ActionIconLink>
-                </div>
-              ) : null}
-              {showPrimaryButton || showSecondaryButton ? (
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-                  {showPrimaryButton ? (
-                    <a
-                      href={resolveHref(content?.primaryButtonUrl)}
-                      className={`${NAVBAR_CTA_SM} bg-white/95 text-slate-900 shadow-sm ring-1 ring-white/80 transition hover:bg-white`}
-                      style={primaryButtonStyle}
+              <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-2">
+                {showSearch ? (
+                  <div className="hidden min-w-0 max-w-[10rem] shrink-0 lg:block xl:max-w-[13rem]">
+                    <NavbarSearch
+                      variant="compactDark"
+                      placeholder="Search"
+                      className="min-w-0 w-full [&_form>div>div]:shadow-md"
+                    />
+                  </div>
+                ) : null}
+                {showIcons ? (
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <ActionIconLink
+                      href={content?.actionIcon1Url}
+                      openCartOnClick={content?.actionIcon1OpenCart === true}
+                      onOpenCart={content?.onOpenCart}
+                      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
+                      style={actionIcon1Style}
+                      title="Basket"
                     >
-                      <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                      <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
-                    </a>
-                  ) : null}
-                  {showSecondaryButton ? (
-                    <a
-                      href={resolveHref(content?.secondaryButtonUrl)}
-                      className={`${NAVBAR_CTA_SM} border border-white/70 bg-transparent text-white shadow-sm transition hover:bg-white/15`}
-                      style={secondaryButtonStyle}
+                      <ActionIcon1 className="h-4 w-4" />
+                    </ActionIconLink>
+                    <ActionIconLink
+                      href={content?.actionIcon2Url}
+                      openCartOnClick={content?.actionIcon2OpenCart === true}
+                      onOpenCart={content?.onOpenCart}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
+                      style={actionIcon2Style}
+                      title="Account"
                     >
-                      <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                      <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
-                    </a>
-                  ) : null}
-                </div>
-              ) : null}
-              <nav className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 md:gap-x-5">
+                      <ActionIcon2 className="h-4 w-4" />
+                    </ActionIconLink>
+                  </div>
+                ) : null}
+                {showPrimaryButton || showSecondaryButton ? (
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+                    {showPrimaryButton ? (
+                      <a
+                        href={resolveHref(content?.primaryButtonUrl)}
+                        className={`${NAVBAR_CTA_SM} bg-white/95 text-slate-900 shadow-sm ring-1 ring-white/80 transition hover:bg-white`}
+                        style={primaryButtonStyle}
+                      >
+                        <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
+                      </a>
+                    ) : null}
+                    {showSecondaryButton ? (
+                      <a
+                        href={resolveHref(content?.secondaryButtonUrl)}
+                        className={`${NAVBAR_CTA_SM} border border-white/70 bg-transparent text-white shadow-sm transition hover:bg-white/15`}
+                        style={secondaryButtonStyle}
+                      >
+                        <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
+                      </a>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <nav
+                className="relative z-[20] flex min-w-0 max-w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 overflow-x-auto md:gap-x-5"
+                style={{ color: "var(--nav-link-text)" }}
+              >
                 {links.map((link, i) => (
                   <NavLinkItemNode
                     key={link.id || i}
                     link={link}
                     i={i}
                     fallbackIcon={FiGrid}
+                    bodyPortalFlyout
                     linkClassName="shrink-0 whitespace-nowrap text-sm font-semibold transition hover:opacity-90 md:text-[15px]"
                   />
                 ))}
               </nav>
+              <div className="min-h-0 min-w-0 max-w-full" aria-hidden />
             </div>
           </div>
         </div>
@@ -2738,7 +3150,10 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     "modern";
   const logoText = contentForRender?.logoText?.trim() || "";
   const widgetLogoUrl = resolveAssetSrc(contentForRender?.logoUrl);
-  /** Must start empty on server and client so hydration matches; session cache applies in useLayoutEffect. */
+  /**
+   * Client-only fallback when CMS omits logo (e.g. non-home pages). Homepage SSR injects
+   * `logoUrl` via `mergePublicStoreLogoIntoHomepageBlocks` + variant bar `serverBootstrapLogo`.
+   */
   const [fallbackLogoUrl, setFallbackLogoUrl] = useState("");
 
   useLayoutEffect(() => {
@@ -2845,10 +3260,20 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
           color: var(--nav-link-hover) !important;
         }
         .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav a[data-nav-link="1"] {
-          color: #ffffff !important;
           font-weight: 600 !important;
         }
-        .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav a[data-nav-link="1"]:hover {
+        .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav [data-nav-flyout-panel] a {
+          color: #0f172a !important;
+          font-weight: 500 !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav [data-nav-flyout-panel] a:hover {
+          color: #020617 !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="pill-black"] nav.nav-pill-black-desktop > div > a[data-nav-link="1"] {
+          color: #ffffff !important;
+          font-weight: 500 !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="pill-black"] nav.nav-pill-black-desktop > div > a[data-nav-link="1"]:hover {
           color: rgba(255, 255, 255, 0.88) !important;
         }
       }
@@ -2923,11 +3348,25 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
       variantNode = (
         <>
           <div
-            className="navbar-widget-link-colors relative z-[70]"
+            className="navbar-widget-link-colors relative z-[110]"
             style={linkColorVars}
             data-navbar-variant="wing-split-pill"
           >
             <NavbarWingSplit {...commonProps} />
+          </div>
+          {linkColorStyle}
+        </>
+      );
+      break;
+    case "pill-black":
+      variantNode = (
+        <>
+          <div
+            className="navbar-widget-link-colors relative z-[110]"
+            style={linkColorVars}
+            data-navbar-variant="pill-black"
+          >
+            <NavbarPillBlack {...commonProps} />
           </div>
           {linkColorStyle}
         </>
@@ -2958,7 +3397,7 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
   return (
     <CartCountContext.Provider value={cartItemCount}>
       <CartSubtotalContext.Provider value={cartSubtotal}>
-        {variantNode}
+        <div className="relative z-[90] isolate w-full min-w-0">{variantNode}</div>
       </CartSubtotalContext.Provider>
     </CartCountContext.Provider>
   );

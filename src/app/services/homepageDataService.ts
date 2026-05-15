@@ -311,7 +311,8 @@ export interface WidgetNavbarContent {
     | "bold-left"
     | "business"
     | "retail-two-row"
-    | "wing-split";
+    | "wing-split"
+    | "pill-black";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItemContent[];

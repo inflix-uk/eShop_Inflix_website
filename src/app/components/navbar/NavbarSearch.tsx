@@ -99,8 +99,11 @@ export type NavbarSearchProps = {
    * `compact` — bordered row, icon submit right (retail strip, drawers).
    * `compactDark` — light pill (dark text) for dark headers / drawers so input stays readable.
    * `compactPill` — light rounded-full pill, optional leading icon (bold-left style).
+   * `compactDense` — same row shape as `compact`, less inner padding (centered / minimalist nav).
+   * `compactDenseTall` — like `compactDense`, more vertical padding (e.g. developer navbar).
+   * `compactDarkDense` — like `compactDark`, tighter padding for dark pill bars (e.g. dark-sidebar).
    */
-  variant?: "default" | "compact" | "compactDark" | "compactPill";
+  variant?: "default" | "compact" | "compactDense" | "compactDenseTall" | "compactDark" | "compactDarkDense" | "compactPill";
   className?: string;
   /** Shown in the input; defaults to "Search for Products". */
   placeholder?: string;
@@ -174,8 +177,8 @@ export default function NavbarSearch({
 
   const suggestionsListClass =
     variant === "default"
-      ? "absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg scrollbar-thin scrollbar-webkit"
-      : "absolute z-[120] mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg scrollbar-thin scrollbar-webkit";
+      ? "absolute z-[1000] mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg scrollbar-thin scrollbar-webkit"
+      : "absolute z-[1000] mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg scrollbar-thin scrollbar-webkit";
 
   const suggestionItemClass =
     variant === "default"
@@ -218,33 +221,57 @@ export default function NavbarSearch({
 
   if (variant !== "default") {
     const shellClass =
-      variant === "compactDark"
+      variant === "compactDarkDense"
+        ? "flex min-h-[32px] items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-0.5 text-slate-900 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25"
+        : variant === "compactDark"
         ? "flex min-h-[40px] items-center rounded-full border border-slate-200/90 bg-white px-4 py-1.5 text-slate-900 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25"
-        : variant === "compactPill"
+          : variant === "compactPill"
           ? "flex min-h-[38px] items-center rounded-full border border-slate-200 bg-white px-2 py-1 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-          : "flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white py-2.5 pl-6 pr-2 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25";
+          : variant === "compactDenseTall"
+            ? "flex min-h-[38px] items-center rounded-md border border-slate-300 bg-white py-1.5 pl-3 pr-0.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25"
+          : variant === "compactDense"
+            ? "flex min-h-[32px] items-center rounded-md border border-slate-300 bg-white py-1 pl-2.5 pr-0.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25"
+            : "flex min-h-[44px] items-center rounded-md border border-slate-300 bg-white py-2.5 pl-6 pr-2 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25";
 
     const inputClass =
-      variant === "compactDark"
+      variant === "compactDarkDense"
+        ? "min-w-0 flex-1 appearance-none border-0 bg-transparent py-0.5 pr-1 text-sm text-slate-900 caret-slate-900 outline-none ring-0 placeholder:text-slate-500 focus:outline-none focus:ring-0"
+        : variant === "compactDark"
         ? "min-w-0 flex-1 appearance-none border-0 bg-transparent py-1 pr-2 text-sm text-slate-900 caret-slate-900 outline-none ring-0 placeholder:text-slate-500 focus:outline-none focus:ring-0"
-        : variant === "compactPill"
+          : variant === "compactPill"
           ? "min-w-0 flex-1 appearance-none border-0 bg-transparent py-1 pl-1 pr-1 text-sm text-slate-700 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0"
-          : "min-w-0 flex-1 appearance-none border-0 bg-transparent py-1 pr-2 text-[15px] leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0";
+          : variant === "compactDenseTall"
+            ? "min-w-0 flex-1 appearance-none border-0 bg-transparent py-1 pr-1 text-sm leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+          : variant === "compactDense"
+            ? "min-w-0 flex-1 appearance-none border-0 bg-transparent py-0.5 pr-1 text-sm leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+            : "min-w-0 flex-1 appearance-none border-0 bg-transparent py-1 pr-2 text-[15px] leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-400 focus:outline-none focus:ring-0";
 
     const btnClass =
-      variant === "compactDark"
+      variant === "compactDarkDense"
+        ? "flex shrink-0 items-center justify-center rounded-md p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        : variant === "compactDark"
         ? "flex shrink-0 items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        : "flex shrink-0 items-center justify-center rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+        : variant === "compactDenseTall"
+          ? "flex shrink-0 items-center justify-center rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        : variant === "compactDense"
+          ? "flex shrink-0 items-center justify-center rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          : "flex shrink-0 items-center justify-center rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
     const iconClass =
-      variant === "compactDark"
+      variant === "compactDarkDense"
+        ? "h-4 w-4 text-slate-600"
+        : variant === "compactDark"
         ? "h-[18px] w-[18px] text-slate-600"
-        : "h-[18px] w-[18px]";
+        : variant === "compactDenseTall"
+          ? "h-[18px] w-[18px] text-slate-500"
+        : variant === "compactDense"
+          ? "h-4 w-4 text-slate-500"
+          : "h-[18px] w-[18px]";
 
     return (
-      <div className={`relative w-full ${className}`.trim()}>
+      <div className={`relative w-full overflow-visible ${className}`.trim()}>
         <form className="w-full" onSubmit={handleSearchSubmit}>
-          <div className="relative">
+          <div className="relative overflow-visible">
             <div className={shellClass}>
               <input
                 type="search"
@@ -278,9 +305,9 @@ export default function NavbarSearch({
   }
 
   return (
-    <div className={`relative w-full ${className}`.trim()}>
+    <div className={`relative w-full overflow-visible ${className}`.trim()}>
       <form className="w-full" onSubmit={handleSearchSubmit}>
-        <div className="relative">
+        <div className="relative overflow-visible">
           <button
             type="submit"
             className="absolute inset-y-0 right-2 flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white active:bg-gray-200"
