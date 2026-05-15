@@ -4,10 +4,13 @@
 
 /* Mobile: keep the document root flush with the viewport; clip stray horizontal overflow (e.g. 100vw). */
 @layer base {
+  /* Only clip horizontal overflow on `body`. Applying non-visible overflow-x on *both*
+     `html` and `body` breaks `position: sticky` for descendants in several browsers. */
   html {
     width: 100%;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: visible;
+    overflow-y: visible;
     -webkit-text-size-adjust: 100%;
   }
   body {
@@ -15,6 +18,7 @@
     max-width: 100%;
     min-width: 0;
     overflow-x: clip;
+    overflow-y: visible;
     /* Font family / weight / style: CMS typography + `body.font-sans` in root layout (`TypographyThemeStyles`) */
   }
 }

@@ -81,6 +81,8 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
   try {
     // Try both endpoint patterns (some APIs use /api/get/, others use /get/)
     const endpoints = [
+      `${API_BASE_URL}/admin/logo`,
+      `${API_BASE_URL}/api/admin/logo`,
       `${API_BASE_URL}/get/logo/public`,
       `${API_BASE_URL}/api/get/logo/public`,
       `${API_BASE_URL}/get/logo`,
@@ -114,9 +116,8 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
             const altText = data.data.altText || 'Zextons';
             return { logoUrl: fullUrl, altText };
           }
-        } else {
-          return null;
         }
+        continue;
       } catch {
         continue; // Try next endpoint
       }
@@ -149,6 +150,8 @@ function sanitizePublicFaviconUrl(url: string | null): string | null {
 async function fetchLogoSettingsPublic(): Promise<LogoSettings | null> {
   try {
     const endpoints = [
+      `${API_BASE_URL}/admin/logo`,
+      `${API_BASE_URL}/api/admin/logo`,
       `${API_BASE_URL}/get/logo/public`,
       `${API_BASE_URL}/api/get/logo/public`,
       `${API_BASE_URL}/get/logo`,

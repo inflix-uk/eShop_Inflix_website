@@ -6,9 +6,25 @@ import {
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
+  isCmsUnreachableFetchError,
 } from "@/app/lib/cmsTimedFetch";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+/** Normalized API origin for homepage CMS calls (SSR + client). Never use a bare undefined in URL templates. */
+function getHomepageCmsApiBase(): string {
+  const raw = String(
+    process.env.NEXT_PUBLIC_CMS_API_URL || process.env.NEXT_PUBLIC_API_URL || ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  if (raw) {
+    // Node undici often resolves localhost to ::1; backend may only listen on IPv4.
+    return raw.replace(/^http:\/\/localhost(?=[:/]|$)/i, "http://127.0.0.1");
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return "http://127.0.0.1:3001";
+  }
+  return "";
+}
 
 /** Admin Homepage SEO (`PATCH /homepage-data/seo`) exposed publicly for metadata */
 export interface HomepagePublicSeo {
@@ -294,7 +310,9 @@ export interface WidgetNavbarContent {
     | "developer"
     | "bold-left"
     | "business"
-    | "retail-two-row";
+    | "retail-two-row"
+    | "wing-split"
+    | "pill-black";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItemContent[];
@@ -374,10 +392,12 @@ export type HomepageNewsletterSingleton = {
 export async function getHomepageNewsletterWidgetPublic(options?: {
   live?: boolean;
 }): Promise<HomepageNewsletterSingleton | null> {
+  const base = getHomepageCmsApiBase();
+  if (!base) return null;
   const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
     const response = await cmsTimedFetch(
-      `${API_URL}/homepage-newsletter-widget/public`,
+      `${base}/homepage-newsletter-widget/public`,
       {
         method: "GET",
         headers: {
@@ -405,17 +425,20 @@ export async function getHomepageNewsletterWidgetPublic(options?: {
       imageUrl: d.imageUrl || "",
     };
   } catch (error) {
-    if (!isCmsFetchAbortError(error)) {
-      console.error("[HomepageDataService] newsletter widget:", error);
+    if (isCmsFetchAbortError(error) || isCmsUnreachableFetchError(error)) {
+      return null;
     }
+    console.error("[HomepageDataService] newsletter widget:", error);
     return null;
   }
 }
 
 export const getHomepagePublicSeo = cache(
   async (): Promise<HomepagePublicSeo | null> => {
+    const base = getHomepageCmsApiBase();
+    if (!base) return null;
     try {
-      const response = await cmsTimedFetch(`${API_URL}/homepage-data/public/seo`, {
+      const response = await cmsTimedFetch(`${base}/homepage-data/public/seo`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -442,9 +465,10 @@ export const getHomepagePublicSeo = cache(
         updatedAt: d.updatedAt ?? null,
       };
     } catch (error) {
-      if (!isCmsFetchAbortError(error)) {
-        console.error("[HomepageDataService] public SEO:", error);
+      if (isCmsFetchAbortError(error) || isCmsUnreachableFetchError(error)) {
+        return null;
       }
+      console.error("[HomepageDataService] public SEO:", error);
       return null;
     }
   }
@@ -453,9 +477,11 @@ export const getHomepagePublicSeo = cache(
 export async function getHomepageData(options?: {
   live?: boolean;
 }): Promise<HomepageData | null> {
+  const base = getHomepageCmsApiBase();
+  if (!base) return null;
   const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
   try {
-    const response = await cmsTimedFetch(`${API_URL}/homepage-data/public`, {
+    const response = await cmsTimedFetch(`${base}/homepage-data/public`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -476,9 +502,10 @@ export async function getHomepageData(options?: {
 
     return null;
   } catch (error) {
-    if (!isCmsFetchAbortError(error)) {
-      console.error("[HomepageDataService] Error fetching homepage data:", error);
+    if (isCmsFetchAbortError(error) || isCmsUnreachableFetchError(error)) {
+      return null;
     }
+    console.error("[HomepageDataService] Error fetching homepage data:", error);
     return null;
   }
 }
@@ -494,6 +521,9 @@ export function getHomepageImageUrl(imagePath: string | null | undefined): strin
     return imagePath;
   }
 
+  const base = getHomepageCmsApiBase();
+  if (!base) return "";
+
   // Construct the full URL
-  return `${API_URL}/uploads${imagePath.startsWith("/") ? "" : "/"}${imagePath}`;
+  return `${base}/uploads${imagePath.startsWith("/") ? "" : "/"}${imagePath}`;
 }

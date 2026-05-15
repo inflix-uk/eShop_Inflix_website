@@ -15,7 +15,7 @@ export default function BlogSiteBannersWidget({ items = [] }: Props) {
   if (!items.length) return null;
 
   return (
-    <div className="w-full max-w-full overflow-x-visible">
+    <div className="relative z-0 w-full max-w-full overflow-x-visible">
       <HeroSlider2 inlineBanners={items} embedded />
     </div>
   );

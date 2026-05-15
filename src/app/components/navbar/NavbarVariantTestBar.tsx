@@ -5,17 +5,30 @@ import BlogNavbarWidget, {
   type NavbarWidgetContent,
 } from "@/app/(routes)/blogs/new/[slug]/BlogNavbarWidget";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
+import { SITE_ANNOUNCEMENT_TOP_OFFSET } from "@/app/components/AnnouncementBar";
+import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
 import NavbarCart from "@/app/components/navbar/NavbarCart";
 
 interface NavbarVariantTestBarProps {
   config: NavbarVariantTestConfig | null;
+  /** Same SSR logo as main `Nav` bootstrap when Product Central omits `logoUrl`. */
+  serverBootstrapLogo?: { logoUrl: string | null; logoAlt?: string } | null;
 }
 
-export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarProps) {
+export default function NavbarVariantTestBar({
+  config,
+  serverBootstrapLogo,
+}: NavbarVariantTestBarProps) {
   const cfg = config;
   const [openCart, setOpenCart] = useState(false);
   const [, setCartItemCount] = useState(0);
   if (!cfg || cfg.showOnStorefront === false) return null;
+  const effectiveLogoUrl =
+    String(cfg.logoUrl || "").trim() || String(serverBootstrapLogo?.logoUrl || "").trim();
+  const effectiveLogoText =
+    String(cfg.logoText || "").trim() ||
+    String(serverBootstrapLogo?.logoAlt || "").trim() ||
+    "Zextons";
   const linkTextColor = String(cfg.menuLinkTextColor || "#334155");
   const linkHoverColor = String(cfg.menuLinkHoverColor || "#0f172a");
 
@@ -31,26 +44,36 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
     cfg.variant && variantsWithTopNudge.has(cfg.variant) ? "pt-2" : "pt-0";
 
   const containerClassName =
-    cfg.variant === "retail-two-row"
-      ? "w-full px-0 pb-3 pt-0"
+    cfg.variant === "retail-two-row" ||
+    cfg.variant === "wing-split" ||
+    cfg.variant === "pill-black" ||
+    cfg.variant === "bold-left"
+      ? "w-full px-0 pt-0 pb-0"
       : cfg.id === "classic"
-      ? `px-10 pb-10 ${topNudgeClass}`
+      ? "px-10 py-0"
       : `w-full px-4 pb-3 ${topNudgeClass} sm:px-6 lg:px-8`;
 
   const isRetailTwoRow = cfg.variant === "retail-two-row";
-  const widthShellClass = isRetailTwoRow ? "w-full" : "mx-auto w-full max-w-6xl";
+  const isFullBleedVariant =
+    isRetailTwoRow ||
+    cfg.variant === "wing-split" ||
+    cfg.variant === "pill-black" ||
+    cfg.variant === "bold-left";
+  const widthShellClass = isFullBleedVariant ? "w-full" : "mx-auto w-full max-w-6xl";
 
-  const sticky = cfg.stickyNavbar === true;
-  /** Retail top row uses `fixed` inside `BlogNavbarWidget`; avoid a second outer sticky wrapper. */
+  const sticky = parseStickyNavbarFlag(cfg.stickyNavbar);
   const outerSticky = sticky && !isRetailTwoRow;
 
   return (
     <section
       className={
         outerSticky
-          ? "navbar-variant-test-scope sticky top-0 z-50 w-full bg-white shadow-sm"
-          : "navbar-variant-test-scope relative z-40 w-full bg-white"
+          ? cfg.variant === "bold-left"
+            ? "navbar-variant-test-scope sticky z-[90] w-full bg-white shadow-none md:shadow-sm"
+            : "navbar-variant-test-scope sticky z-[90] w-full bg-white shadow-sm"
+          : "navbar-variant-test-scope relative z-[90] w-full bg-white"
       }
+      style={outerSticky ? { top: SITE_ANNOUNCEMENT_TOP_OFFSET } : undefined}
       aria-label="Saved navbar variant test"
     >
       <div className={widthShellClass}>
@@ -67,9 +90,11 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
                     | "developer"
                     | "bold-left"
                     | "business"
-                    | "retail-two-row") || "modern",
-                logoUrl: cfg.logoUrl,
-                logoText: cfg.logoText,
+                    | "retail-two-row"
+                    | "wing-split"
+                    | "pill-black") || "modern",
+                logoUrl: effectiveLogoUrl || undefined,
+                logoText: effectiveLogoText,
                 navbarBgColor: cfg.navbarBgColor,
                 classicRightSectionBgColor: cfg.classicRightSectionBgColor,
                 links: Array.isArray(cfg.links)
@@ -123,7 +148,7 @@ export default function NavbarVariantTestBar({ config }: NavbarVariantTestBarPro
                 secondaryButtonTextColor: cfg.secondaryButtonTextColor,
                 menuLinkTextColor: cfg.menuLinkTextColor,
                 menuLinkHoverColor: cfg.menuLinkHoverColor,
-                stickyNavbar: cfg.stickyNavbar === true,
+                stickyNavbar: parseStickyNavbarFlag(cfg.stickyNavbar),
                 onOpenCart: () => setOpenCart(true),
               } as NavbarWidgetContent}
             />

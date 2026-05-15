@@ -292,7 +292,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
 
   /** Near full viewport width with 10px inset each side (blog/CMS embedded banners only). */
   const embeddedShellClass =
-    "relative left-1/2 w-[calc(100vw-50px)] -translate-x-1/2 py-2.5";
+    "relative z-0 left-1/2 w-[calc(100vw-50px)] -translate-x-1/2 py-2.5";
 
   useEffect(() => {
     setHeroSocialState(heroSocialProp ?? emptyHeroSocial());

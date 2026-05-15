@@ -63,7 +63,7 @@ export async function getNavbarVariantTestPublicServer(): Promise<NavbarVariantT
     const json = await cmsServerFetchJson<{
       success?: boolean;
       data?: { config?: NavbarVariantTestConfig | null };
-    }>(`${base}/navbar-variant-test/public`);
+    }>(`${base}/navbar-variant-test/public`, undefined, { live: true });
     if (!json?.success) return null;
     return json.data?.config || null;
   } catch {

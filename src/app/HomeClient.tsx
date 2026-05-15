@@ -13,6 +13,7 @@ import { useAuth } from "@/app/context/Auth";
 import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
+import { mergePublicStoreLogoIntoHomepageBlocks } from "./lib/mergePublicStoreLogoIntoHomepageBlocks";
 
 const HomepageContent = dynamic(
   () => import("./components/HomepageContent"),
@@ -113,7 +114,13 @@ export default function HomeClient({
           try {
             const data = await getHomepageData({ live: true });
             if (!cancelled) {
-              setHomepageBlocks(data?.blocks?.length ? data.blocks : []);
+              const raw = data?.blocks?.length ? data.blocks : [];
+              setHomepageBlocks(
+                mergePublicStoreLogoIntoHomepageBlocks(
+                  raw,
+                  cmsPrefetch?.publicStoreLogo ?? null
+                )
+              );
             }
           } catch (err) {
             console.error("Error fetching homepage data:", err);

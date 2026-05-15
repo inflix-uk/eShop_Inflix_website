@@ -247,7 +247,7 @@ export function CmsWidgetAndProductBlock({
     const items = (sb.items || []) as InlineBannerBlockPayload[];
     if (!items.length) return null;
     return (
-      <div className="w-full max-w-full overflow-x-visible">
+      <div className="relative z-0 w-full max-w-full overflow-x-visible">
         <HeroSlider2 inlineBanners={items} embedded />
       </div>
     );
