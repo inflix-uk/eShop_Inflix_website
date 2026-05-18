@@ -42,6 +42,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
 
+  // Retired /blogs/category/* URLs — use /blogs/{category-slug}/ instead.
+  if (/^\/blogs\/category(\/|$)/.test(pathname)) {
+    return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
+  }
+
   return NextResponse.next();
 }
 
