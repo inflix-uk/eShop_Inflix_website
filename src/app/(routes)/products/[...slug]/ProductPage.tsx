@@ -59,6 +59,7 @@ import WarrantySection from "../components/product-detail/warranty-section";
 import SustainabilitySection from "../components/product-detail/sustainability-section";
 import CertificationSection from "../components/product-detail/certification-section";
 import ReviewsSection from "../components/product-detail/reviews-section";
+import { useProductReviews } from "../hooks/useProductReviews";
 import {
   DATE_FORMAT_OPTIONS,
   DELIVERY_TIME_CUTOFF_HOUR,
@@ -70,6 +71,7 @@ import {
   parseVariantParts,
   slugToReadable,
   parseUrlVariantParts,
+  sanitizeVariantPathSegment,
 } from "../utils/variantUtils";
 import {
   addToCart as addToCartService,
@@ -177,8 +179,14 @@ export default function ProductPage({
     useState<boolean>(false);
   const [initialLoad, setInitialLoad] = useState<boolean>(true);
   const lastPricingProductIdRef = useRef<string | null>(null);
-  const [averageRating, setAverageRating] = useState<number>(0);
-  const [totalReviews, setTotalReviews] = useState<number>(0);
+  const {
+    reviews: customerReviews,
+    averageRating,
+    totalReviews,
+    reviewsCount,
+    loading: reviewsLoading,
+    reloadReviews,
+  } = useProductReviews(product, auth.ip);
   const [variantDesc, setVariantDesc] = useState<Record<string, any>>({});
   const [activeTab, setActiveTab] = useState<string>("");
   const [variantSchemas, setVariantSchemas] = useState<any[]>([]);
@@ -875,13 +883,22 @@ export default function ProductPage({
       let variantName: string;
 
       if (selectedVariant && selectedVariant.slug) {
-        variantName = selectedVariant.slug;
+        variantName = sanitizeVariantPathSegment(selectedVariant.slug);
       } else {
         variantName = orderedExistingVariants
           .map((variantKey) => selections[variantKey])
           .filter(Boolean)
           .map(toUrlSlug)
           .join("-");
+      }
+
+      variantName = sanitizeVariantPathSegment(variantName);
+      if (!variantName) {
+        const expectedUrl = normalizeSitePathname(`/products/${baseSlug}`);
+        if (normalizeSitePathname(location.pathname) !== expectedUrl) {
+          window.history.replaceState({}, "", expectedUrl);
+        }
+        return;
       }
 
       const expectedUrl = normalizeSitePathname(
@@ -1298,9 +1315,11 @@ export default function ProductPage({
               reviewsDiv={reviewsDiv}
               isZoomed={isZoomed}
               averageRating={averageRating}
-              setAverageRating={setAverageRating}
               totalReviews={totalReviews}
-              setTotalReviews={setTotalReviews}
+              reviewsCount={reviewsCount}
+              customerReviews={customerReviews}
+              reviewsLoading={reviewsLoading}
+              onReloadReviews={reloadReviews}
             />
 
             <TrustBoxWidget />
@@ -1322,7 +1341,6 @@ export default function ProductPage({
           </div>
         </div>
       </main>
-      {/* Only show product-detail components for Refurbished products */}
       {product.condition === "Refurbished" && (
         <>
           <ReliablePowerSection productName={product.name} />
@@ -1330,9 +1348,17 @@ export default function ProductPage({
           <WarrantySection productName={product.name} />
           <SustainabilitySection productName={product.name} />
           <CertificationSection productName={product.name} />
-          <ReviewsSection productName={product.name} product={product} />
         </>
       )}
+      <div id="reviews">
+        <ReviewsSection
+          productName={product.name}
+          averageRating={averageRating}
+          totalReviews={totalReviews}
+          customerReviews={customerReviews}
+          reviewsLoading={reviewsLoading}
+        />
+      </div>
       <ProductBattery
         openBattery={openBattery}
         setOpenBattery={setOpenBattery}

@@ -34,6 +34,20 @@ export function readableToSlug(value: string): string {
     .replace(/-+/g, '-');         // Replace multiple hyphens with single
 }
 
+/** Reject full URLs or path junk mistakenly stored as a variant slug. */
+export function sanitizeVariantPathSegment(value: string | null | undefined): string {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed) || trimmed.includes("://")) return "";
+  if (trimmed.includes("/")) {
+    const first = trimmed.split("/").filter(Boolean)[0] || "";
+    if (/^https?:?/i.test(first)) return "";
+    return first.replace(/^\/+|\/+$/g, "");
+  }
+  return trimmed.replace(/^\/+|\/+$/g, "");
+}
+
 /**
  * Parses a variant name into its component parts
  * Uses the dynamic naming convention: underscore for same word, hyphen for different attributes

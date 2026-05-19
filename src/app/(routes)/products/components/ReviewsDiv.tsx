@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/app/context/Auth";
 import axios from "axios";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutlineIcon } from "@heroicons/react/24/outline";
+import ProductReviewsList from "./product-detail/ProductReviewsList";
+import { getProductIdString, type ProductReviewRow } from "../lib/productReviewsClient";
 
 function formatCompactCount(n: number): string {
   if (!Number.isFinite(n) || n < 0) return "0";
@@ -17,22 +19,25 @@ export default function ReviewsDiv({
   reviewsDiv,
   isZoomed: _isZoomed,
   averageRating,
-  setAverageRating,
   totalReviews,
-  setTotalReviews,
+  reviewsCount,
+  customerReviews,
+  reviewsLoading,
+  onReloadReviews,
 }: {
   product: any;
   reviewsDiv: boolean;
   isZoomed: boolean;
   averageRating: number;
-  setAverageRating: (averageRating: number) => void;
   totalReviews: number;
-  setTotalReviews: (totalReviews: number) => void;
+  reviewsCount: Record<number, number>;
+  customerReviews: ProductReviewRow[];
+  reviewsLoading: boolean;
+  onReloadReviews: () => Promise<void>;
 }) {
   const auth = useAuth();
   const [rating, setRating] = useState<number>(0);
   const [reviewText, setReviewText] = useState("");
-  const [reviewsCount, setReviewsCount] = useState<Record<number, number>>({});
 
   const handleRatingChange = (index: number) => {
     if (!auth.user) return;
@@ -40,22 +45,18 @@ export default function ReviewsDiv({
   };
 
   const handleSubmitReviews = async () => {
-    if (!reviewText || rating === 0) {
-      console.log("Please provide a rating and review text.");
-      return;
-    }
-    if (!auth.user) {
-      console.log("User is not authenticated.");
-      return;
-    }
-    const fullName = `${auth.user.firstname} ${auth.user.lastname}`;
-    const userEmail = auth.user.email;
+    if (!reviewText || rating === 0) return false;
+    if (!auth.user) return false;
+
+    const productId = getProductIdString(product);
+    if (!productId) return false;
+
     const data = {
-      fullName,
-      userEmail,
+      fullName: `${auth.user.firstname} ${auth.user.lastname}`,
+      userEmail: auth.user.email,
       rating,
       review: reviewText,
-      productId: product._id,
+      productId,
     };
 
     try {
@@ -64,72 +65,17 @@ export default function ReviewsDiv({
       });
 
       if (response.data.status === 201) {
-        console.log(response.data.message);
         setReviewText("");
+        setRating(0);
+        await onReloadReviews();
         return true;
       }
-      console.log(response.data.message);
       return false;
     } catch (error) {
       console.error(error);
-      console.log("An error occurred during submitting reviews.");
       return false;
     }
   };
-
-  useEffect(() => {
-    const processReviews = (reviews: any[]) => {
-      if (!reviews || reviews.length === 0) {
-        setAverageRating(0);
-        setTotalReviews(0);
-        setReviewsCount({});
-        return;
-      }
-
-      const total = reviews.length;
-      const average = (
-        reviews.reduce(
-          (acc: number, review: { rating: number }) => acc + review.rating,
-          0
-        ) / total
-      ).toFixed(1);
-
-      const countByStars = reviews.reduce(
-        (acc: Record<number, number>, review: { rating: number }) => {
-          acc[review.rating] = (acc[review.rating] || 0) + 1;
-          return acc;
-        },
-        {}
-      );
-
-      setAverageRating(parseFloat(average) || 0);
-      setTotalReviews(total);
-      setReviewsCount(countByStars);
-    };
-
-    if (product?.reviewDetails && product.reviewDetails.length > 0) {
-      processReviews(product.reviewDetails);
-      return;
-    }
-
-    const getProductReviews = (productId: string) => {
-      axios
-        .get(`${auth.ip}get/all/product/reviews/${productId}`)
-        .then((response) => {
-          if (response.data.status === 201) {
-            const reviews = response.data.product?.reviewDetails || [];
-            processReviews(reviews);
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching reviews:", error);
-        });
-    };
-
-    if (product && product._id) {
-      getProductReviews(product._id);
-    }
-  }, [auth.ip, product, setAverageRating, setTotalReviews]);
 
   const summaryStarsFilled = Math.min(
     5,
@@ -146,7 +92,6 @@ export default function ReviewsDiv({
           <div className="mt-4 border-b border-gray-200" aria-hidden />
 
           <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-0">
-            {/* Left: average + stars + total */}
             <div className="flex flex-col items-center text-center md:items-center md:border-r md:border-gray-200 md:pr-8">
               <p className="text-5xl font-bold tabular-nums text-gray-900 md:text-6xl">
                 {(Number(averageRating) || 0).toFixed(1)}
@@ -175,7 +120,6 @@ export default function ReviewsDiv({
               </p>
             </div>
 
-            {/* Right: distribution bars */}
             <div className="flex flex-col justify-center gap-4 md:pl-8">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = reviewsCount[star] || 0;
@@ -208,20 +152,28 @@ export default function ReviewsDiv({
             </div>
           </div>
 
-          {/* Write review */}
+          {reviewsLoading ? (
+            <p className="mt-10 text-center text-sm text-gray-500">
+              Loading reviews...
+            </p>
+          ) : (
+            <ProductReviewsList reviews={customerReviews} className="mt-10" />
+          )}
+
           <div className="mt-10 border-t border-gray-100 pt-8">
             <h3 className="text-sm font-semibold text-gray-900">
               Write a review
             </h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Your review is submitted for approval before it appears on the
+              store.
+            </p>
 
             <div
               className={`mt-3 flex items-center gap-0.5${
                 auth.user ? "" : " pointer-events-none select-none"
               }`}
               aria-disabled={!auth.user}
-              aria-label={
-                auth.user ? "Your star rating" : "Sign in to set a star rating"
-              }
             >
               {[...Array(5)].map((_, i) => (
                 <StarSolidIcon
