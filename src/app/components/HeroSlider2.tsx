@@ -15,6 +15,12 @@ import {
   emptyHeroSocial,
   extractHeroSocialFromActiveBannersPayload,
 } from "@/app/lib/homepageBannerShared";
+import {
+  buildBannerVideoBoxStyle,
+  parseBannerVideoLayoutPreset,
+  parseBannerVideoPx,
+  resolveBannerVideoAspect,
+} from "@/app/lib/bannerVideoLayout";
 
 export type { InlineBannerBlockPayload } from "@/app/lib/homepageBannerShared";
 
@@ -39,6 +45,77 @@ function imageUnoptimized(src: string | undefined | null): boolean {
   if (src.startsWith("data:") || src.startsWith("blob:")) return true;
   return (
     src.startsWith("http://localhost") || src.startsWith("http://127.0.0.1")
+  );
+}
+
+function bannerUsesVideo(banner: Banner): boolean {
+  return (
+    banner.backgroundMedia === "video" &&
+    Boolean(banner.videoLarge || banner.videoSmall)
+  );
+}
+
+function resolveBannerVideoBoxStyle(
+  banner: Banner,
+  variant: "desktop" | "mobile"
+) {
+  const preset = parseBannerVideoLayoutPreset(
+    variant === "mobile"
+      ? banner.videoMobileLayout
+      : banner.videoDesktopLayout
+  );
+  const aspect = resolveBannerVideoAspect(
+    preset,
+    parseBannerVideoPx(
+      variant === "mobile"
+        ? banner.videoMobileWidthPx
+        : banner.videoDesktopWidthPx
+    ),
+    parseBannerVideoPx(
+      variant === "mobile"
+        ? banner.videoMobileHeightPx
+        : banner.videoDesktopHeightPx
+    ),
+    variant
+  );
+  return buildBannerVideoBoxStyle(aspect);
+}
+
+function HeroBannerVideoBackground({
+  src,
+  overlayColor,
+  overlayOpacity,
+  boxStyle,
+}: {
+  src: string;
+  overlayColor: string;
+  overlayOpacity: number;
+  boxStyle: React.CSSProperties;
+}) {
+  const opacity = Math.min(1, Math.max(0, (overlayOpacity ?? 35) / 100));
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black">
+      <div style={boxStyle}>
+        <video
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          src={src}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={{
+            backgroundColor: overlayColor || "#000000",
+            opacity,
+          }}
+          aria-hidden
+        />
+      </div>
+    </div>
   );
 }
 
@@ -539,48 +616,66 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     style={embedded ? embeddedBannerBoxStyle() : undefined}
                   >
                     <div className="absolute inset-0 sm:hidden">
-                      <Image
-                        src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
-                        alt={banner.alt}
-                        width={HERO_SMALL_WIDTH}
-                        height={HERO_SMALL_HEIGHT}
-                        className="h-full w-full object-cover object-center"
-                        sizes="(max-width: 768px) 100vw, 1200px"
-                        quality={70}
-                        unoptimized={imageUnoptimized(
-                          banner.srcSmall || banner.srcLarge
-                        )}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
-                            target.src = banner.srcLarge;
-                          }
-                        }}
-                      />
+                      {bannerUsesVideo(banner) ? (
+                        <HeroBannerVideoBackground
+                          src={banner.videoSmall || banner.videoLarge || ""}
+                          overlayColor={banner.overlayColor || "#000000"}
+                          overlayOpacity={banner.overlayOpacity ?? 35}
+                          boxStyle={resolveBannerVideoBoxStyle(banner, "mobile")}
+                        />
+                      ) : (
+                        <Image
+                          src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
+                          alt={banner.alt}
+                          width={HERO_SMALL_WIDTH}
+                          height={HERO_SMALL_HEIGHT}
+                          className="h-full w-full object-cover object-center"
+                          sizes="(max-width: 768px) 100vw, 1200px"
+                          quality={70}
+                          unoptimized={imageUnoptimized(
+                            banner.srcSmall || banner.srcLarge
+                          )}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
+                              target.src = banner.srcLarge;
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                     <div className="absolute inset-0 hidden sm:block">
-                      <Image
-                        src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
-                        alt={banner.alt}
-                        width={HERO_LARGE_WIDTH}
-                        height={HERO_LARGE_HEIGHT}
-                        className="h-full w-full object-cover object-center"
-                        sizes="(max-width: 768px) 100vw, 1200px"
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0 && !embedded}
-                        quality={70}
-                        unoptimized={imageUnoptimized(
-                          banner.srcLarge || banner.srcSmall
-                        )}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
-                            target.src = banner.srcSmall;
-                          }
-                        }}
-                      />
+                      {bannerUsesVideo(banner) ? (
+                        <HeroBannerVideoBackground
+                          src={banner.videoLarge || banner.videoSmall || ""}
+                          overlayColor={banner.overlayColor || "#000000"}
+                          overlayOpacity={banner.overlayOpacity ?? 35}
+                          boxStyle={resolveBannerVideoBoxStyle(banner, "desktop")}
+                        />
+                      ) : (
+                        <Image
+                          src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
+                          alt={banner.alt}
+                          width={HERO_LARGE_WIDTH}
+                          height={HERO_LARGE_HEIGHT}
+                          className="h-full w-full object-cover object-center"
+                          sizes="(max-width: 768px) 100vw, 1200px"
+                          fetchPriority={index === 0 ? "high" : "auto"}
+                          priority={index === 0 && !embedded}
+                          quality={70}
+                          unoptimized={imageUnoptimized(
+                            banner.srcLarge || banner.srcSmall
+                          )}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
+                              target.src = banner.srcSmall;
+                            }
+                          }}
+                        />
+                      )}
                     </div>
-                    <div className="pointer-events-none absolute inset-0 z-[1] hidden sm:block">
+                    <div className="pointer-events-none absolute inset-0 z-[2] hidden sm:block">
                       {banner.extraImage && (
                         <div className="absolute bottom-0 left-1/2 flex w-full max-w-[min(520px,42vw)] -translate-x-1/2 justify-center">
                           <Image
@@ -618,29 +713,38 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
                       }
                     >
-                      <Image
-                        src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
-                        alt={banner.alt}
-                        width={HERO_SMALL_WIDTH}
-                        height={HERO_SMALL_HEIGHT}
-                        className="h-full w-full object-cover object-center"
-                        sizes="(max-width: 768px) 100vw, 1200px"
-                        quality={70}
-                        unoptimized={imageUnoptimized(
-                          banner.srcSmall || banner.srcLarge
-                        )}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (
-                            target &&
-                            banner.srcSmall &&
-                            banner.srcLarge &&
-                            target.src.includes(banner.srcSmall)
-                          ) {
-                            target.src = banner.srcLarge;
-                          }
-                        }}
-                      />
+                      {bannerUsesVideo(banner) ? (
+                        <HeroBannerVideoBackground
+                          src={banner.videoSmall || banner.videoLarge || ""}
+                          overlayColor={banner.overlayColor || "#000000"}
+                          overlayOpacity={banner.overlayOpacity ?? 35}
+                          boxStyle={resolveBannerVideoBoxStyle(banner, "mobile")}
+                        />
+                      ) : (
+                        <Image
+                          src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
+                          alt={banner.alt}
+                          width={HERO_SMALL_WIDTH}
+                          height={HERO_SMALL_HEIGHT}
+                          className="h-full w-full object-cover object-center"
+                          sizes="(max-width: 768px) 100vw, 1200px"
+                          quality={70}
+                          unoptimized={imageUnoptimized(
+                            banner.srcSmall || banner.srcLarge
+                          )}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (
+                              target &&
+                              banner.srcSmall &&
+                              banner.srcLarge &&
+                              target.src.includes(banner.srcSmall)
+                            ) {
+                              target.src = banner.srcLarge;
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                     <div
                       className={
@@ -649,31 +753,40 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
                       }
                     >
-                      <Image
-                        src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
-                        alt={banner.alt}
-                        width={HERO_LARGE_WIDTH}
-                        height={HERO_LARGE_HEIGHT}
-                        className="h-full w-full object-cover object-center"
-                        sizes="(max-width: 768px) 100vw, 1200px"
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        priority={index === 0 && !embedded}
-                        quality={70}
-                        unoptimized={imageUnoptimized(
-                          banner.srcLarge || banner.srcSmall
-                        )}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (
-                            target &&
-                            banner.srcLarge &&
-                            banner.srcSmall &&
-                            target.src.includes(banner.srcLarge)
-                          ) {
-                            target.src = banner.srcSmall;
-                          }
-                        }}
-                      />
+                      {bannerUsesVideo(banner) ? (
+                        <HeroBannerVideoBackground
+                          src={banner.videoLarge || banner.videoSmall || ""}
+                          overlayColor={banner.overlayColor || "#000000"}
+                          overlayOpacity={banner.overlayOpacity ?? 35}
+                          boxStyle={resolveBannerVideoBoxStyle(banner, "desktop")}
+                        />
+                      ) : (
+                        <Image
+                          src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
+                          alt={banner.alt}
+                          width={HERO_LARGE_WIDTH}
+                          height={HERO_LARGE_HEIGHT}
+                          className="h-full w-full object-cover object-center"
+                          sizes="(max-width: 768px) 100vw, 1200px"
+                          fetchPriority={index === 0 ? "high" : "auto"}
+                          priority={index === 0 && !embedded}
+                          quality={70}
+                          unoptimized={imageUnoptimized(
+                            banner.srcLarge || banner.srcSmall
+                          )}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (
+                              target &&
+                              banner.srcLarge &&
+                              banner.srcSmall &&
+                              target.src.includes(banner.srcLarge)
+                            ) {
+                              target.src = banner.srcSmall;
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -707,10 +820,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           >
                             {banner.content.title?.trim() ? (
                               <h2
-                                className={`m-0 font-bold tracking-wider text-white ${bannerCopyWrap} pb-1 ${embedded ? "" : "line-clamp-2"}`}
+                                className={`m-0 font-semibold tracking-wide text-white/95 ${bannerCopyWrap} pb-1 ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
-                                  fontSize: banner.content.titleSize || "22px",
-                                  lineHeight: 1.5,
+                                  fontSize: banner.content.titleSize || "15px",
+                                  lineHeight: 2.35,
                                   color: banner.content.titleColor || "#FFFFFF",
                                 }}
                                 title={banner.content.title}
@@ -720,7 +833,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             ) : null}
                             {banner.content.subtitle?.trim() ? (
                               <h3
-                                className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
+                                className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap}`}
                                 style={{
                                   fontSize:
                                     banner.content.subtitleSize || "32px",
@@ -935,10 +1048,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     >
                       {banner.content.title?.trim() ? (
                         <h2
-                          className={`mb-1 text-xl font-bold tracking-wide text-shadow text-white ${bannerCopyWrap}`}
+                          className={`mb-1 text-sm font-semibold tracking-wide text-shadow text-white/95 sm:text-base ${bannerCopyWrap}`}
                           style={{
                             color: banner.content.titleColor || "#FFFFFF",
-                            lineHeight: 1.6,
+                            lineHeight: 1.35,
                           }}
                           title={banner.content.title}
                         >
@@ -947,7 +1060,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       ) : null}
                       {banner.content.subtitle?.trim() ? (
                         <h3
-                          className={`mb-1 text-[24px] font-bold leading-tight tracking-wide text-shadow text-white ${bannerCopyWrap} `}
+                          className={`mb-1 text-[24px] font-bold leading-tight tracking-wide text-shadow text-white ${bannerCopyWrap}`}
                           style={{
                             color: banner.content.subtitleColor || "#FFFFFF",
                           }}

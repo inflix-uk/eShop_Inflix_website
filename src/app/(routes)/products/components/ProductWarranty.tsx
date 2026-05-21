@@ -27,6 +27,7 @@ import { Fragment } from "react";
 //   import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
 // );
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 export default function ProductWarranty({
   openWarranty,
   setOpenWarranty,
@@ -39,7 +40,7 @@ export default function ProductWarranty({
       <Transition show={openWarranty} as={Fragment}>
         <Dialog
           as="div"
-          className="relative z-50"
+          className={PRODUCT_SIDE_PANEL_Z}
           onClose={() => setOpenWarranty(false)}
         >
           <TransitionChild

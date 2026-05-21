@@ -8,6 +8,7 @@ import {
 } from "@headlessui/react";
 import { Fragment } from 'react'
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 
 export default function ProductPerks({
   openPerks,
@@ -25,7 +26,7 @@ export default function ProductPerks({
     <Transition show={openPerks} as={Fragment}>
       <Dialog
         as="div"
-        className="relative z-50"
+        className={PRODUCT_SIDE_PANEL_Z}
         onClose={() => setOpenPerks(false)}
       >
         <TransitionChild

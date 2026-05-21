@@ -21,13 +21,14 @@ import { XMarkIcon } from '@heroicons/react/24/solid'
 //   () => import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
 // )
 import batteryimg from '@/app/assets/PhoneBattery.svg'
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 export default function ProductBattery({ openBattery, setOpenBattery }: { openBattery: boolean; setOpenBattery: (open: boolean) => void }) {
     return (
         <>
             <Transition as={Fragment} show={openBattery}>
                 <Dialog
                     as="div"
-                    className="relative z-10"
+                    className={PRODUCT_SIDE_PANEL_Z}
                     onClose={() => setOpenBattery(false)}
                 >
                     <TransitionChild

@@ -25,6 +25,7 @@ import {
 //   import("@headlessui/react").then((mod) => mod.Transition.Child)
 // );
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 export default function ProductCart({
   openCart,
   setOpenCart,
@@ -58,7 +59,7 @@ export default function ProductCart({
       <Transition show={openCart} as={Fragment}>
         <Dialog
           as="div"
-          className={`relative ${isZoomed ? "-z-10" : "z-50"} `}
+          className={isZoomed ? "relative -z-10" : PRODUCT_SIDE_PANEL_Z}
           onClose={() => setOpenCart(false)}
         >
           <TransitionChild

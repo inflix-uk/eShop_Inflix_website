@@ -27,6 +27,17 @@ export interface Banner {
   srcLarge: string;
   srcSmall: string;
   alt: string;
+  backgroundMedia?: "image" | "video";
+  videoLarge?: string;
+  videoSmall?: string;
+  overlayColor?: string;
+  overlayOpacity?: number;
+  videoDesktopLayout?: string;
+  videoDesktopWidthPx?: number;
+  videoDesktopHeightPx?: number;
+  videoMobileLayout?: string;
+  videoMobileWidthPx?: number;
+  videoMobileHeightPx?: number;
   content?: BannerContent;
   extraImage?: string;
   buttonText?: string;
@@ -57,8 +68,19 @@ export interface ApiBannerContent {
 export interface ApiBanner {
   _id: string;
   type: "simple" | "full";
+  backgroundMedia?: "image" | "video";
   imageLarge: string;
   imageSmall: string;
+  videoLarge?: string;
+  videoSmall?: string;
+  overlayColor?: string;
+  overlayOpacity?: number;
+  videoDesktopLayout?: string;
+  videoDesktopWidthPx?: number;
+  videoDesktopHeightPx?: number;
+  videoMobileLayout?: string;
+  videoMobileWidthPx?: number;
+  videoMobileHeightPx?: number;
   altText: string;
   buttonText?: string;
   buttonLink?: string;
@@ -70,8 +92,19 @@ export interface ApiBanner {
 export type InlineBannerBlockPayload = {
   id?: string;
   type?: "simple" | "full";
+  backgroundMedia?: "image" | "video";
   imageLarge?: string;
   imageSmall?: string;
+  videoLarge?: string;
+  videoSmall?: string;
+  overlayColor?: string;
+  overlayOpacity?: number;
+  videoDesktopLayout?: string;
+  videoDesktopWidthPx?: number;
+  videoDesktopHeightPx?: number;
+  videoMobileLayout?: string;
+  videoMobileWidthPx?: number;
+  videoMobileHeightPx?: number;
   extraImage?: string;
   altText?: string;
   buttonText?: string;
@@ -80,6 +113,21 @@ export type InlineBannerBlockPayload = {
   order?: number;
   isActive?: boolean;
 };
+
+function bannerHasStorefrontMedia(banner: Banner): boolean {
+  if (banner.backgroundMedia === "video") {
+    return Boolean(
+      (banner.videoLarge && banner.videoLarge !== "") ||
+        (banner.videoSmall && banner.videoSmall !== "")
+    );
+  }
+  return Boolean(
+    banner.srcLarge &&
+      banner.srcLarge !== "" &&
+      banner.srcSmall &&
+      banner.srcSmall !== ""
+  );
+}
 
 type HAlign = "left" | "center" | "right";
 
@@ -158,10 +206,32 @@ export function transformApiBannerToBanner(
   const srcLarge = rawLarge || rawSmall;
   const srcSmall = rawSmall || rawLarge;
 
+  const videoLarge = apiBanner.videoLarge
+    ? getBannerImageUrl(apiBanner.videoLarge, apiBase)
+    : "";
+  const videoSmall = apiBanner.videoSmall
+    ? getBannerImageUrl(apiBanner.videoSmall, apiBase)
+    : videoLarge;
+
   return {
     id: apiBanner._id,
     srcLarge,
     srcSmall,
+    backgroundMedia:
+      apiBanner.backgroundMedia === "video" ? "video" : "image",
+    videoLarge: videoLarge || undefined,
+    videoSmall: videoSmall || undefined,
+    overlayColor: apiBanner.overlayColor || "#000000",
+    overlayOpacity:
+      apiBanner.overlayOpacity !== undefined && apiBanner.overlayOpacity !== null
+        ? Number(apiBanner.overlayOpacity)
+        : 35,
+    videoDesktopLayout: apiBanner.videoDesktopLayout || "hero",
+    videoDesktopWidthPx: apiBanner.videoDesktopWidthPx ?? undefined,
+    videoDesktopHeightPx: apiBanner.videoDesktopHeightPx ?? undefined,
+    videoMobileLayout: apiBanner.videoMobileLayout || "hero",
+    videoMobileWidthPx: apiBanner.videoMobileWidthPx ?? undefined,
+    videoMobileHeightPx: apiBanner.videoMobileHeightPx ?? undefined,
     alt: apiBanner.altText || "Banner",
     content: hasContent
       ? {
@@ -257,8 +327,19 @@ export function bannersFromInlinePayload(
       {
         _id: b.id || `inline-${i}`,
         type: (b.type === "full" ? "full" : "simple") as "simple" | "full",
+        backgroundMedia: b.backgroundMedia,
         imageLarge: b.imageLarge || "",
         imageSmall: b.imageSmall || "",
+        videoLarge: b.videoLarge,
+        videoSmall: b.videoSmall,
+        overlayColor: b.overlayColor,
+        overlayOpacity: b.overlayOpacity,
+        videoDesktopLayout: b.videoDesktopLayout,
+        videoDesktopWidthPx: b.videoDesktopWidthPx,
+        videoDesktopHeightPx: b.videoDesktopHeightPx,
+        videoMobileLayout: b.videoMobileLayout,
+        videoMobileWidthPx: b.videoMobileWidthPx,
+        videoMobileHeightPx: b.videoMobileHeightPx,
         altText: b.altText || "Banner",
         buttonText: b.buttonText,
         buttonLink: b.buttonLink,
@@ -269,13 +350,7 @@ export function bannersFromInlinePayload(
       apiBase
     )
   );
-  return transformed.filter(
-    (banner) =>
-      banner.srcLarge &&
-      banner.srcLarge !== "" &&
-      banner.srcSmall &&
-      banner.srcSmall !== ""
-  );
+  return transformed.filter(bannerHasStorefrontMedia);
 }
 
 /** Hero “Follow us” row (Admin → Banners → Hero social links). */

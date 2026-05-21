@@ -23,6 +23,7 @@ import { XMarkIcon } from "@heroicons/react/20/solid";
 //   import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
 // );
 import verifiedrfurbishedimg from "@/app/assets/verifiedrfurbishedimg.jpg";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 
 function ProductVerifiedRefurbished({
   verifiedRefurbished,
@@ -36,7 +37,7 @@ function ProductVerifiedRefurbished({
       <Transition show={verifiedRefurbished} as={Fragment}>
         <Dialog
           as="div"
-          className="relative z-50"
+          className={PRODUCT_SIDE_PANEL_Z}
           onClose={() => setVerifiedRefurbished(false)}
         >
           <TransitionChild
