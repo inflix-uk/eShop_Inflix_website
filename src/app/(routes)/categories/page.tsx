@@ -205,7 +205,7 @@ export default function CategoriesPage() {
                   {blogCategories.map((c) => (
                     <Link
                       key={c.slug}
-                      href={`/blogs/category/${c.slug}/`}
+                      href={`/blogs/${c.slug}/`}
                       className="group"
                     >
                       <div className="overflow-hidden rounded-lg bg-white shadow-md transition-all duration-300 hover:scale-105 hover:shadow-xl">

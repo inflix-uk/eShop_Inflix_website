@@ -137,6 +137,11 @@ export default function ProfileBlocksRenderer({ blocks = [] }: { blocks: any[] }
                         <BlogVideoWidget
                           key={blockKey}
                           videoUrl={block.content.videoUrl}
+                          items={block.content.items}
+                          aspectRatio={block.content.aspectRatio}
+                          playerWidthPx={block.content.playerWidthPx}
+                          playerHeightPx={block.content.playerHeightPx}
+                          playbackMuted={block.content.playbackMuted}
                           heading={block.content.heading}
                           caption={block.content.caption}
                         />

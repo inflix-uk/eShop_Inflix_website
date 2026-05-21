@@ -22,13 +22,14 @@ import { XMarkIcon } from "@heroicons/react/24/solid";
 import { Fragment } from "react";
 import productimgnotincluded from "@/app/assets/productimgnotincluded.jpg";
 import Image from "next/image";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 export default function ProductNotIncluded({ setNotIncluded, notIncluded }: { setNotIncluded: (value: boolean) => void, notIncluded: boolean }) {
     return (
         <>
             <Transition show={notIncluded} as={Fragment}>
                 <Dialog
                     as="div"
-                    className="relative z-50"
+                    className={PRODUCT_SIDE_PANEL_Z}
                     onClose={() => setNotIncluded(false)}
                 >
                     <TransitionChild

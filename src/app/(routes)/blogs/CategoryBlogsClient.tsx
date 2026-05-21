@@ -2,74 +2,129 @@
 
 import TopBar from "@/app/topbar/page";
 import React, { useEffect, useState } from "react";
-import { Blog } from "../../../../../../types";
+import { Blog } from "../../../../types";
 import BlogCard from "@/app/components/blogs/BlogCard";
 import Nav from "@/app/components/navbar/Nav";
 import BreadCrumb from "@/app/components/common/Breadcrumb";
 import LoadingBar from "react-top-loading-bar";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toCategorySlug } from "./lib/blogCategorySlug";
 
-export default function CategoryBlogs() {
-  const { category } = useParams();
+type CategoryBlogsClientProps = {
+  categorySlug: string;
+  /** Preloaded on the server so the client does not refetch (avoids Strict Mode abort races). */
+  initialBlogs?: Blog[];
+};
+
+export default function CategoryBlogsClient({
+  categorySlug,
+  initialBlogs,
+}: CategoryBlogsClientProps) {
   const router = useRouter();
-  const categorySlug = typeof category === 'string' ? category : '';
   const formattedSlugCategory = formatCategoryName(categorySlug);
-  
-  const [progress, setProgress] = useState<number>(0);
+
+  const [progress, setProgress] = useState<number>(initialBlogs ? 100 : 0);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const blogsPerPage = 12;
 
-  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>(initialBlogs ?? []);
+  const [isLoading, setIsLoading] = useState(initialBlogs === undefined);
+  const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
+  const loadBlogs = React.useCallback(async () => {
     setProgress(30);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/get/blog`)
-      .then(res => res.json())
-      .then(data => {
-        setBlogs(Array.isArray(data.data) ? data.data : []);
-        setProgress(100);
-      })
-      .catch(() => setProgress(100));
+    setIsLoading(true);
+    setLoadError("");
+
+    try {
+      const res = await fetch("/api/blogs", { cache: "no-store" });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch blogs (${res.status})`);
+      }
+      const data = await res.json();
+      setBlogs(Array.isArray(data.data) ? data.data : []);
+    } catch {
+      setBlogs([]);
+      setLoadError("Failed to load blogs. Please try again.");
+    } finally {
+      setIsLoading(false);
+      setProgress(100);
+    }
   }, []);
 
-  // Format category name for display
+  useEffect(() => {
+    if (initialBlogs !== undefined) {
+      return;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+
+    setProgress(30);
+    setIsLoading(true);
+    setLoadError("");
+
+    fetch("/api/blogs", { signal: controller.signal, cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to fetch blogs (${res.status})`);
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBlogs(Array.isArray(data.data) ? data.data : []);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setBlogs([]);
+        const isTimeout =
+          error instanceof DOMException && error.name === "AbortError";
+        setLoadError(
+          isTimeout
+            ? "Blog request timed out. Please try again."
+            : "Failed to load blogs. Please try again."
+        );
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (!cancelled) {
+          setIsLoading(false);
+          setProgress(100);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [initialBlogs]);
+
   function formatCategoryName(categoryName: string | undefined | null): string {
     if (!categoryName || typeof categoryName !== "string") return "All Categories";
     return categoryName
       .replace(/[-_]+/g, " ")
       .trim()
       .split(/\s+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
 
-  // Find the actual category name from the slug
   const [actualCategory, setActualCategory] = useState<string>(formattedSlugCategory);
-  
+
   useEffect(() => {
     if (blogs.length > 0 && categorySlug) {
       const matchingBlog = blogs.find((blog: Blog) => {
-        // Robustly compare category slug for both old and new blog formats
-        let cat = '';
-        if (blog.blogCategory && typeof blog.blogCategory === 'string') {
-          cat = blog.blogCategory;
-        } else if (blog.categories && blog.categories.length > 0) {
-          const firstCat = blog.categories[0];
-          if (typeof firstCat === 'object' && firstCat.name) cat = firstCat.name;
-          if (typeof firstCat === 'string') cat = firstCat;
-        }
-        return (cat || '').toLowerCase().replace(/\s+/g, '-') === categorySlug;
+        const cat = normalizeCategory(blog);
+        return toCategorySlug(cat) === categorySlug;
       });
-      
+
       if (matchingBlog) {
         const resolvedCategory = normalizeCategory(matchingBlog) || categorySlug;
         setActualCategory(resolvedCategory);
       } else {
-        // If no match found, use the slug as fallback
-        const formattedName = formatCategoryName(categorySlug);
-        setActualCategory(formattedName);
+        setActualCategory(formatCategoryName(categorySlug));
       }
     }
   }, [blogs, categorySlug]);
@@ -78,12 +133,11 @@ export default function CategoryBlogs() {
     { name: "Blogs", link: "/blogs", current: false },
     {
       name: formatCategoryName(actualCategory || categorySlug) || "Category",
-      link: `/blogs/category/${categorySlug}`,
+      link: `/blogs/${categorySlug}`,
       current: true,
     },
   ];
-  
-  // Helper to robustly extract category name
+
   const normalizeCategory = (blog: Blog) => {
     if (blog.blogCategory) return blog.blogCategory;
     if (blog.categories && blog.categories.length > 0) {
@@ -94,12 +148,10 @@ export default function CategoryBlogs() {
     return "";
   };
 
-  // Helper to robustly extract title
   const normalizeTitle = (blog: Blog) => blog.title || blog.name || "";
 
-  // Filter blogs based on search and category
   const filteredBlogs = blogs.filter((blog: Blog) => {
-    const category = (normalizeCategory(blog) || "").toLowerCase().replace(/\s+/g, '-');
+    const category = toCategorySlug(normalizeCategory(blog) || "");
     const title = (normalizeTitle(blog) || "").toLowerCase();
     const term = (searchTerm || "").toLowerCase();
     const matchesCategory = category === categorySlug;
@@ -107,30 +159,25 @@ export default function CategoryBlogs() {
     return matchesSearch && matchesCategory;
   });
 
-  // Get all categories for the category list
   const categories = [
     "all",
     ...new Set(
       blogs
-        .map((blog: Blog) => blog.blogCategory)
-        .filter((cat) => !!cat && typeof cat === "string" && cat.trim() !== "")
+        .map((blog: Blog) => normalizeCategory(blog))
+        .filter((cat) => typeof cat === "string" && cat.trim() !== "")
     ),
   ];
 
-  // Pagination logic
   const indexOfLastBlog = currentPage * blogsPerPage;
   const indexOfFirstBlog = indexOfLastBlog - blogsPerPage;
   const currentBlogs = filteredBlogs.slice(indexOfFirstBlog, indexOfLastBlog);
   const totalPages = Math.ceil(filteredBlogs.length / blogsPerPage);
 
-  // Handle category change
   const handleCategoryChange = (newCategory: string) => {
     if (newCategory === "all") {
-      router.push("/blogs");
+      router.push("/blogs/");
     } else {
-      // Convert category to URL-friendly slug
-      const newCategorySlug = newCategory.toLowerCase().replace(/\s+/g, '-');
-      router.push(`/blogs/category/${newCategorySlug}`);
+      router.push(`/blogs/${toCategorySlug(newCategory)}/`);
     }
   };
 
@@ -183,25 +230,41 @@ export default function CategoryBlogs() {
                 value={cat}
                 className="py-2 px-4 hover:bg-green-50 font-medium capitalize"
                 style={{
-                  backgroundColor:
-                    cat === actualCategory ? "#f0fdf4" : "white",
+                  backgroundColor: cat === actualCategory ? "#f0fdf4" : "white",
                   borderBottom: "1px solid #e5e7eb",
                 }}
               >
-                {cat === "all"
-                  ? "All Categories"
-                  : formatCategoryName(cat)}
+                {cat === "all" ? "All Categories" : formatCategoryName(cat)}
               </option>
             ))}
           </select>
         </div>
 
-        {filteredBlogs.length === 0 ? (
+        {isLoading ? (
+          <div className="py-16 text-center">
+            <h3 className="mb-3 text-xl font-medium text-gray-700">Loading blogs...</h3>
+            <p className="text-gray-500">Please wait while we fetch the latest posts.</p>
+          </div>
+        ) : loadError ? (
+          <div className="py-16 text-center">
+            <h3 className="mb-4 text-2xl font-medium text-gray-700">Unable to load blogs</h3>
+            <p className="mb-8 text-gray-500">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadBlogs()}
+              className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredBlogs.length === 0 ? (
           <div className="text-center py-16">
             <h3 className="text-2xl font-medium text-gray-700 mb-4">No blogs found</h3>
-            <p className="text-gray-500 mb-8">Try adjusting your search or browse other categories</p>
-            <Link 
-              href="/blogs" 
+            <p className="text-gray-500 mb-8">
+              Try adjusting your search or browse other categories
+            </p>
+            <Link
+              href="/blogs/"
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
               View All Blogs
@@ -215,14 +278,16 @@ export default function CategoryBlogs() {
                 return slug && slug.trim() !== "";
               })
               .map((blog: Blog) => (
-                <div key={blog._id} className="transform hover:scale-105 transition duration-300">
+                <div
+                  key={blog._id}
+                  className="transform hover:scale-105 transition duration-300"
+                >
                   <BlogCard {...blog} />
                 </div>
               ))}
           </div>
         )}
 
-        {/* Enhanced Pagination - Only show if we have blogs */}
         {filteredBlogs.length > 0 && (
           <div className="flex justify-center items-center space-x-3 mt-12">
             <button
@@ -230,12 +295,7 @@ export default function CategoryBlogs() {
               disabled={currentPage === 1}
               className="px-5 py-3 border-2 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition duration-200 flex items-center space-x-2"
             >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -263,19 +323,12 @@ export default function CategoryBlogs() {
             </div>
 
             <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="px-5 py-3 border-2 rounded-lg disabled:opacity-50 hover:bg-gray-50 transition duration-200 flex items-center space-x-2"
             >
-             <span>Next</span>
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <span>Next</span>
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -287,6 +340,6 @@ export default function CategoryBlogs() {
           </div>
         )}
       </div>
-      </>
+    </>
   );
 }

@@ -59,8 +59,14 @@ function parseSlugArray(slugArray: string[]): { productUrl: string; variantSlug:
   // First segment is always the product URL
   const productUrl = sanitizeSegment(slugArray[0]);
 
-  // Second segment (if exists) is the variant slug
-  const variantSlug = slugArray.length > 1 ? sanitizeSegment(slugArray[1]) : '';
+  // Second segment (if exists) is the variant slug — ignore accidental full URLs in the path
+  let variantSlug = "";
+  if (slugArray.length > 1) {
+    const candidate = sanitizeSegment(slugArray[1]);
+    if (candidate && !/^https?:?/i.test(candidate) && !candidate.includes("://")) {
+      variantSlug = candidate;
+    }
+  }
 
   return { productUrl, variantSlug };
 }

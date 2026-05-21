@@ -63,15 +63,19 @@ export default function NavbarVariantTestBar({
 
   const sticky = parseStickyNavbarFlag(cfg.stickyNavbar);
   const outerSticky = sticky && !isRetailTwoRow;
+  /** Below AnnouncementBar (z-[60]); retail pins its own fixed top row inside. */
+  const outerZClass = isRetailTwoRow
+    ? "navbar-variant-test-scope relative z-[50] w-full bg-white"
+    : "navbar-variant-test-scope relative z-[90] w-full bg-white";
 
   return (
     <section
       className={
         outerSticky
           ? cfg.variant === "bold-left"
-            ? "navbar-variant-test-scope sticky z-[90] w-full bg-white shadow-none md:shadow-sm"
-            : "navbar-variant-test-scope sticky z-[90] w-full bg-white shadow-sm"
-          : "navbar-variant-test-scope relative z-[90] w-full bg-white"
+            ? `${outerZClass} sticky shadow-none md:shadow-sm`
+            : `${outerZClass} sticky shadow-sm`
+          : outerZClass
       }
       style={outerSticky ? { top: SITE_ANNOUNCEMENT_TOP_OFFSET } : undefined}
       aria-label="Saved navbar variant test"

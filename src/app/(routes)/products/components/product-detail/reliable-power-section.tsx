@@ -10,6 +10,7 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import { Fragment, useState } from "react";
+import { PRODUCT_SIDE_PANEL_Z } from "../../constants/layerClasses";
 
 interface ReliablePowerSectionProps {
   productName?: string;
@@ -88,7 +89,7 @@ export default function ReliablePowerSection({
 
       {/* Battery Health Modal */}
       <Transition show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={closeModal}>
+        <Dialog as="div" className={PRODUCT_SIDE_PANEL_Z} onClose={closeModal}>
           <TransitionChild
             as={Fragment}
             enter="ease-in-out duration-500"

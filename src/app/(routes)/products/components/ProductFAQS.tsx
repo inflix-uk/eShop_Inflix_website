@@ -11,6 +11,7 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon, PlusIcon, MinusIcon } from "@heroicons/react/24/solid";
 import { Fragment } from "react";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 
 interface FAQDetail {
   question: string;
@@ -37,7 +38,7 @@ export default function ProductFAQS({
     <Transition show={openFAQs} as={Fragment}>
       <Dialog
         as="div"
-        className="relative z-50"
+        className={PRODUCT_SIDE_PANEL_Z}
         onClose={() => setOpenFAQs(false)}
       >
         <TransitionChild

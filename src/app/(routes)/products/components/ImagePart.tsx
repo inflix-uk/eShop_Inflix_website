@@ -552,8 +552,8 @@ export default function ImagePart({
 
           {/* Full-screen Zoom Modal */}
           {isZoomed && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white top-[90px]">
-              <span className="absolute inset-0 z-50">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white top-[90px]">
+              <span className="absolute inset-0 z-[100]">
                 <Image
                   src={currentImage}
                   alt={getImageAlt(images[currentIndex], currentIndex)}
@@ -570,7 +570,7 @@ export default function ImagePart({
               <button
                 type="button"
                 aria-label="Previous image"
-                className="absolute left-4 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white hover:bg-opacity-75 z-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="absolute left-4 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white hover:bg-opacity-75 z-[100] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 onClick={handlePreviousImage}
               >
                 <svg
@@ -590,7 +590,7 @@ export default function ImagePart({
               <button
                 type="button"
                 aria-label="Next image"
-                className="absolute right-4 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white hover:bg-opacity-75 z-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="absolute right-4 bg-gray-700 bg-opacity-50 p-2 rounded-full text-white hover:bg-opacity-75 z-[100] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 onClick={handleNextImage}
               >
                 <svg
@@ -609,7 +609,7 @@ export default function ImagePart({
               <button
                 type="button"
                 aria-label="Close zoom"
-                className="absolute top-4 right-4 text-white p-2 bg-gray-700 bg-opacity-50 rounded-full hover:bg-opacity-75 z-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="absolute top-4 right-4 text-white p-2 bg-gray-700 bg-opacity-50 rounded-full hover:bg-opacity-75 z-[100] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 onClick={closeZoom}
               >
                 <svg

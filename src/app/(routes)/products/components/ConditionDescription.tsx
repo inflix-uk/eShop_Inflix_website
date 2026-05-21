@@ -24,6 +24,7 @@ import {
 //   import("@headlessui/react").then((mod) => mod.Transition.Child)
 // );
 import { XMarkIcon } from "@heroicons/react/24/solid";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 // const XMarkIcon = dynamic(() =>
 //   import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
 // );
@@ -121,7 +122,7 @@ export default function ConditionDescription({
       <Transition show={openConditionDescription} as={Fragment}>
         <Dialog
           as="div"
-          className="relative z-50"
+          className={PRODUCT_SIDE_PANEL_Z}
           onClose={() => setOpenConditionDescription(false)}
         >
           <TransitionChild

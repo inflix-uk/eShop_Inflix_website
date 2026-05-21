@@ -22,13 +22,14 @@ import { XMarkIcon } from "@heroicons/react/24/solid";
 //   import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
 // );
 import esim from "@/app/assets/esim.jpg";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 export default function ProductSimOptions({ simOptions, setSimOptions }: { simOptions: boolean; setSimOptions: (open: boolean) => void }) {
   return (
     <>
       <Transition show={simOptions} as={Fragment}>
         <Dialog
           as="div"
-          className="relative z-10"
+          className={PRODUCT_SIDE_PANEL_Z}
           onClose={() => setSimOptions(false)}
         >
           <TransitionChild

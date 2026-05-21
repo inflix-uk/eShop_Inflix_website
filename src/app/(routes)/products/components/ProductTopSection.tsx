@@ -8,6 +8,7 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { Fragment } from "react";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 import {
   getVariantValueImageSrc,
   renderVariantOptionIcon,
@@ -56,7 +57,7 @@ export default function ProductTopSection({
     <Transition show={open} as={Fragment}>
       <Dialog
         as="div"
-        className="relative z-50"
+        className={PRODUCT_SIDE_PANEL_Z}
         onClose={() => setOpen(false)}
       >
         <TransitionChild

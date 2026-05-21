@@ -12,6 +12,12 @@ import { getFullImageUrl } from "../new/[slug]/blogUtils";
 import { metaSchemaEntryToJsonLdString } from "@/app/lib/homepageJsonLd";
 import { getCanonical } from "@/lib/getCanonical";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import CategoryBlogsClient from "../CategoryBlogsClient";
+import {
+  blogListHasCategorySlug,
+  fetchAllStorefrontBlogs,
+  slugMatchesBlogCategory,
+} from "../lib/blogCategorySlug";
 
 interface BlogData {
   _id: string;
@@ -202,6 +208,27 @@ export async function generateMetadata({
   params: Promise<{ slug: string; category?: string }>;
 }): Promise<Metadata> {
   const { slug, category } = await params;
+  if (!category && slug !== "new") {
+    const newBlogProbe = await fetchNewBlogBySlug(slug);
+    const legacyProbe = newBlogProbe ? null : await getLegacyBlog(slug);
+    if (!newBlogProbe && !legacyProbe) {
+      const isCategory = await slugMatchesBlogCategory(slug);
+      if (isCategory) {
+        const canonicalUrl = await getCanonical(`/blogs/${slug}`);
+        return {
+          title: `Blog category: ${slug}`,
+          description: `Browse blog posts in the ${slug} category.`,
+          robots: "index, follow",
+          openGraph: {
+            title: `Blog category: ${slug}`,
+            url: canonicalUrl,
+            type: "website",
+          },
+          alternates: { canonical: canonicalUrl },
+        };
+      }
+    }
+  }
   const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
   const canonicalUrl = await getCanonical(routePath);
   const navbarVariantTestConfig = await getNavbarVariantTestPublicServer();
@@ -330,6 +357,23 @@ export default async function BlogPage({
   params: Promise<{ slug: string; category?: string }>;
 }) {
   const { slug, category } = await params;
+
+  if (!category && slug !== "new") {
+    const newBlogProbe = await fetchNewBlogBySlug(slug);
+    const legacyProbe = newBlogProbe ? null : await getLegacyBlog(slug);
+    if (!newBlogProbe && !legacyProbe) {
+      const allBlogs = await fetchAllStorefrontBlogs();
+      if (blogListHasCategorySlug(allBlogs, slug)) {
+        return (
+          <CategoryBlogsClient
+            categorySlug={slug.toLowerCase()}
+            initialBlogs={allBlogs as never}
+          />
+        );
+      }
+    }
+  }
+
   const routePath = category ? `/blogs/${category}/${slug}` : `/blogs/${slug}`;
   const canonicalUrl = await getCanonical(routePath);
   const navbarVariantTestConfig = await getNavbarVariantTestPublicServer();

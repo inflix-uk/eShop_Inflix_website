@@ -23,6 +23,7 @@ import {
 //   import("@headlessui/react").then((mod) => mod.Transition.Child)
 // );
 import { Fragment } from "react";
+import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 // const XMarkIcon = dynamic(() =>
 //   import("@heroicons/react/20/solid").then((mod) => mod.XMarkIcon)
@@ -42,7 +43,7 @@ export default function ProductSpecs({
       <Transition show={openSpecs} as={Fragment}>
         <Dialog
           as="div"
-          className="relative z-50"
+          className={PRODUCT_SIDE_PANEL_Z}
           onClose={() => setOpenSpecs(false)}
         >
           <TransitionChild

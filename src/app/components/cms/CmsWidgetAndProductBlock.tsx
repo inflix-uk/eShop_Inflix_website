@@ -192,6 +192,11 @@ export function CmsWidgetAndProductBlock({
     return (
       <BlogVideoWidget
         videoUrl={v.videoUrl}
+        items={v.items}
+        aspectRatio={v.aspectRatio}
+        playerWidthPx={v.playerWidthPx}
+        playerHeightPx={v.playerHeightPx}
+        playbackMuted={v.playbackMuted}
         heading={v.heading}
         caption={v.caption}
       />

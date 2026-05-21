@@ -77,7 +77,8 @@ export default function ProductInfo({
             ))}
           </div>
           <p className="whitespace-nowrap">
-            {averageRating}/5 ({totalReviews} reviews)
+            {(Number(averageRating) || 0).toFixed(1)}/5 ({totalReviews}{" "}
+            reviews)
           </p>
         </div>
       </div>

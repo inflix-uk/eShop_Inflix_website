@@ -88,11 +88,29 @@ export interface WidgetFaqContent {
   items?: FaqItemContent[];
 }
 
+export interface VideoWidgetItemContent {
+  id?: string;
+  videoUrl?: string;
+}
+
 export interface WidgetVideoContent {
   widgetType: "video";
   videoUrl?: string;
+  items?: VideoWidgetItemContent[];
+  /** 16:9 | 9:16 | 1:1 | 4:5 | 4:3 | 21:9 | 2:3 */
+  aspectRatio?: string;
+  /** Player width in px. Empty = full column width. */
+  playerWidthPx?: number;
+  /** Player height in px. Empty = height from aspect ratio. */
+  playerHeightPx?: number;
+  /** Admin: mute playback on the storefront (no visitor mute control). */
+  playbackMuted?: boolean;
+  /** Title above the player (admin: Title). */
   heading?: string;
+  /** Description below the player (admin: Description). */
   caption?: string;
+  title?: string;
+  description?: string;
 }
 
 export interface WidgetMapContent {

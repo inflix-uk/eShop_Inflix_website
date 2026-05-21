@@ -676,6 +676,11 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                                             <BlogVideoWidget
                                               key={`block-${rowIndex}-${colIndex}-${blockIndex}`}
                                               videoUrl={block.content.videoUrl}
+                                              items={block.content.items}
+                                              aspectRatio={block.content.aspectRatio}
+                                              playerWidthPx={block.content.playerWidthPx}
+                                              playerHeightPx={block.content.playerHeightPx}
+                                              playbackMuted={block.content.playbackMuted}
                                               heading={block.content.heading}
                                               caption={block.content.caption}
                                             />

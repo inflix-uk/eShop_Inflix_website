@@ -8,6 +8,7 @@ import Link from "next/link";
 import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toCategorySlug } from "./lib/blogCategorySlug";
 
 
 function BlogsContent() {
@@ -30,16 +31,11 @@ function BlogsContent() {
   const blogsPerPage = 12;
 
   const loadBlogs = React.useCallback(async () => {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
     setProgress(30);
     setIsLoading(true);
     setLoadError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/get/blog`, {
-        signal: controller.signal,
-        cache: "no-store",
-      });
+      const res = await fetch("/api/blogs", { cache: "no-store" });
       if (!res.ok) {
         throw new Error(`Failed to fetch blogs (${res.status})`);
       }
@@ -53,7 +49,6 @@ function BlogsContent() {
           : "Failed to load blogs. Please try again."
       );
     } finally {
-      window.clearTimeout(timeoutId);
       setIsLoading(false);
       setProgress(100);
     }
@@ -67,8 +62,46 @@ function BlogsContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    void loadBlogs();
-  }, [loadBlogs]);
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 30000);
+
+    setProgress(30);
+    setIsLoading(true);
+    setLoadError("");
+
+    fetch("/api/blogs", { signal: controller.signal, cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to fetch blogs (${res.status})`);
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBlogs(Array.isArray(data.data) ? data.data : []);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setBlogs([]);
+        setLoadError(
+          error instanceof DOMException && error.name === "AbortError"
+            ? "Blog request timed out. Please try again."
+            : "Failed to load blogs. Please try again."
+        );
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (!cancelled) {
+          setIsLoading(false);
+          setProgress(100);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,18 +171,12 @@ function BlogsContent() {
   const currentBlogs = filteredBlogs.slice(indexOfFirstBlog, indexOfLastBlog);
   const totalPages = Math.ceil(filteredBlogs.length / blogsPerPage);
 
-  // Slugify category
-  const categoryToSlug = (category: string) =>
-    category.toLowerCase().replace(/\s+/g, "-");
+  const categoryHref = (category: string) =>
+    category === "all" ? "/blogs/" : `/blogs/${toCategorySlug(category)}/`;
 
   const handleCategoryChange = (category: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("page");
-    router.replace(`/blogs${params.toString() ? `?${params.toString()}` : ""}`, {
-      scroll: false,
-    });
-    setCurrentPage(1);
-    setSelectedCategory(category);
+    if (category === selectedCategory) return;
+    router.push(categoryHref(category));
   };
 
   const updatePageInUrl = (nextPage: number) => {
@@ -198,7 +225,7 @@ function BlogsContent() {
             <div className="space-y-1">
               {categories.map((cat) => {
                 const isActive = selectedCategory === cat;
-                const href = cat === "all" ? "/blogs" : `/blogs/category/${categoryToSlug(cat)}`;
+                const href = categoryHref(cat);
                 const label =
                   cat === "all"
                     ? "All Categories"
@@ -292,7 +319,7 @@ function BlogsContent() {
                 <button
                   onClick={() => {
                     setSearchTerm("");
-                    setSelectedCategory("all");
+                    router.push("/blogs/");
                   }}
                   className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
                 >
