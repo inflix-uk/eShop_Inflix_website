@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
 import {
   buildHeroBannersFromApiPayload,
@@ -16,7 +17,7 @@ export type HomepageHeroPayload = {
 };
 
 /** Active hero banners + hero social links (Admin → Banners). */
-export async function getHomepageHeroBannersCached(): Promise<HomepageHeroPayload> {
+export const getHomepageHeroBannersCached = cache(async (): Promise<HomepageHeroPayload> => {
   const base = apiBase();
   if (!base) {
     return { banners: [], heroSocial: extractHeroSocialFromActiveBannersPayload(null) };
@@ -33,4 +34,4 @@ export async function getHomepageHeroBannersCached(): Promise<HomepageHeroPayloa
     console.warn("[activeBannersPublicService] fetch failed:", e);
     return { banners: [], heroSocial: extractHeroSocialFromActiveBannersPayload(null) };
   }
-}
+});

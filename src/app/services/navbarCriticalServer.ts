@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
 import type { NavbarItem } from "@/app/lib/features/navbarcategories/navbarTypes";
 import { normalizeNavbarItemsForPublicNav } from "@/app/lib/features/navbarcategories/navbarCategoryNormalize";
@@ -49,7 +50,7 @@ async function fetchNavbarCategoriesUpstream(): Promise<NavbarItem[]> {
 }
 
 /** Homepage above-the-fold: logo, header phone, category row — same sources as client `Nav`. */
-export async function getHomeNavbarCriticalServer(): Promise<HomeNavbarServerBootstrap> {
+export const getHomeNavbarCriticalServer = cache(async (): Promise<HomeNavbarServerBootstrap> => {
   const [logo, header, items] = await Promise.all([
     getLogo().catch((e) => {
       console.warn("[navbarCriticalServer] logo fetch failed:", e);
@@ -72,4 +73,4 @@ export async function getHomeNavbarCriticalServer(): Promise<HomeNavbarServerBoo
     supportPhone: header.supportPhone || DEFAULT_HEADER_SUPPORT_PHONE,
     supportEmail: header.supportEmail || DEFAULT_HEADER_SUPPORT_EMAIL,
   };
-}
+});

@@ -3,8 +3,8 @@
  * Fetches the homepage features section from the backend API
  */
 
-import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
-import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
+import { cache } from "react";
+import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
 
 // Get API base URL from environment variable
 const getApiBaseUrl = (): string => {
@@ -83,66 +83,27 @@ export const getFeatureImageUrl = (
 };
 
 /**
- * Fetches homepage features from the API.
- * NO CACHING - Always fetches fresh data to reflect admin dashboard changes.
+ * Fetches homepage features from the API (ISR-aligned server fetch).
  * @returns Promise with array of active features sorted by order, or [] on error
  */
-export async function getHomepageFeatures(): Promise<HomepageFeature[]> {
+export const getHomepageFeatures = cache(async (): Promise<HomepageFeature[]> => {
+  const base = API_BASE_URL.replace(/\/$/, "");
+  if (!base) return [];
+
   try {
-    const endpoints = [
-      `${API_BASE_URL}/get/homepage-features/active`,
-      `${API_BASE_URL}/api/get/homepage-features/active`,
-      `${API_BASE_URL}/get/homepage-features`,
-      `${API_BASE_URL}/api/get/homepage-features`,
-    ];
+    const data = await cmsServerFetchJson<HomepageFeaturesResponse>(
+      `${base}/get/homepage-features/active`
+    );
 
-    let lastError: Error | null = null;
-
-    for (const apiUrl of endpoints) {
-      try {
-        const response = await cmsTimedFetch(apiUrl, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          ...cmsPublicFetchInit(),
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            lastError = new Error(`Endpoint returned 404: ${apiUrl}`);
-            continue;
-          }
-          lastError = new Error(
-            `HTTP ${response.status}: ${response.statusText}`
-          );
-          continue;
-        }
-
-        const data: HomepageFeaturesResponse = await response.json();
-
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-          // Filter active only and sort by order
-          const features = data.data
-            .filter((f) => f.isActive !== false)
-            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-          return features;
-        }
-
-        return [];
-      } catch (fetchError) {
-        lastError =
-          fetchError instanceof Error
-            ? fetchError
-            : new Error(String(fetchError));
-        continue;
-      }
+    if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+      return data.data
+        .filter((f) => f.isActive !== false)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
 
-    if (lastError) {
-      console.warn("[HomepageFeatures] All endpoints failed:", lastError.message);
-    }
     return [];
   } catch (error) {
-    console.error("[HomepageFeatures] Error fetching features:", error);
+    console.warn("[HomepageFeatures] fetch failed:", error);
     return [];
   }
-}
+});

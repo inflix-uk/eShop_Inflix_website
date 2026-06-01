@@ -1,68 +1,47 @@
-import dynamic from "next/dynamic";
+import { Suspense, cache } from "react";
 import HeroSlider2 from "./components/HeroSlider2";
-import Nav from "./components/navbar/Nav";
 import NavbarVariantTestBar from "./components/navbar/NavbarVariantTestBar";
+import HomePageBelowHero from "./components/home/HomePageBelowHero";
 import { Metadata } from "next";
-import {
-  getHomepageFeatures,
-  getFeatureImageUrl,
-  type HomepageFeature,
-} from "./services/homepageFeaturesService";
 import { getHomepagePublicSeo } from "./services/homepageDataService";
 import {
   getHomepageHeroBannersCached,
   type HomepageHeroPayload,
 } from "./services/activeBannersPublicService";
 import { emptyHeroSocial } from "./lib/homepageBannerShared";
-import {
-  getHomeServerCmsBundle,
-  createFallbackHomeServerCmsBundle,
-} from "./lib/homeServerCms";
-import { cmsPublicFetchInit } from "./lib/cmsPublicFetchInit";
-import { cmsTimedFetch } from "./lib/cmsTimedFetch";
+import { cmsServerFetchJson } from "./lib/cmsServerFetch";
 import {
   getDefaultHomepageJsonLdString,
   metaSchemaEntryToJsonLdString,
 } from "./lib/homepageJsonLd";
-import HomepageFeatureIcon from "./components/HomepageFeatureIcon";
 import { getCanonical } from "@/lib/getCanonical";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
 import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
-const HomeClient = dynamic(() => import("./HomeClient"), {
-  loading: () => (
-    <section
-      className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 min-h-[120px]"
-      aria-busy="true"
-      aria-label="Loading homepage content"
-    >
-      <div className="animate-pulse space-y-4" aria-hidden>
-        <div className="h-8 bg-gray-200 rounded w-1/3 max-w-md" />
-        <div className="h-4 bg-gray-200 rounded w-full" />
-        <div className="h-4 bg-gray-200 rounded w-5/6" />
-      </div>
-    </section>
-  ),
-});
+export const revalidate = 30;
 
-/** Fresh homepage CMS on each request — avoids stale blocks after admin saves (ISR was 30s). */
-export const revalidate = 0;
+type StaticMetaPagePayload = {
+  titleTag?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+};
 
-async function getMetaData() {
+const getMetaData = cache(async (): Promise<StaticMetaPagePayload | null> => {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const res = await cmsTimedFetch(
-      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/Homepage")}`,
-      { ...cmsPublicFetchInit() }
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+    if (!apiUrl) return null;
+    const data = await cmsServerFetchJson<{
+      success?: boolean;
+      data?: StaticMetaPagePayload;
+    }>(
+      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/Homepage")}`
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch  {
+    return data?.success && data.data ? data.data : null;
+  } catch {
     return null;
   }
-}
+});
 
 const HOME_FALLBACK_TITLE = "";
 const HOME_FALLBACK_DESCRIPTION = "";
@@ -131,7 +110,7 @@ export default async function Home() {
     heroSocial: emptyHeroSocial(),
   };
 
-  const [homepageSeo, heroPayload, cmsBundle, features, navServerBootstrap, navbarVariantTestConfig] =
+  const [homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig] =
     await Promise.all([
       getHomepagePublicSeo().catch((err) => {
         console.error("[Home] homepage SEO fetch failed:", err);
@@ -140,14 +119,6 @@ export default async function Home() {
       getHomepageHeroBannersCached().catch((err) => {
         console.error("[Home] hero banners fetch failed:", err);
         return emptyHeroPayload;
-      }),
-      getHomeServerCmsBundle().catch((err) => {
-        console.error("[Home] CMS bundle fetch failed:", err);
-        return createFallbackHomeServerCmsBundle();
-      }),
-      getHomepageFeatures().catch((error) => {
-        console.error("[Home] Error fetching homepage features:", error);
-        return [] as HomepageFeature[];
       }),
       getHomeNavbarCriticalServer().catch((err) => {
         console.error("[Home] navbar critical fetch failed:", err);
@@ -164,7 +135,6 @@ export default async function Home() {
         return null;
       }),
     ]);
-  const displayFeatures = features;
   const { banners: heroBanners, heroSocial } = heroPayload;
   const showOverallNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
 
@@ -201,39 +171,21 @@ export default async function Home() {
       ) : null}
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}
       <HeroSlider2 serverBanners={heroBanners} heroSocial={heroSocial} />
-      {displayFeatures.length > 0 && (
-        <div className="bg-white text-black py-3 border-b border-gray-100 shadow-lg">
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-between sm:items-center">            {displayFeatures.map((feature) => {
-              const iconUrl = feature.iconImage
-                ? getFeatureImageUrl(feature.iconImage)
-                : null;
-              return (
-                <div
-                  key={feature._id}
-                  className="flex items-center space-x-2 my-1"
-                >
-                  {iconUrl ? (
-                    <HomepageFeatureIcon src={iconUrl} alt={feature.title} />
-                  ) : (
-                    <div
-                      className="w-[25px] h-[25px] bg-primary rounded shrink-0"
-                      aria-hidden
-                    />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="text-primary font-bold text-sm">
-                      {feature.title}
-                    </span>
-                    <span className="text-xs">{feature.subtitle}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <HomeClient cmsPrefetch={cmsBundle} backendAvailable={backendAvailable} />
+      <Suspense
+        fallback={
+          <section
+            className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 min-h-[120px] animate-pulse"
+            aria-busy="true"
+            aria-label="Loading homepage content"
+          >
+            <div className="h-8 bg-gray-200 rounded w-1/3 max-w-md mb-4" />
+            <div className="h-4 bg-gray-200 rounded w-full mb-2" />
+            <div className="h-4 bg-gray-200 rounded w-5/6" />
+          </section>
+        }
+      >
+        <HomePageBelowHero backendAvailable={backendAvailable} />
+      </Suspense>
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { cache } from "react";
 
 const HEALTH_PATH = "/health";
-const HEALTH_TIMEOUT_MS = 3000;
+const HEALTH_TIMEOUT_MS = 2000;
 
 /**
  * Base URL for server-side CMS fetches. Prefer `NEXT_PUBLIC_API_URL` (browser + SSR);

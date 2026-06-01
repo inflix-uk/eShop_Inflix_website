@@ -13,6 +13,7 @@ import {
   useBlogContentFullBleed,
 } from "@/app/(routes)/blogs/new/[slug]/useBlogContentFullBleed";
 import { useAuth } from "@/app/context/Auth";
+import { useDeferUntilVisible } from "@/app/lib/useDeferUntilVisible";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
@@ -106,6 +107,7 @@ export default function ContentProductSlider({
   const [loading, setLoading] = useState(() => isLatest || ids.length > 0);
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const shouldFetch = useDeferUntilVisible(rootRef, { rootMargin: "320px 0px" });
   const bleedActive = (isLatest || ids.length > 0) && (loading || items.length > 0);
   const bleed = useBlogContentFullBleed(rootRef, bleedActive);
 
@@ -186,8 +188,9 @@ export default function ContentProductSlider({
   }, [isLatest, ids.join(","), auth?.user?.pricingGroup, auth?.user?._id]);
 
   useEffect(() => {
+    if (!shouldFetch) return;
     fetchProducts();
-  }, [fetchProducts]);
+  }, [fetchProducts, shouldFetch]);
 
   if (!isLatest && ids.length === 0) {
     return null;
