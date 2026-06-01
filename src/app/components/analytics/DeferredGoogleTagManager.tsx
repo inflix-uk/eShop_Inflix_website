@@ -11,7 +11,7 @@ const AHREFS_DELAY_MS = 3500;
 const CLARITY_DELAY_MS = 6500;
 
 /** Minimum quiet period after `load` before we schedule idle work (lets React/embla hydrate). */
-const POST_LOAD_QUIET_MS = 5000;
+const POST_LOAD_QUIET_MS = 7000;
 
 /** `requestIdleCallback` timeout when no explicit user gesture fired (must be < ABSOLUTE_FALLBACK_MS). */
 const DEFAULT_IDLE_TIMEOUT_MS = 22000;

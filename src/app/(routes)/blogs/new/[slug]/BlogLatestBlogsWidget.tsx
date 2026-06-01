@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferUntilVisible } from "@/app/lib/useDeferUntilVisible";
 import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaOptionsType } from "embla-carousel";
 import BlogCard from "@/app/components/blogs/BlogCard";
@@ -35,8 +36,10 @@ export default function BlogLatestBlogsWidget({
   viewAllLabel = "View all blogs",
 }: BlogLatestBlogsWidgetProps) {
   const limit = useMemo(() => clampMaxPosts(maxPosts), [maxPosts]);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const shouldLoad = useDeferUntilVisible(sectionRef, { rootMargin: "280px 0px" });
   const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const emblaOptions = useMemo<EmblaOptionsType>(
@@ -56,10 +59,14 @@ export default function BlogLatestBlogsWidget({
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
+    if (!shouldLoad) return;
     let cancelled = false;
+    setLoading(true);
     (async () => {
       try {
-        const res = await fetch("/api/blogs/latest", { cache: "no-store" });
+        const res = await fetch(`/api/blogs/latest?limit=${limit}`, {
+          cache: "force-cache",
+        });
         const json = await res.json().catch(() => ({}));
         const raw = Array.isArray(json?.data) ? json.data : [];
         if (!cancelled) {
@@ -74,7 +81,7 @@ export default function BlogLatestBlogsWidget({
     return () => {
       cancelled = true;
     };
-  }, [limit]);
+  }, [limit, shouldLoad]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -107,9 +114,21 @@ export default function BlogLatestBlogsWidget({
   const heading =
     (sectionHeading && String(sectionHeading).trim()) || "Latest blogs";
 
+  if (!shouldLoad) {
+    return (
+      <div
+        ref={sectionRef}
+        className="my-8 min-h-[8rem]"
+        aria-label={heading}
+        aria-hidden
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div
+        ref={sectionRef}
         className="my-8 rounded-lg border border-gray-100 bg-gray-50/80 p-6 animate-pulse"
         aria-busy="true"
       >
@@ -135,6 +154,7 @@ export default function BlogLatestBlogsWidget({
   const multi = blogs.length > 1;
 
   return (
+    <div ref={sectionRef}>
     <section className="my-8" aria-label={heading}>
       <div className="flex items-center justify-between gap-3 mb-4">
         <h2 className="text-xl sm:text-2xl font-semibold text-primary">
@@ -191,6 +211,7 @@ export default function BlogLatestBlogsWidget({
         ) : null}
       </div>
     </section>
+    </div>
   );
 }
 

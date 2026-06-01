@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { slimBlogForCard } from "@/app/lib/slimBlogForCard";
 
 /** Backend merges legacy Blog + published NewBlog (not /latest/old, which is old collection only). */
 function upstreamLatestBlogsUrl(): string {
@@ -8,7 +9,7 @@ function upstreamLatestBlogsUrl(): string {
 
 const TIMEOUT_MS = 7000;
 
-export async function GET() {
+export async function GET(req: Request) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -28,10 +29,16 @@ export async function GET() {
     }
 
     const data = await res.json();
+    const raw = Array.isArray(data?.data) ? data.data : [];
+    const limit = Math.min(12, Math.max(1, Number(new URL(req.url).searchParams.get("limit")) || 8));
+    const slim = raw
+      .slice(0, limit)
+      .map((row: Record<string, unknown>) => slimBlogForCard(row));
+
     return NextResponse.json(
       {
         status: data?.status ?? 200,
-        data: data?.data ?? [],
+        data: slim,
         message: data?.message ?? "",
       },
       {

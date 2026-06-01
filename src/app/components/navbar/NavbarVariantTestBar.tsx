@@ -22,6 +22,7 @@ export default function NavbarVariantTestBar({
   const cfg = config;
   const [openCart, setOpenCart] = useState(false);
   const [, setCartItemCount] = useState(0);
+
   if (!cfg || cfg.showOnStorefront === false) return null;
   const effectiveLogoUrl =
     String(cfg.logoUrl || "").trim() || String(serverBootstrapLogo?.logoUrl || "").trim();

@@ -81,37 +81,183 @@ function resolveBannerVideoBoxStyle(
   return buildBannerVideoBoxStyle(aspect);
 }
 
-function HeroBannerVideoBackground({
-  src,
+
+function heroVideoOverlayStyle(
+  overlayColor: string,
+  overlayOpacity: number
+): { opacity: number; backgroundColor: string } {
+  return {
+    backgroundColor: overlayColor || "#000000",
+    opacity: Math.min(1, Math.max(0, (overlayOpacity ?? 35) / 100)),
+  };
+}
+
+/** Static frame while slide is inactive or before viewport is known (avoids N×11MB downloads). */
+function HeroBannerVideoPoster({
+  posterSrc,
+  alt,
   overlayColor,
   overlayOpacity,
   boxStyle,
+  priority,
 }: {
-  src: string;
+  posterSrc: string;
+  alt: string;
   overlayColor: string;
   overlayOpacity: number;
   boxStyle: React.CSSProperties;
+  priority?: boolean;
 }) {
-  const opacity = Math.min(1, Math.max(0, (overlayOpacity ?? 35) / 100));
   return (
     <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black">
-      <div style={boxStyle}>
+      <div style={boxStyle} className="relative h-full w-full">
+        <Image
+          src={posterSrc || "/placeholder.svg"}
+          alt={alt}
+          fill
+          className="object-cover object-center"
+          sizes="100vw"
+          quality={65}
+          priority={priority}
+          unoptimized={imageUnoptimized(posterSrc)}
+        />
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={heroVideoOverlayStyle(overlayColor, overlayOpacity)}
+          aria-hidden
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Active slide: one <video> with responsive <source media> (no poster image flash).
+ * Inactive slides: static poster only (no video download).
+ */
+function HeroBannerVideoSlide({
+  banner,
+  slideIndex,
+  currentSlide,
+}: {
+  banner: Banner;
+  slideIndex: number;
+  currentSlide: number;
+}) {
+  const active = slideIndex === currentSlide;
+  const overlayColor = banner.overlayColor || "#000000";
+  const overlayOpacity = banner.overlayOpacity ?? 35;
+  const mobileBoxStyle = resolveBannerVideoBoxStyle(banner, "mobile");
+  const desktopBoxStyle = resolveBannerVideoBoxStyle(banner, "desktop");
+  const posterSrc =
+    banner.srcLarge || banner.srcSmall || "/placeholder.svg";
+  const videoLarge = banner.videoLarge || banner.videoSmall || "";
+  const videoSmall = banner.videoSmall || banner.videoLarge || "";
+
+  if (!active) {
+    return (
+      <>
+        <div className="absolute inset-0 sm:hidden">
+          <HeroBannerVideoPoster
+            posterSrc={banner.srcSmall || posterSrc}
+            alt={banner.alt}
+            overlayColor={overlayColor}
+            overlayOpacity={overlayOpacity}
+            boxStyle={mobileBoxStyle}
+          />
+        </div>
+        <div className="absolute inset-0 hidden sm:block">
+          <HeroBannerVideoPoster
+            posterSrc={posterSrc}
+            alt={banner.alt}
+            overlayColor={overlayColor}
+            overlayOpacity={overlayOpacity}
+            boxStyle={desktopBoxStyle}
+            priority={slideIndex === 0}
+          />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <HeroBannerActiveVideo
+      videoLarge={videoLarge}
+      videoSmall={videoSmall}
+      overlayColor={overlayColor}
+      overlayOpacity={overlayOpacity}
+      mobileBoxStyle={mobileBoxStyle}
+      desktopBoxStyle={desktopBoxStyle}
+      priority={slideIndex === 0}
+    />
+  );
+}
+
+function HeroBannerActiveVideo({
+  videoLarge,
+  videoSmall,
+  overlayColor,
+  overlayOpacity,
+  mobileBoxStyle,
+  desktopBoxStyle,
+  priority,
+}: {
+  videoLarge: string;
+  videoSmall: string;
+  overlayColor: string;
+  overlayOpacity: number;
+  mobileBoxStyle: React.CSSProperties;
+  desktopBoxStyle: React.CSSProperties;
+  priority?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fallbackSrc = videoSmall || videoLarge;
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.load();
+    const play = el.play();
+    if (play && typeof play.catch === "function") {
+      play.catch(() => {});
+    }
+  }, [videoLarge, videoSmall]);
+
+  const frameStyle = {
+    ...desktopBoxStyle,
+    aspectRatio: mobileBoxStyle.aspectRatio,
+    ["--hero-video-ar-mobile" as string]: mobileBoxStyle.aspectRatio,
+    ["--hero-video-ar-desktop" as string]: desktopBoxStyle.aspectRatio,
+  } as React.CSSProperties;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black">
+      <div
+        className="hero-banner-active-video-frame relative h-full w-full"
+        style={frameStyle}
+      >
         <video
+          ref={videoRef}
           className="absolute inset-0 h-full w-full object-cover object-center"
-          src={src}
           autoPlay
           muted
           loop
           playsInline
-          preload="auto"
+          preload={priority ? "auto" : "metadata"}
           aria-hidden
-        />
+        >
+          {videoLarge ? (
+            <source
+              media="(min-width: 640px)"
+              src={videoLarge}
+              type="video/mp4"
+            />
+          ) : null}
+          {fallbackSrc ? <source src={fallbackSrc} type="video/mp4" /> : null}
+        </video>
         <div
           className="absolute inset-0 z-[1] pointer-events-none"
-          style={{
-            backgroundColor: overlayColor || "#000000",
-            opacity,
-          }}
+          style={heroVideoOverlayStyle(overlayColor, overlayOpacity)}
           aria-hidden
         />
       </div>
@@ -484,6 +630,14 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     .text-shadow {
       text-shadow: 0 1px 3px rgba(0,0,0,0.8);
     }
+    .hero-banner-active-video-frame {
+      aspect-ratio: var(--hero-video-ar-mobile);
+    }
+    @media (min-width: 640px) {
+      .hero-banner-active-video-frame {
+        aspect-ratio: var(--hero-video-ar-desktop);
+      }
+    }
   `;
     document.head.appendChild(style);
 
@@ -615,66 +769,58 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     }
                     style={embedded ? embeddedBannerBoxStyle() : undefined}
                   >
-                    <div className="absolute inset-0 sm:hidden">
-                      {bannerUsesVideo(banner) ? (
-                        <HeroBannerVideoBackground
-                          src={banner.videoSmall || banner.videoLarge || ""}
-                          overlayColor={banner.overlayColor || "#000000"}
-                          overlayOpacity={banner.overlayOpacity ?? 35}
-                          boxStyle={resolveBannerVideoBoxStyle(banner, "mobile")}
-                        />
-                      ) : (
-                        <Image
-                          src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
-                          alt={banner.alt}
-                          width={HERO_SMALL_WIDTH}
-                          height={HERO_SMALL_HEIGHT}
-                          className="h-full w-full object-cover object-center"
-                          sizes="(max-width: 768px) 100vw, 1200px"
-                          quality={70}
-                          unoptimized={imageUnoptimized(
-                            banner.srcSmall || banner.srcLarge
-                          )}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
-                              target.src = banner.srcLarge;
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div className="absolute inset-0 hidden sm:block">
-                      {bannerUsesVideo(banner) ? (
-                        <HeroBannerVideoBackground
-                          src={banner.videoLarge || banner.videoSmall || ""}
-                          overlayColor={banner.overlayColor || "#000000"}
-                          overlayOpacity={banner.overlayOpacity ?? 35}
-                          boxStyle={resolveBannerVideoBoxStyle(banner, "desktop")}
-                        />
-                      ) : (
-                        <Image
-                          src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
-                          alt={banner.alt}
-                          width={HERO_LARGE_WIDTH}
-                          height={HERO_LARGE_HEIGHT}
-                          className="h-full w-full object-cover object-center"
-                          sizes="(max-width: 768px) 100vw, 1200px"
-                          fetchPriority={index === 0 ? "high" : "auto"}
-                          priority={index === 0 && !embedded}
-                          quality={70}
-                          unoptimized={imageUnoptimized(
-                            banner.srcLarge || banner.srcSmall
-                          )}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
-                              target.src = banner.srcSmall;
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
+                    {bannerUsesVideo(banner) ? (
+                      <HeroBannerVideoSlide
+                        banner={banner}
+                        slideIndex={index}
+                        currentSlide={currentSlide}
+                      />
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 sm:hidden">
+                          <Image
+                            src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
+                            alt={banner.alt}
+                            width={HERO_SMALL_WIDTH}
+                            height={HERO_SMALL_HEIGHT}
+                            className="h-full w-full object-cover object-center"
+                            sizes="(max-width: 768px) 100vw, 1200px"
+                            quality={70}
+                            unoptimized={imageUnoptimized(
+                              banner.srcSmall || banner.srcLarge
+                            )}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
+                                target.src = banner.srcLarge;
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="absolute inset-0 hidden sm:block">
+                          <Image
+                            src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
+                            alt={banner.alt}
+                            width={HERO_LARGE_WIDTH}
+                            height={HERO_LARGE_HEIGHT}
+                            className="h-full w-full object-cover object-center"
+                            sizes="(max-width: 768px) 100vw, 1200px"
+                            fetchPriority={index === 0 ? "high" : "auto"}
+                            priority={index === 0 && !embedded}
+                            quality={70}
+                            unoptimized={imageUnoptimized(
+                              banner.srcLarge || banner.srcSmall
+                            )}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
+                                target.src = banner.srcSmall;
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                     <div className="pointer-events-none absolute inset-0 z-[2] hidden sm:block">
                       {banner.extraImage && (
                         <div className="absolute bottom-0 left-1/2 flex w-full max-w-[min(520px,42vw)] -translate-x-1/2 justify-center">
@@ -706,88 +852,88 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     }
                   >
                     {/* Simple banners: sized box + fill avoids h-auto CLS when intrinsic dimensions load */}
-                    <div
-                      className={
-                        embedded
-                          ? "relative z-0 w-full overflow-hidden sm:hidden h-full min-h-0"
-                          : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
-                      }
-                    >
-                      {bannerUsesVideo(banner) ? (
-                        <HeroBannerVideoBackground
-                          src={banner.videoSmall || banner.videoLarge || ""}
-                          overlayColor={banner.overlayColor || "#000000"}
-                          overlayOpacity={banner.overlayOpacity ?? 35}
-                          boxStyle={resolveBannerVideoBoxStyle(banner, "mobile")}
+                    {bannerUsesVideo(banner) ? (
+                      <div
+                        className={
+                          embedded
+                            ? "relative z-0 h-full min-h-0 w-full overflow-hidden"
+                            : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh]"
+                        }
+                      >
+                        <HeroBannerVideoSlide
+                          banner={banner}
+                          slideIndex={index}
+                          currentSlide={currentSlide}
                         />
-                      ) : (
-                        <Image
-                          src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
-                          alt={banner.alt}
-                          width={HERO_SMALL_WIDTH}
-                          height={HERO_SMALL_HEIGHT}
-                          className="h-full w-full object-cover object-center"
-                          sizes="(max-width: 768px) 100vw, 1200px"
-                          quality={70}
-                          unoptimized={imageUnoptimized(
-                            banner.srcSmall || banner.srcLarge
-                          )}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (
-                              target &&
-                              banner.srcSmall &&
-                              banner.srcLarge &&
-                              target.src.includes(banner.srcSmall)
-                            ) {
-                              target.src = banner.srcLarge;
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div
-                      className={
-                        embedded
-                          ? "relative z-0 hidden sm:block w-full overflow-hidden h-full min-h-0"
-                          : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
-                      }
-                    >
-                      {bannerUsesVideo(banner) ? (
-                        <HeroBannerVideoBackground
-                          src={banner.videoLarge || banner.videoSmall || ""}
-                          overlayColor={banner.overlayColor || "#000000"}
-                          overlayOpacity={banner.overlayOpacity ?? 35}
-                          boxStyle={resolveBannerVideoBoxStyle(banner, "desktop")}
-                        />
-                      ) : (
-                        <Image
-                          src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
-                          alt={banner.alt}
-                          width={HERO_LARGE_WIDTH}
-                          height={HERO_LARGE_HEIGHT}
-                          className="h-full w-full object-cover object-center"
-                          sizes="(max-width: 768px) 100vw, 1200px"
-                          fetchPriority={index === 0 ? "high" : "auto"}
-                          priority={index === 0 && !embedded}
-                          quality={70}
-                          unoptimized={imageUnoptimized(
-                            banner.srcLarge || banner.srcSmall
-                          )}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (
-                              target &&
-                              banner.srcLarge &&
-                              banner.srcSmall &&
-                              target.src.includes(banner.srcLarge)
-                            ) {
-                              target.src = banner.srcSmall;
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className={
+                            embedded
+                              ? "relative z-0 w-full overflow-hidden sm:hidden h-full min-h-0"
+                              : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
+                          }
+                        >
+                          <Image
+                            src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
+                            alt={banner.alt}
+                            width={HERO_SMALL_WIDTH}
+                            height={HERO_SMALL_HEIGHT}
+                            className="h-full w-full object-cover object-center"
+                            sizes="(max-width: 768px) 100vw, 1200px"
+                            quality={70}
+                            unoptimized={imageUnoptimized(
+                              banner.srcSmall || banner.srcLarge
+                            )}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (
+                                target &&
+                                banner.srcSmall &&
+                                banner.srcLarge &&
+                                target.src.includes(banner.srcSmall)
+                              ) {
+                                target.src = banner.srcLarge;
+                              }
+                            }}
+                          />
+                        </div>
+                        <div
+                          className={
+                            embedded
+                              ? "relative z-0 hidden sm:block w-full overflow-hidden h-full min-h-0"
+                              : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
+                          }
+                        >
+                          <Image
+                            src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
+                            alt={banner.alt}
+                            width={HERO_LARGE_WIDTH}
+                            height={HERO_LARGE_HEIGHT}
+                            className="h-full w-full object-cover object-center"
+                            sizes="(max-width: 768px) 100vw, 1200px"
+                            fetchPriority={index === 0 ? "high" : "auto"}
+                            priority={index === 0 && !embedded}
+                            quality={70}
+                            unoptimized={imageUnoptimized(
+                              banner.srcLarge || banner.srcSmall
+                            )}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              if (
+                                target &&
+                                banner.srcLarge &&
+                                banner.srcSmall &&
+                                target.src.includes(banner.srcLarge)
+                              ) {
+                                target.src = banner.srcSmall;
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 

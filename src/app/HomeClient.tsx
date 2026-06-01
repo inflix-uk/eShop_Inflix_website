@@ -15,21 +15,19 @@ import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
 import { mergePublicStoreLogoIntoHomepageBlocks } from "./lib/mergePublicStoreLogoIntoHomepageBlocks";
 
-const HomepageContent = dynamic(
-  () => import("./components/HomepageContent"),
-  {
-    loading: () => (
-      <div className="animate-pulse space-y-4 mt-8" aria-hidden>
-        <div className="h-8 bg-gray-200 rounded w-1/3" />
-        <div className="h-4 bg-gray-200 rounded w-full" />
-        <div className="h-4 bg-gray-200 rounded w-5/6" />
-      </div>
-    ),
-  }
-);
+const HomepageContent = dynamic(() => import("./components/HomepageContent"), {
+  loading: () => (
+    <div className="animate-pulse space-y-4 mt-8" aria-hidden>
+      <div className="h-8 bg-gray-200 rounded w-1/3" />
+      <div className="h-4 bg-gray-200 rounded w-full" />
+      <div className="h-4 bg-gray-200 rounded w-5/6" />
+    </div>
+  ),
+});
 
 const CookieConsent = dynamic(
-  () => import("./components/common/ConsentCookie")
+  () => import("./components/common/ConsentCookie"),
+  { ssr: false }
 );
 
 const NewsletterSuccessModal = dynamic(
@@ -151,10 +149,8 @@ export default function HomeClient({
   }, [cmsApiAvailable, hasPrefetchBlocks]);
 
   /**
-   * Product/category Redux loads are below-the-fold for most users. Defer with
-   * `scheduleIdle` so hydration + hero/nav work stays unblocked (TBT).
-   * Re-reads `getState()` inside the callback so dispatches stay correct if auth
-   * or lists change before the idle task runs.
+   * Product/category Redux loads are below-the-fold for most users. Defer until
+   * scroll or a long idle timeout so the 11MB hero + hydration stay unblocked (TBT).
    */
   useEffect(() => {
     const normalizedGroupId = pricingGroupId || null;
@@ -174,7 +170,14 @@ export default function HomeClient({
       return;
     }
 
-    const cancel = scheduleIdle(
+    let cancelled = false;
+    let started = false;
+    let idleCancel: (() => void) | undefined;
+
+    const runBootstrap = () => {
+      if (cancelled || started) return;
+      started = true;
+      idleCancel = scheduleIdle(
       () => {
         void (async () => {
           const [
@@ -221,9 +224,28 @@ export default function HomeClient({
           }
         })();
       },
-      { timeout: 3800 }
+      { timeout: 7500 }
     );
-    return cancel;
+    };
+
+    const scrollOpts: AddEventListenerOptions = { passive: true };
+    const onScroll = () => {
+      runBootstrap();
+      window.removeEventListener("scroll", onScroll);
+    };
+    window.addEventListener("scroll", onScroll, scrollOpts);
+
+    const fallback = window.setTimeout(() => {
+      runBootstrap();
+      window.removeEventListener("scroll", onScroll);
+    }, 8500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallback);
+      window.removeEventListener("scroll", onScroll);
+      idleCancel?.();
+    };
   }, [
     dispatch,
     store,
@@ -241,10 +263,9 @@ export default function HomeClient({
   };
 
   useEffect(() => {
-    if (mounted) {
-      const consent = localStorage.getItem("cookieConsent");
-      setShowConsent(backendAvailable && (!consent || consent === "rejected"));
-    }
+    if (!mounted) return;
+    const consent = localStorage.getItem("cookieConsent");
+    setShowConsent(backendAvailable && (!consent || consent === "rejected"));
   }, [mounted, backendAvailable]);
 
   return (

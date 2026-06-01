@@ -1,8 +1,6 @@
 
 import dynamic from "next/dynamic";
-import HeroSlider2, {
-  type InlineBannerBlockPayload,
-} from "@/app/components/HeroSlider2";
+import type { InlineBannerBlockPayload } from "@/app/components/HeroSlider2";
 import {
   getHomepageImageUrl,
   type ContentBlock,
@@ -95,7 +93,7 @@ const BlogHtmlCssWidget = dynamic(
 );
 const ActiveDealsWidget = dynamic(
   () => import("@/app/components/deals/ActiveDealsWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback }
 );
 const DealsDiscountCardsWidget = dynamic(
   () => import("@/app/components/deals/DealsDiscountCardsWidget"),
@@ -107,6 +105,10 @@ const BlogContactUsWidget = dynamic(
 );
 const BlogNavbarWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogNavbarWidget"),
+  { loading: WidgetChunkFallback }
+);
+const HeroSlider2 = dynamic(
+  () => import("@/app/components/HeroSlider2"),
   { loading: WidgetChunkFallback }
 );
 
