@@ -214,7 +214,7 @@ export default async function RootLayout({
             dangerouslySetInnerHTML={{ __html: jsonStr }}
           />
         ))}
-        <SiteScriptsRaw html={combinedHeadScripts} />
+        <SiteScriptsRaw html={combinedHeadScripts} forHead />
         <SiteThemeInlineStyles theme={siteThemeBundle.colors} />
         <TypographyThemeStyles typography={siteThemeBundle.typography} />
       </head>

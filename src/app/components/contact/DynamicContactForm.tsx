@@ -37,9 +37,14 @@ function initialAnswers(fields: ContactWidgetField[]): Record<string, unknown> {
 
 type Props = {
   widget: ContactUsWidgetPublic;
+  /** Remove top padding on small screens (stacked under HTML/CSS hero on CMS pages). */
+  compactTopOnMobile?: boolean;
 };
 
-export default function DynamicContactForm({ widget }: Props) {
+export default function DynamicContactForm({
+  widget,
+  compactTopOnMobile = false,
+}: Props) {
   const fields = useMemo(() => sortedFields(widget), [widget]);
   const [answers, setAnswers] = useState<Record<string, unknown>>(() =>
     initialAnswers(fields)
@@ -252,7 +257,9 @@ export default function DynamicContactForm({ widget }: Props) {
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full max-w-7xl mx-auto px-0 pb-10 pt-4 sm:pb-12 sm:pt-5 lg:pt-6"
+      className={`w-full max-w-7xl mx-auto px-0 pb-10 sm:pb-12 sm:pt-5 lg:pt-6 ${
+        compactTopOnMobile ? "max-sm:pt-0 pt-4" : "pt-4"
+      }`}
     >
       <div className="w-full">
         {hasTitle || hasDescription ? (

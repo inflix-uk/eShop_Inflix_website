@@ -8,7 +8,8 @@ const HEALTH_TIMEOUT_MS = 3000;
  * fall back to server-only vars often set on Vercel without the NEXT_PUBLIC_ prefix.
  * Avoid relying on localhost for production SSR — set a public API URL in env.
  */
-function resolveApiBase(): string {
+/** API origin for server-side fetches (robots.txt, health, etc.). */
+export function resolveApiBase(): string {
   const trim = (s: string) => s.trim().replace(/\/$/, "");
   const fromPublic = trim(process.env.NEXT_PUBLIC_API_URL || "");
   if (fromPublic) return fromPublic;
