@@ -11,6 +11,36 @@ import {
   type SiteWidgetVisibility,
 } from "@/app/lib/siteWidgetVisibilityDefaults";
 
+type CmsRow = { columns?: { width?: number; blocks?: any[] }[] };
+
+function isHtmlCssBlock(block: any): boolean {
+  return block?.type === "widget" && block?.content?.widgetType === "htmlCss";
+}
+
+function isContactUsBlock(block: any): boolean {
+  return block?.type === "widget" && block?.content?.widgetType === "contactUs";
+}
+
+function rowHasWidgetType(row: CmsRow | null | undefined, widgetType: string): boolean {
+  if (!row?.columns) return false;
+  for (const column of row.columns) {
+    for (const block of column.blocks ?? []) {
+      if (block?.type === "widget" && block?.content?.widgetType === widgetType) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function columnHasHtmlCssContactPair(column: { blocks?: any[] }): boolean {
+  const blocks = column.blocks ?? [];
+  for (let i = 1; i < blocks.length; i++) {
+    if (isHtmlCssBlock(blocks[i - 1]) && isContactUsBlock(blocks[i])) return true;
+  }
+  return false;
+}
+
 /**
  * Renders a text block with HTML content
  */
@@ -135,10 +165,16 @@ function ColumnRenderer({
 }) {
   return (
     <div
-      className="flex-1 w-full sm:w-auto"
-      style={{ maxWidth: `${column.width}%`, minWidth: "250px" }}
+      className="min-w-0 w-full flex-[1_1_100%] sm:flex-1 sm:basis-0 sm:w-auto sm:min-w-[250px] sm:max-w-[var(--footer-col-max)]"
+      style={{ ["--footer-col-max" as string]: `${column.width}%` }}
     >
-      <div className="space-y-4">
+      <div
+        className={
+          columnHasHtmlCssContactPair(column)
+            ? "space-y-4 max-sm:space-y-0"
+            : "space-y-4"
+        }
+      >
         {column.blocks.map((block, blockIndex) => (
           <BlockRenderer
             key={blockIndex}
@@ -156,17 +192,44 @@ function ColumnRenderer({
  */
 function RowRenderer({
   row,
+  prevRow,
+  nextRow,
   widgetVisibility,
 }: {
-  row: { columns: any[] };
+  row: CmsRow & { columns: any[] };
+  prevRow?: CmsRow | null;
+  nextRow?: CmsRow | null;
   widgetVisibility: SiteWidgetVisibility;
 }) {
+  const hasHtmlCss = rowHasWidgetType(row, "htmlCss");
+  const hasContact = rowHasWidgetType(row, "contactUs");
+  const prevHasHtmlCss = rowHasWidgetType(prevRow, "htmlCss");
+  const nextHasContact = rowHasWidgetType(nextRow, "contactUs");
+  const tightBeforeContact = hasHtmlCss && nextHasContact;
+  const tightAfterHero = prevHasHtmlCss && hasContact;
+  const tightSameRow = hasHtmlCss && hasContact;
+
+  const tightMobileStack = tightSameRow || tightBeforeContact || tightAfterHero;
+
+  const rowClass = [
+    "flex flex-wrap gap-4 sm:gap-6 my-6 sm:my-8",
+    tightSameRow ? "max-sm:gap-0 max-sm:my-0" : "",
+    tightBeforeContact ? "max-sm:mb-0" : "",
+    tightAfterHero ? "max-sm:mt-0" : "",
+    tightMobileStack ? "footer-row-tight-mobile" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="flex flex-wrap gap-4 sm:gap-6 my-6 sm:my-8">
+    <div className={rowClass}>
       {row.columns.map((column, colIndex) => (
         <ColumnRenderer
           key={colIndex}
-          column={column}
+          column={{
+            width: typeof column.width === "number" ? column.width : 100,
+            blocks: column.blocks ?? [],
+          }}
           widgetVisibility={widgetVisibility}
         />
       ))}
@@ -336,12 +399,18 @@ export default function FooterPageContent({ page }: { page: FooterPage }) {
       </h1> */}
 
       {/* Page Content - Blocks */}
-      <div className="prose prose-lg max-w-none">
+      <div className="footer-page-blocks prose prose-lg max-w-none">
         {blocksForRender && blocksForRender.length > 0 ? (
           blocksForRender.map((row, rowIndex) => (
             <RowRenderer
               key={rowIndex}
               row={row}
+              prevRow={rowIndex > 0 ? blocksForRender[rowIndex - 1] : null}
+              nextRow={
+                rowIndex < blocksForRender.length - 1
+                  ? blocksForRender[rowIndex + 1]
+                  : null
+              }
               widgetVisibility={widgetVisibility}
             />
           ))

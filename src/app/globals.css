@@ -142,6 +142,26 @@ li h1:first-child, li h2:first-child, li h3:first-child, li h4:first-child, li h
   padding-top: 0 !important;
 }
 
+/* Footer/CMS pages: flush HTML/CSS contact hero against contact form on mobile */
+@media (max-width: 639px) {
+  .footer-page-blocks .footer-row-tight-mobile [data-cms-html-css] .inflix-contact-hero {
+    padding-bottom: 0 !important;
+  }
+
+  .footer-page-blocks .footer-row-tight-mobile .cms-html-css-widget,
+  .footer-page-blocks .footer-row-tight-mobile [data-widget="html-css"] {
+    margin-bottom: 0 !important;
+  }
+
+  .footer-page-blocks .footer-row-tight-mobile [data-widget="contact-us"] {
+    margin-top: 0 !important;
+  }
+
+  .footer-page-blocks .footer-row-tight-mobile .cms-html-css-widget-inner > :last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
 /* Chat Widget Animation */
 @keyframes slideUp {
   from {

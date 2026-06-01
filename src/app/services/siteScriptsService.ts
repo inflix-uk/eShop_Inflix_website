@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
+import { normalizeHeadScriptsHtml } from "@/app/lib/normalizeHeadScriptsHtml";
 
 export type SiteScriptPlacement = "head" | "bodyStart" | "bodyEnd";
 
@@ -63,7 +64,7 @@ function concatCustomByPlacement(
 export function combineHeadScripts(data: SiteScriptsPublic | null): string {
   if (!data) return "";
   const customHead = concatCustomByPlacement(data, "head");
-  return [
+  const joined = [
     data.semrushScript,
     data.ahrefsScript,
     data.googleSearchConsoleScript,
@@ -71,6 +72,7 @@ export function combineHeadScripts(data: SiteScriptsPublic | null): string {
   ]
     .filter((s) => s && String(s).trim())
     .join("\n");
+  return normalizeHeadScriptsHtml(joined);
 }
 
 export function combineBodyStartScripts(data: SiteScriptsPublic | null): string {

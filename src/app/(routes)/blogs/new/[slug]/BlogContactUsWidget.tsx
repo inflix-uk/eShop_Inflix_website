@@ -38,8 +38,11 @@ export default function BlogContactUsWidget({ content }: Props) {
   if (!widget.fields?.length) return null;
 
   return (
-    <section className="my-6 rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-5 sm:px-6 sm:py-6">
-      <DynamicContactForm widget={widget} />
+    <section
+      data-widget="contact-us"
+      className="mb-6 max-sm:mt-0 max-sm:mb-0 rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-5 sm:my-6 sm:px-6 sm:py-6"
+    >
+      <DynamicContactForm widget={widget} compactTopOnMobile />
     </section>
   );
 }
