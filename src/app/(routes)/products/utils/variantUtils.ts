@@ -115,6 +115,32 @@ export function getSelectedOptionValue(
   );
 }
 
+/** Line item for cart/checkout when product has no variant picker (single SKU). */
+export function resolveProductLineItem(
+  product: {
+    productType?: { type?: string };
+    variantValues?: unknown[];
+    variantNames?: unknown[];
+    _id?: string;
+    name?: string;
+    Gallery_Images?: unknown[];
+  } | null | undefined,
+  selectedVariant?: unknown | null
+): unknown | null {
+  if (selectedVariant) return selectedVariant;
+
+  const isSingle = product?.productType?.type === "single";
+  const hasNoVariantPicker =
+    !Array.isArray(product?.variantNames) || product.variantNames.length === 0;
+  const defaultVariant = product?.variantValues?.[0];
+
+  if ((isSingle || hasNoVariantPicker) && defaultVariant) {
+    return defaultVariant;
+  }
+
+  return null;
+}
+
 /**
  * Utility functions for product variant handling
  *

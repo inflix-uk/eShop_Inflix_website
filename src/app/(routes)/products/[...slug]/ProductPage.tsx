@@ -74,6 +74,7 @@ import {
   sanitizeVariantPathSegment,
   getVariantKind,
   getSelectedOptionValue,
+  resolveProductLineItem,
 } from "../utils/variantUtils";
 import {
   addToCart as addToCartService,
@@ -544,15 +545,27 @@ export default function ProductPage({
     if (
       !product ||
       !Array.isArray(product.variantValues) ||
-      !Array.isArray(product.variantNames) ||
       product.variantValues.length === 0
     ) {
       return;
     }
+
     const pid = String(product._id ?? "");
     const isNewCatalogProduct = lastPricingProductIdRef.current !== pid;
+    const isSingleProduct = product?.productType?.type === "single";
+    const hasNoVariantPicker =
+      !Array.isArray(product.variantNames) || product.variantNames.length === 0;
+
     if (isNewCatalogProduct) {
       lastPricingProductIdRef.current = pid;
+
+      if (isSingleProduct || hasNoVariantPicker) {
+        const defaultVariant = product.variantValues[0];
+        setSelectedVariant(defaultVariant);
+        setIsBuyButtonDisabled(checkIfSoldOut(defaultVariant));
+        return;
+      }
+
       const initialSelectedVariant = findInitialSelectedVariant();
       if (initialSelectedVariant) {
         const initialSelectedOptions = product.variantNames.reduce(
@@ -1171,6 +1184,8 @@ export default function ProductPage({
     ? JSON.parse(product.battery[0]).status
     : false;
   const totalSalePrice = calculateTotalSalePrice(products);
+  const checkoutLineItem = resolveProductLineItem(product, selectedVariant);
+
   return (
     <>
       <FlaticonStylesheetLoader />
@@ -1287,9 +1302,9 @@ export default function ProductPage({
               {/* Express Checkout - Apple Pay / Google Pay */}
               <ProductExpressCheckout
                 product={product}
-                selectedVariant={selectedVariant}
+                selectedVariant={checkoutLineItem}
                 updatedPrice={updatedPrice}
-                disabled={isBuyButtonDisabled || !selectedVariant}
+                disabled={isBuyButtonDisabled || !checkoutLineItem}
               />
 
               {/* summary/spec Button */}

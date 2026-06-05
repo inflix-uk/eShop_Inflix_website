@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -9,6 +9,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { useRouter } from "next/navigation";
+import { resolveProductLineItem } from "../utils/variantUtils";
 
 interface ProductExpressCheckoutProps {
   product: any;
@@ -198,6 +199,10 @@ export default function ProductExpressCheckout({
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const lineItem = useMemo(
+    () => resolveProductLineItem(product, selectedVariant),
+    [product, selectedVariant]
+  );
 
   // Initialize Stripe
   useEffect(() => {
@@ -254,8 +259,8 @@ export default function ProductExpressCheckout({
     setTimeout(() => setError(null), 5000);
   }, []);
 
-  // Don't render if no variant selected or disabled
-  if (disabled || !selectedVariant || updatedPrice <= 0) {
+  // Don't render if disabled or no purchasable line item
+  if (disabled || !lineItem || updatedPrice <= 0) {
     return null;
   }
 
@@ -284,7 +289,7 @@ export default function ProductExpressCheckout({
       >
         <ExpressCheckoutInner
           product={product}
-          selectedVariant={selectedVariant}
+          selectedVariant={lineItem}
           updatedPrice={updatedPrice}
           onSuccess={handleSuccess}
           onError={handleError}
