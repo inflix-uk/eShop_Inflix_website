@@ -1,3 +1,120 @@
+export type VariantKind = "condition" | "color" | "storage" | "other";
+
+/**
+ * Detects the variant attribute type from admin-defined names like "Variant Storage".
+ */
+export function getVariantKind(variantName: string): VariantKind {
+  const normalized = variantName.toLowerCase().replace(/[_-]/g, " ").trim();
+  const withoutPrefix = normalized.replace(/^variant\s+/, "").trim();
+
+  if (withoutPrefix === "condition" || normalized.includes("condition")) {
+    return "condition";
+  }
+  if (
+    withoutPrefix === "colour" ||
+    withoutPrefix === "color" ||
+    normalized.includes("colour") ||
+    normalized.includes("color")
+  ) {
+    return "color";
+  }
+  if (withoutPrefix === "storage" || normalized.includes("storage")) {
+    return "storage";
+  }
+  return "other";
+}
+
+/** Section heading, e.g. "Select Storage" instead of "Select Variant Storage". */
+export function getVariantSelectLabel(variantName: string): string {
+  switch (getVariantKind(variantName)) {
+    case "condition":
+      return "Select Condition";
+    case "color":
+      return "Select Colour";
+    case "storage":
+      return "Select Storage";
+    default:
+      return `Select ${formatVariantDisplayName(variantName)}`;
+  }
+}
+
+/** Human-readable variant name without the "Variant" prefix. */
+export function formatVariantDisplayName(name: string): string {
+  if (!name) return "";
+  return name
+    .replace(/^variant\s+/i, "")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/** Display storage values with uppercase units, e.g. "128gb" -> "128GB". */
+export function formatStorageDisplay(value: string): string {
+  if (!value) return value;
+  return value.replace(
+    /(\d+)\s*(gb|tb)((?:_|\s-)?[a-z0-9_]*)?/gi,
+    (_, num, unit, suffix = "") => {
+      const formattedSuffix = suffix
+        ? suffix
+            .replace(/_/g, " ")
+            .replace(/\b[a-z]/g, (c: string) => c.toUpperCase())
+        : "";
+      return `${num}${unit.toUpperCase()}${formattedSuffix}`;
+    }
+  );
+}
+
+/** Display label for a variant option button or dropdown entry. */
+export function formatVariantOptionDisplay(
+  variantName: string,
+  optionValue: string
+): string {
+  const readable = optionValue.replace(/-/g, " ").replace(/_/g, " ").trim();
+  const kind = getVariantKind(variantName);
+
+  if (kind === "storage") {
+    return formatStorageDisplay(readable);
+  }
+
+  return readable.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Resolves selected option value when keys vary ("storage" vs "Variant Storage"). */
+export function getSelectedOptionValue(
+  selectedOptions: Record<string, string>,
+  variantName: string
+): string {
+  const direct =
+    selectedOptions[variantName] ??
+    selectedOptions[variantName.toLowerCase()] ??
+    "";
+  if (direct) return direct;
+
+  const kind = getVariantKind(variantName);
+  if (kind === "other") return "";
+
+  for (const [key, value] of Object.entries(selectedOptions)) {
+    if (getVariantKind(key) === kind) {
+      return value;
+    }
+  }
+
+  const legacyKey =
+    kind === "storage"
+      ? "storage"
+      : kind === "condition"
+      ? "condition"
+      : "color";
+  return (
+    selectedOptions[legacyKey] ??
+    selectedOptions[legacyKey.charAt(0).toUpperCase() + legacyKey.slice(1)] ??
+    ""
+  );
+}
+
 /**
  * Utility functions for product variant handling
  *

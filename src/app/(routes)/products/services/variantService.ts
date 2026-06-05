@@ -1,16 +1,18 @@
 import { ProductData, SelectedVariant, ConditionPrices, ExtractedOptions } from "../../../../../types";
+import { getVariantKind, getSelectedOptionValue } from "../utils/variantUtils";
 
 /**
  * Processes option value based on variant name
  */
 export const processOptionValue = (variantName: string, optionValue: string): string => {
   let processedValue = optionValue.trim();
-  if (variantName.toLowerCase() === "color") {
+  const variantKind = getVariantKind(variantName);
+  if (variantKind === "color") {
     // Remove color codes like "(#000000)"
     processedValue = processedValue.replace(/\s*\(#\w+\)/, "").trim();
   }
   // Keep spaces between multi-word conditions like 'brand new'
-  if (variantName.toLowerCase() === "condition") {
+  if (variantKind === "condition") {
     return processedValue.toLowerCase().trim();
   }
   return processedValue.toLowerCase();
@@ -98,7 +100,7 @@ export const findVariant = (product: ProductData, selectedOptions: Record<string
 
       optionValue = processOptionValue(optionKey, optionValue);
 
-      if (optionKey.toLowerCase() === "color") {
+      if (getVariantKind(optionKey) === "color") {
         const variantColor = variant.name
           .match(/-(.*?)\s*\(/i)?.[1]
           ?.toLowerCase()
@@ -257,7 +259,7 @@ export const updateSelectedVariant = (
         let selectedOption = selectedOptions[optionKey];
         if (!selectedOption) return false;
         selectedOption = processOptionValue(optionKey, selectedOption);
-        if (optionKey.toLowerCase() === "color") {
+        if (getVariantKind(optionKey) === "color") {
           const variantColor = variant.name
             .match(/-(.*?)\s*\(/i)?.[1]
             ?.toLowerCase()
@@ -288,8 +290,8 @@ export const updateSelectedVariant = (
       const variantFullStorage = variantHardDriveType
         ? `${variantStorage} ${variantHardDriveType}`
         : variantStorage;
-      const selectedColor = selectedOptions["color"];
-      const selectedStorage = selectedOptions["storage"];
+      const selectedColor = getSelectedOptionValue(selectedOptions, "color");
+      const selectedStorage = getSelectedOptionValue(selectedOptions, "storage");
       return (
         variantColor === selectedColor &&
         variantFullStorage === selectedStorage

@@ -72,6 +72,8 @@ import {
   slugToReadable,
   parseUrlVariantParts,
   sanitizeVariantPathSegment,
+  getVariantKind,
+  getSelectedOptionValue,
 } from "../utils/variantUtils";
 import {
   addToCart as addToCartService,
@@ -342,14 +344,14 @@ export default function ProductPage({
 
     // Check if product has storage/condition structure (for condition prices display)
     const hasStorageVariant = product?.variantNames?.some(
-      (v: any) => v.name.trim().toLowerCase() === "storage"
+      (v: any) => getVariantKind(v.name) === "storage"
     );
     const hasConditionVariant = product?.variantNames?.some(
-      (v: any) => v.name.trim().toLowerCase() === "condition"
+      (v: any) => getVariantKind(v.name) === "condition"
     );
 
-    const selectedStorage = selectedOptions["storage"] || selectedOptions["Storage"];
-    const selectedColor = selectedOptions["color"] || selectedOptions["Color"];
+    const selectedStorage = getSelectedOptionValue(selectedOptions, "storage");
+    const selectedColor = getSelectedOptionValue(selectedOptions, "color");
     const hasStorageSelected = selectedStorage && selectedStorage.trim() !== "";
 
     // Only process condition prices for products with storage/condition structure
@@ -599,12 +601,13 @@ export default function ProductPage({
     }
 
     let processedValue = rawValue.trim();
-    if (variantName.toLowerCase() === "color") {
+    const variantKind = getVariantKind(variantName);
+    if (variantKind === "color") {
       // Remove color codes like "(#000000)"
       processedValue = processedValue.replace(/\s*\(#\w+\)/, "").trim();
     }
     // Keep spaces between multi-word conditions like 'brand new'
-    if (variantName.toLowerCase() === "condition") {
+    if (variantKind === "condition") {
       return processedValue.toLowerCase().trim();
     }
     // Keep only alphanumeric/space/underscore/dash to align with variant slug names.

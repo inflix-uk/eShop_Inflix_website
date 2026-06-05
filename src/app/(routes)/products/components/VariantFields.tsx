@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { ConditionPrices } from "../../../../../types";
 import { RadioGroup, Radio } from "@headlessui/react";
-import { readableToSlug } from "../utils/variantUtils";
+import {
+  readableToSlug,
+  formatVariantDisplayName,
+  formatVariantOptionDisplay,
+  getSelectedOptionValue,
+  getVariantKind,
+  getVariantSelectLabel,
+} from "../utils/variantUtils";
 import Select, { components, OptionProps, SingleValueProps } from "react-select";
 import Image from "next/image";
 // const RadioGroup = dynamic(
@@ -46,16 +53,8 @@ export default function VariantFields({
     return classes.filter(Boolean).join(" ");
   }
 
-  // Format variant name for display (e.g., "collar_type" -> "Collar Type")
-  const formatVariantName = (name: string): string => {
-    if (!name) return "";
-    return name
-      .replace(/_/g, ' ')
-      .replace(/-/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
+  // Format variant name for display (e.g., "Variant Storage" -> "Storage")
+  const formatVariantName = formatVariantDisplayName;
 
   // Function to get image URL for a variant option (used in dropdown)
   const getImageForOption = (optionSlug: string): string | null => {
@@ -92,8 +91,8 @@ export default function VariantFields({
     const normalize = (str: string) => str?.toLowerCase()?.replace(/_/g, ' ')?.replace(/-/g, ' ')?.trim() || '';
 
     // Get current selections (case-insensitive)
-    const currentStorage = selectedOptions["storage"] || selectedOptions["Storage"] || "";
-    const currentCondition = selectedOptions["condition"] || selectedOptions["Condition"] || "";
+    const currentStorage = getSelectedOptionValue(selectedOptions, "storage");
+    const currentCondition = getSelectedOptionValue(selectedOptions, "condition");
 
     const matchedVariant = product.variantValues.find(
       (v: { name: string; variantImages?: any[] }) => {
@@ -271,13 +270,7 @@ export default function VariantFields({
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <legend className="text-sm font-semibold leading-6 text-gray-900">
-              {variantName.toLowerCase() === "color"
-                ? "Select Color"
-                : variantName.toLowerCase() === "storage"
-                ? "Select Storage"
-                : variantName.toLowerCase() === "condition"
-                ? "Select Condition"
-                : `Select ${formatVariantName(variantName)}`}
+              {getVariantSelectLabel(variantName)}
             </legend>
             {isVariantDisabled(variantName) && (
               <span className="text-xs text-gray-500 mt-1">
@@ -375,7 +368,7 @@ export default function VariantFields({
                 : String(optionValue || '');
 
               if (
-                variantName.toLowerCase() === "color" &&
+                getVariantKind(variantName) === "color" &&
                 rawOptionValue.includes("(")
               ) {
                 // Extract color code
@@ -398,11 +391,11 @@ export default function VariantFields({
                 const normalize = (str: string) => str?.toLowerCase()?.replace(/_/g, ' ')?.replace(/-/g, ' ')?.trim() || '';
 
                 // Get current selections (case-insensitive)
-                const currentStorage = selectedOptions["storage"] || selectedOptions["Storage"] || "";
-                const currentCondition = selectedOptions["condition"] || selectedOptions["Condition"] || "";
+                const currentStorage = getSelectedOptionValue(selectedOptions, "storage");
+                const currentCondition = getSelectedOptionValue(selectedOptions, "condition");
 
                 // Implement sold out logic using normalized option values
-                if (variantName.toLowerCase() === "color") {
+                if (getVariantKind(variantName) === "color") {
                   // Check if this specific color option is sold out
                   const variantCombination = product.variantValues.find(
                     (v: { name: string }) => {
@@ -420,7 +413,7 @@ export default function VariantFields({
                   );
 
                   isOptionSoldOut = checkIfSoldOut(variantCombination);
-                } else if (variantName.toLowerCase() === "storage") {
+                } else if (getVariantKind(variantName) === "storage") {
                   // Check if all color options are sold out for this storage and condition
                   const normalizedOptionName = normalize(optionName);
                   const normalizedCondition = normalize(currentCondition);
@@ -436,7 +429,7 @@ export default function VariantFields({
                     .every((v: { name: string }) => checkIfSoldOut(v));
 
                   isOptionSoldOut = allColorsSoldOut;
-                } else if (variantName.toLowerCase() === "condition") {
+                } else if (getVariantKind(variantName) === "condition") {
                   // Check if all color and storage options are sold out for this condition
                   const normalizedOptionName = normalize(optionName);
                   const normalizedStorage = normalize(currentStorage);
@@ -461,9 +454,6 @@ export default function VariantFields({
                   isOptionSoldOut = allColorsSoldOut && allStorageSoldOut;
                 }
               }
-              const formatColorForDisplay = (colorName: string) => {
-                return colorName.replace(/-/g, " "); // Replace hyphens with spaces
-              };
 
               return (
                 <Radio
@@ -472,7 +462,7 @@ export default function VariantFields({
                   disabled={isOptionSoldOut || isVariantDisabledState}
                   onMouseEnter={() => {
                     if (
-                      variantName.toLowerCase() === "color" &&
+                      getVariantKind(variantName) === "color" &&
                       !isVariantDisabledState
                     ) {
                       const imagePath = getPreviewImageForColor(optionName);
@@ -484,7 +474,7 @@ export default function VariantFields({
                   }}
                   onMouseLeave={() => {
                     if (
-                      variantName.toLowerCase() === "color" &&
+                      getVariantKind(variantName) === "color" &&
                       !isVariantDisabledState
                     ) {
                       setHoveredColor(null);
@@ -530,9 +520,7 @@ export default function VariantFields({
                         }`}
                       >
                         <span className="block md:text-sm text-[11px] font-medium text-gray-900 text-center">
-                          {variantName.toLowerCase() === "storage"
-                            ? optionName.toUpperCase()
-                            : formatColorForDisplay(optionName)}
+                          {formatVariantOptionDisplay(variantName, optionName)}
                         </span>
                         {optionCode && (
                           <span
@@ -543,7 +531,7 @@ export default function VariantFields({
 
                         {/* Show Sold Out tag for individual colors */}
                         {isOptionSoldOut &&
-                          variant.name.toLowerCase() === "color" && (
+                          getVariantKind(variant.name) === "color" && (
                             <span
                               className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
                               style={{
@@ -559,7 +547,7 @@ export default function VariantFields({
                           )}
 
                         {isOptionSoldOut &&
-                          variant.name.toLowerCase() === "storage" && (
+                          getVariantKind(variant.name) === "storage" && (
                             <span
                               className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
                               style={{
@@ -574,7 +562,7 @@ export default function VariantFields({
                             </span>
                           )}
                         {isOptionSoldOut &&
-                          variant.name.toLowerCase() === "condition" && (
+                          getVariantKind(variant.name) === "condition" && (
                             <span
                               className="w-[90px] absolute bottom-0 left-0 bg-red-600 text-white text-xs font-normal ps-6 py-0.5 transform -z-10 origin-bottom-left overflow-clip"
                               style={{
@@ -589,7 +577,7 @@ export default function VariantFields({
                             </span>
                           )}
                         {/* Display condition prices if variant is 'condition' */}
-                        {variantName.toLowerCase() === "condition" && (
+                        {getVariantKind(variantName) === "condition" && (
                           <span className="text-sm text-gray-900 text-center">
                             {conditionPrices.find((cond) => {
                               const conditionName =
@@ -648,7 +636,7 @@ export default function VariantFields({
                 isSelectionInDropdown
                   ? {
                       value: currentSelection,
-                      label: currentSelection.replace(/-/g, " "),
+                      label: formatVariantOptionDisplay(variantName, currentSelection),
                       image: getImageForOption(currentSelection),
                     }
                   : null
@@ -665,7 +653,7 @@ export default function VariantFields({
                   const imageUrl = getImageForOption(optionName);
                   return {
                     value: optionName,
-                    label: optionName.replace(/-/g, " "),
+                    label: formatVariantOptionDisplay(variantName, optionName),
                     image: imageUrl,
                   };
                 })}
@@ -680,7 +668,7 @@ export default function VariantFields({
                       />
                     </div>
                   )}
-                  <span className="capitalize">{option.label}</span>
+                  <span>{option.label}</span>
                 </div>
               )}
               isDisabled={isVariantDisabled(variantName)}
