@@ -85,7 +85,7 @@ const NewsletterSignupWidget = dynamic(
 );
 const FaqWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/FaqWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const BlogHtmlCssWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget"),

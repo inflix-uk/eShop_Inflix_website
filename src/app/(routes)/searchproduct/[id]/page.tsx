@@ -9,7 +9,7 @@ import Link from "next/link";
 import ClipLoader from "react-spinners/ClipLoader";
 import SortMenu from "@/app/components/SortMenu";
 import Pagination from "@/app/components/Pagination";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import { SortOptions } from "@/app/components/SortOptions";
 import SidebarCommon from "@/app/components/SidebarCommon";
 import axios from "axios";
@@ -230,7 +230,7 @@ export default function SearchPage() {
                     <div>No products found</div>
                   ) : (
                     currentProducts.map((product, index) => (
-                      <ProductCardWithStock
+                      <ProductCardWithStockClient
                         key={index}
                         product={product}
                         checkStockRealTime={true}

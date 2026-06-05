@@ -7,6 +7,12 @@ import Image from "next/image";
 import SubCategoryContent from "./SubCategoryContent";
 import ProductList from "./ProductList";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
+import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import {
+  getPaginatedProducts,
+  PRODUCT_CARDS_PER_PAGE,
+} from "@/app/components/productCardUtils";
+import type { Product } from "../../../../../types";
 async function getSubCategoryData(subCategoryName: string) {
   try {
     const res = await fetch(
@@ -53,15 +59,32 @@ async function getProducts(subCategoryName: string) {
 }
 export default async function SubCategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const subCategoryName = (await params).slug;
+  const pageRaw = Number((await searchParams).page || "1");
+  const currentPage =
+    Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const categoryData = await getSubCategoryData(subCategoryName);
   const products = await getProducts(subCategoryName);
   if (!categoryData) {
     notFound();
   }
+  const pageProducts = getPaginatedProducts<Product>(
+    products,
+    currentPage,
+    PRODUCT_CARDS_PER_PAGE
+  );
+  const serverProductCards = pageProducts.map((product) => (
+    <ProductCardWithStock
+      key={product._id}
+      product={product}
+      checkStockRealTime={true}
+    />
+  ));
   return (
     <>
       <header className="relative">
@@ -113,6 +136,7 @@ export default async function SubCategoryPage({
               <ProductList
                 initialProducts={products}
                 subCategoryName={subCategoryName}
+                serverProductCards={serverProductCards}
               />
             </Suspense>
             <TrustBoxWidget />

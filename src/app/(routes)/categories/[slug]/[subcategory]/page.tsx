@@ -10,6 +10,12 @@ import ProductList from "./ProductList";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import {
+  getPaginatedProducts,
+  PRODUCT_CARDS_PER_PAGE,
+} from "@/app/components/productCardUtils";
+import type { Product } from "../../../../../../types";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -66,10 +72,15 @@ async function getProducts(subCategoryName: string) {
 }
 export default async function SubCategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; subcategory: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { slug, subcategory } = await params;
+  const pageRaw = Number((await searchParams).page || "1");
+  const currentPage =
+    Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getSubCategoryData(subcategory),
     getProducts(subcategory),
@@ -79,6 +90,18 @@ export default async function SubCategoryPage({
     notFound();
   }
   const bannerSrc = resolveCategoryImageSrc(categoryData.banner);
+  const pageProducts = getPaginatedProducts<Product>(
+    products,
+    currentPage,
+    PRODUCT_CARDS_PER_PAGE
+  );
+  const serverProductCards = pageProducts.map((product) => (
+    <ProductCardWithStock
+      key={product._id}
+      product={product}
+      checkStockRealTime={true}
+    />
+  ));
   return (
     <>
       {/* <header className="relative">
@@ -132,6 +155,7 @@ export default async function SubCategoryPage({
               <ProductList
                 initialProducts={products}
                 subCategoryName={subcategory}
+                serverProductCards={serverProductCards}
               />
             </Suspense>
             <TrustBoxWidget />

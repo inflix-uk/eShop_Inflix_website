@@ -1,3 +1,5 @@
+"use client";
+
 import type { Product } from "../../../types";
 import ProductCardEnhancers from "./ProductCardEnhancers";
 import ProductCardView from "./ProductCardView";
@@ -6,15 +8,15 @@ import {
   getProductCardDisplayData,
 } from "./productCardUtils";
 
-type ProductCardWithStockProps = {
+type ProductCardWithStockClientProps = {
   product: Product;
   checkStockRealTime?: boolean;
 };
 
-export default function ProductCardWithStock({
+export default function ProductCardWithStockClient({
   product,
   checkStockRealTime = false,
-}: ProductCardWithStockProps) {
+}: ProductCardWithStockClientProps) {
   const display = getProductCardDisplayData(product);
   const initialInStock = getInitialStockStatus(product);
 

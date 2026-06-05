@@ -6,7 +6,7 @@ import { fetchProducts } from "@/app/lib/features/products/getProductSlice";
 import { SortOptions } from "@/app/components/SortOptions";
 import { Product, SortOption } from "../../../../types";
 import Pagination from "@/app/components/Pagination";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import SortMenu from "@/app/components/SortMenu";
@@ -98,7 +98,7 @@ export default function ShopAll() {
                 <div>No products found</div>
               ) : (
                 currentProducts.map((product, index) => (
-                  <ProductCardWithStock
+                  <ProductCardWithStockClient
                     key={index}
                     product={product}
                     checkStockRealTime={true}

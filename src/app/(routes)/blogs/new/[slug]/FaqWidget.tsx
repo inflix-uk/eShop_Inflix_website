@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   bleedStyle,
@@ -18,6 +18,10 @@ type Props = {
   items?: FaqItem[];
 };
 
+/**
+ * FAQ accordion — answers are always in the HTML (inside <details>) so crawlers
+ * and no-JS users see full Q&A. Closed items use native <details> collapse only.
+ */
 export default function FaqWidget({ sectionHeading, items }: Props) {
   const list = (Array.isArray(items) ? items : []).filter(
     (i) =>
@@ -25,7 +29,6 @@ export default function FaqWidget({ sectionHeading, items }: Props) {
       (i.answer && String(i.answer).trim().length > 0)
   );
 
-  const [openKey, setOpenKey] = useState<string | null>(null);
   const rootRef = useRef<HTMLElement>(null);
   const bleed = useBlogContentFullBleed(rootRef, list.length > 0);
 
@@ -47,48 +50,32 @@ export default function FaqWidget({ sectionHeading, items }: Props) {
       ) : null}
       <div className="divide-y divide-gray-100">
         {list.map((item, idx) => {
-          const key = item.id && String(item.id).length > 0 ? String(item.id) : `faq-${idx}`;
-          const open = openKey === key;
+          const key =
+            item.id && String(item.id).length > 0 ? String(item.id) : `faq-${idx}`;
           const q =
             item.question && String(item.question).trim().length > 0
               ? String(item.question).trim()
               : "Question";
+          const answerHtml = (item.answer || "").trim() || "&nbsp;";
+
           return (
-            <div key={key}>
-              <h3 className="m-0 border-0 p-0 text-base font-semibold leading-snug text-gray-900 sm:text-lg">
-                <button
-                  type="button"
-                  id={`faq-trigger-${key}`}
-                  aria-controls={`faq-panel-${key}`}
-                  onClick={() => setOpenKey(open ? null : key)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left font-semibold transition hover:bg-gray-50 sm:px-5"
-                  aria-expanded={open}
-                >
+            <details key={key} className="group/faq">
+              <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-left font-semibold transition hover:bg-gray-50 sm:px-5 [&::-webkit-details-marker]:hidden">
+                <h3 className="m-0 border-0 p-0 text-base font-semibold leading-snug text-gray-900 sm:text-lg">
                   {q}
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-gray-500 transition-transform ${
-                      open ? "rotate-180" : ""
-                    }`}
-                    aria-hidden
-                  />
-                </button>
-              </h3>
-              {open ? (
-                <div
-                  id={`faq-panel-${key}`}
-                  role="region"
-                  aria-labelledby={`faq-trigger-${key}`}
-                  className="border-t border-gray-50 px-4 pb-3 pt-1 sm:px-5"
-                >
-                  <p
-                    className="prose prose-sm max-w-none blog-content m-0 text-sm text-gray-700 sm:text-base [&_a]:break-words"
-                    dangerouslySetInnerHTML={{
-                      __html: (item.answer || "").trim() || "&nbsp;",
-                    }}
-                  />
-                </div>
-              ) : null}
-            </div>
+                </h3>
+                <ChevronDown
+                  className="h-5 w-5 shrink-0 text-gray-500 transition-transform group-open/faq:rotate-180"
+                  aria-hidden
+                />
+              </summary>
+              <div className="border-t border-gray-50 px-4 pb-3 pt-1 sm:px-5">
+                <p
+                  className="prose prose-sm m-0 max-w-none text-sm text-gray-700 sm:text-base [&_a]:break-words blog-content"
+                  dangerouslySetInnerHTML={{ __html: answerHtml }}
+                />
+              </div>
+            </details>
           );
         })}
       </div>

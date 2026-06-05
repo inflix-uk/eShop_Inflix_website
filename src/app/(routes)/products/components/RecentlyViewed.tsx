@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { EmblaOptionsType } from "embla-carousel";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import { useAppSelector } from "@/app/lib/hooks";
 import { Product, ProductData } from "../../../../../types";
 import { useRouter } from "next/navigation";
@@ -165,7 +165,7 @@ const RecentlyViewed: React.FC<RecentlyViewedProps> = ({ product }) => {
                   >
                     <div className="h-full">
                       <Suspense fallback={<div>Loading...</div>}>
-                        <ProductCardWithStock
+                        <ProductCardWithStockClient
                           product={product}
                           checkStockRealTime={true}
                         />

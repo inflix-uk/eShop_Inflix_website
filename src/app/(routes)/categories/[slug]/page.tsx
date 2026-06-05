@@ -9,6 +9,12 @@ import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import {
+  getPaginatedProducts,
+  PRODUCT_CARDS_PER_PAGE,
+} from "@/app/components/productCardUtils";
+import type { Product } from "../../../../../types";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -64,8 +70,17 @@ async function getProducts(categoryName: string) {
   }
 }
 
-export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const categoryName = (await params).slug;
+  const pageRaw = Number((await searchParams).page || "1");
+  const currentPage =
+    Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getCategoryData(categoryName),
     getProducts(categoryName),
@@ -77,6 +92,18 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   }
 
   const bannerSrc = resolveCategoryImageSrc(categoryData.bannerImage);
+  const pageProducts = getPaginatedProducts<Product>(
+    products,
+    currentPage,
+    PRODUCT_CARDS_PER_PAGE
+  );
+  const serverProductCards = pageProducts.map((product) => (
+    <ProductCardWithStock
+      key={product._id}
+      product={product}
+      checkStockRealTime={true}
+    />
+  ));
 
   return (
     <>
@@ -130,6 +157,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
               <ProductList
                 initialProducts={products}
                 categoryName={categoryName}
+                serverProductCards={serverProductCards}
               />
             </Suspense>
             <TrustBoxWidget />

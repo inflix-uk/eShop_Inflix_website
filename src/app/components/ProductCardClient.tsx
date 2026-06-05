@@ -1,3 +1,5 @@
+"use client";
+
 import type { Product } from "../../../types";
 import ProductCardEnhancersDefault from "./ProductCardEnhancersDefault";
 import ProductCardView from "./ProductCardView";
@@ -6,11 +8,11 @@ import {
   getProductCardDisplayData,
 } from "./productCardUtils";
 
-type ProductCardProps = {
+type ProductCardClientProps = {
   product: Product;
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCardClient({ product }: ProductCardClientProps) {
   const display = getProductCardDisplayData(product);
   const initialInStock = getInitialStockStatus(product);
 

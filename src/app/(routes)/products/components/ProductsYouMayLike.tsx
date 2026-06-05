@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { EmblaOptionsType } from "embla-carousel";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import { Product } from "../../../../../types";
 import { useRouter } from "next/navigation";
 import Loading from "@/app/components/Loading";
@@ -300,7 +300,7 @@ const ProductsYouMayLike: React.FC<ProductsYouMayLikeProps> = ({
               >
                 <div className="h-full">
                   <Suspense fallback={<div>Loading...</div>}>
-                    <ProductCardWithStock
+                    <ProductCardWithStockClient
                       product={product}
                       checkStockRealTime={true}
                     />

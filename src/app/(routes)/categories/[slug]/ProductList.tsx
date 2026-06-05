@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import SortMenu from "@/app/components/SortMenu";
 import Pagination from "@/app/components/Pagination";
 import SidebarCommon from "@/app/components/SidebarCommon";
@@ -12,9 +12,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 export default function ProductList({
   initialProducts,
   categoryName,
+  serverProductCards,
 }: {
   initialProducts: Product[];
   categoryName: string;
+  serverProductCards?: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,6 +37,25 @@ export default function ProductList({
     indexOfFirstProduct,
     indexOfLastProduct
   );
+  const baselineSortedProducts = useMemo(
+    () => [...products].sort(SortOptions[0].sortFunc),
+    [products]
+  );
+  const catalogIsBaseline = useMemo(
+    () =>
+      filteredProducts.length === baselineSortedProducts.length &&
+      filteredProducts.every(
+        (product, index) => product._id === baselineSortedProducts[index]?._id
+      ),
+    [filteredProducts, baselineSortedProducts]
+  );
+  const urlPage = Number(searchParams.get("page") || "1");
+  const normalizedUrlPage =
+    Number.isFinite(urlPage) && urlPage > 0 ? Math.floor(urlPage) : 1;
+  const useServerProductCards =
+    Boolean(serverProductCards) &&
+    catalogIsBaseline &&
+    currentPage === normalizedUrlPage;
 
   useEffect(() => {
     setFilteredProducts(products);
@@ -98,10 +119,12 @@ export default function ProductList({
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:p-5">
           {currentProducts.length === 0 ? (
             <div>No products found</div>
+          ) : useServerProductCards ? (
+            serverProductCards
           ) : (
             currentProducts.map((product, index) => (
-              <ProductCardWithStock
-                key={index}
+              <ProductCardWithStockClient
+                key={product._id ?? index}
                 product={product}
                 checkStockRealTime={true}
               />

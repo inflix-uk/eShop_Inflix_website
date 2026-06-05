@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import SwiperComponent from "@/app/components/SwiperComponent";
-import ProductCardWithStock from "@/app/components/ProductCardWithStock";
+import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import type { Product } from "../../../types";
 import {
   getHomepageImageUrl,
@@ -224,7 +224,7 @@ export default function ContentProductSlider({
         title={title}
         items={items}
         renderCard={(product) => (
-          <ProductCardWithStock product={product} checkStockRealTime={true} />
+          <ProductCardWithStockClient product={product} checkStockRealTime={true} />
         )}
         linkText="View All"
       />

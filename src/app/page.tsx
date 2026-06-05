@@ -18,6 +18,8 @@ import { getCanonical } from "@/lib/getCanonical";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
 import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import { getHomeServerCmsBundle } from "@/app/lib/homeServerCms";
+import { buildHomepageFaqJsonLdStrings } from "@/app/lib/faqJsonLd";
 
 export const revalidate = 30;
 
@@ -110,7 +112,7 @@ export default async function Home() {
     heroSocial: emptyHeroSocial(),
   };
 
-  const [homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig] =
+  const [homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig, cmsBundle] =
     await Promise.all([
       getHomepagePublicSeo().catch((err) => {
         console.error("[Home] homepage SEO fetch failed:", err);
@@ -134,6 +136,10 @@ export default async function Home() {
         console.error("[Home] navbar variant test fetch failed:", err);
         return null;
       }),
+      getHomeServerCmsBundle().catch((err) => {
+        console.error("[Home] CMS bundle fetch failed:", err);
+        return null;
+      }),
     ]);
   const { banners: heroBanners, heroSocial } = heroPayload;
   const showOverallNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
@@ -143,10 +149,20 @@ export default async function Home() {
     .filter((s): s is string => s != null && s.length > 0);
 
   const canonicalUrl = await getCanonical("/");
-  const homepageJsonLdToRender =
-    adminJsonLdStrings.length > 0
+  const adminHasFaqSchema = adminJsonLdStrings.some((entry) =>
+    /"@type"\s*:\s*"FAQPage"/.test(entry)
+  );
+  const faqJsonLdStrings =
+    !adminHasFaqSchema && cmsBundle?.homepageBlocks?.length
+      ? buildHomepageFaqJsonLdStrings(cmsBundle.homepageBlocks)
+      : [];
+
+  const homepageJsonLdToRender = [
+    ...(adminJsonLdStrings.length > 0
       ? adminJsonLdStrings
-      : [getDefaultHomepageJsonLdString(canonicalUrl)];
+      : [getDefaultHomepageJsonLdString(canonicalUrl)]),
+    ...faqJsonLdStrings,
+  ];
 
   return (
     <>
