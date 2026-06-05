@@ -222,7 +222,7 @@ export default function Nav({ serverBootstrap = null }: NavProps) {
                   </button>
                   <Link
                     href="/"
-                    className="relative block h-11 w-40 shrink-0 md:ps-0"
+                    className="relative block h-14 w-48 shrink-0 md:h-16 md:w-56 md:ps-0"
                   >
                     {logoUrl && !logoError && (
                       <Image
@@ -230,7 +230,7 @@ export default function Nav({ serverBootstrap = null }: NavProps) {
                         alt={logoAlt}
                         fill
                         className="object-contain object-left"
-                        sizes="160px"
+                        sizes="224px"
                         priority
                         onError={() => {
                           setLogoError(true);

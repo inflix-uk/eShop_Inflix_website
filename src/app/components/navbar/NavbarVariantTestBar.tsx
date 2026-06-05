@@ -83,7 +83,7 @@ export default function NavbarVariantTestBar({
     >
       <div className={widthShellClass}>
         <div className={containerClassName}>
-          <div className="[&_img[alt*='logo']]:max-h-16 [&_img[alt*='logo']]:min-h-12 [&_img[alt*='logo']]:w-auto [&_img[alt*='logo']]:h-auto">
+          <div className="[&_img[alt*='logo']]:max-h-20 [&_img[alt*='logo']]:min-h-12 [&_img[alt*='logo']]:w-auto [&_img[alt*='logo']]:h-auto">
             <BlogNavbarWidget
               content={{
                 layout: (cfg.id as "classic" | "centered" | "split" | "minimal") || "classic",
@@ -165,7 +165,7 @@ export default function NavbarVariantTestBar({
           />
           <style jsx>{`
           .navbar-variant-test-scope :global(img[alt*="logo"]) {
-            max-height: 4rem;
+            max-height: 5rem;
             min-height: 3rem;
             width: auto !important;
             height: auto !important;

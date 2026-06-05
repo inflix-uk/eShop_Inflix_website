@@ -193,12 +193,12 @@ function LogoHomeLink({
   );
 }
 
-/** Logo image dimensions — aligned with retail-two-row for every variant. */
+/** Logo image dimensions — wide logos (e.g. 330×140) need taller display + wider slot. */
 const NAV_LOGO_IMG_CLASS =
-  "h-12 w-auto max-w-full object-contain object-left md:h-14 md:w-full md:max-h-[3.5rem] md:object-left";
-/** Width cap on small screens; desktop column matches retail. */
+  "h-12 w-auto max-w-full object-contain object-left sm:h-14 md:h-16 md:max-h-[4.5rem] md:w-full md:object-left lg:max-h-[5rem]";
+/** Width cap on small screens; desktop column fits ~330×140 assets at ~2.35:1. */
 const NAV_LOGO_WRAPPER_CLASS =
-  "flex min-w-0 max-w-[46%] items-center gap-2.5 md:w-[18%] md:min-w-[160px] md:max-w-[220px] md:shrink-0";
+  "flex min-w-0 max-w-[52%] items-center gap-2.5 md:w-[24%] md:min-w-[180px] md:max-w-[280px] lg:max-w-[320px] md:shrink-0";
 const NAV_LOGO_LINK_INNER_CLASS =
   "inline-flex w-full min-w-0 items-center justify-start rounded-md";
 /** Centered logo inside a round slot (NavbarWingSplit) — no `object-left` / `md:w-full` clipping. */
@@ -294,7 +294,7 @@ function NavbarWidgetLogo({ src, alt, className }: { src: string; alt: string; c
 
 /** Same footprint as NAV_LOGO_IMG_CLASS while URL loads — no initials/text flash. */
 const NAV_LOGO_PLACEHOLDER_CLASS =
-  "block h-12 w-[min(100%,10rem)] max-w-[160px] shrink-0 rounded-md bg-slate-100 animate-pulse md:h-14 md:max-h-[3.5rem]";
+  "block h-12 w-[min(100%,10rem)] max-w-[160px] shrink-0 rounded-md bg-slate-100 animate-pulse sm:h-14 md:h-16 md:max-h-[4.5rem] lg:max-h-[5rem]";
 
 function NavbarLogoHomeSlot({
   logoUrl,
@@ -2999,7 +2999,7 @@ function NavbarRetailTwoRow({
         </div>
       </div>
 
-      <div className="hidden items-center justify-between gap-6 lg:flex lg:min-h-[52px]">
+      <div className="hidden items-center justify-between gap-6 lg:flex lg:min-h-[4.5rem]">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
