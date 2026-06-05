@@ -9,6 +9,73 @@ function normalizePublicApiUrl(raw: string | undefined): string | undefined {
 
 const normalizedApiUrl = normalizePublicApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
+function buildImageRemotePatterns(): NonNullable<
+  NextConfig["images"]
+>["remotePatterns"] {
+  const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+    {
+      protocol: "https",
+      hostname: "api.zextons.co.uk",
+      pathname: "/**",
+    },
+    {
+      protocol: "http",
+      hostname: "localhost",
+      port: "4000",
+      pathname: "/**",
+    },
+    {
+      protocol: "http",
+      hostname: "127.0.0.1",
+      port: "4000",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "tjsujaiqhcpzokod.public.blob.vercel-storage.com",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "*.public.blob.vercel-storage.com",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "zextonsbackend-new-eosin.vercel.app",
+      pathname: "/**",
+    },
+    {
+      protocol: "https",
+      hostname: "eshopinflix.sfo3.digitaloceanspaces.com",
+      pathname: "/**",
+    },
+  ];
+
+  if (normalizedApiUrl) {
+    try {
+      const api = new URL(normalizedApiUrl);
+      const protocol = api.protocol.replace(":", "") as "http" | "https";
+      const port = api.port || undefined;
+      const alreadyListed = patterns.some(
+        (p) => p.hostname === api.hostname && p.protocol === protocol
+      );
+      if (!alreadyListed) {
+        patterns.push({
+          protocol,
+          hostname: api.hostname,
+          ...(port ? { port } : {}),
+          pathname: "/**",
+        });
+      }
+    } catch {
+      // ignore invalid NEXT_PUBLIC_API_URL at build time
+    }
+  }
+
+  return patterns;
+}
+
 const nextConfig: NextConfig = {
   async redirects() {
     return [
@@ -54,45 +121,7 @@ const nextConfig: NextConfig = {
   images: {
     minimumCacheTTL: 60,
     formats: ["image/avif", "image/webp"],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "api.zextons.co.uk",
-        pathname: "/**",
-      },
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "4000",
-        pathname: "/**",
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "4000",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "tjsujaiqhcpzokod.public.blob.vercel-storage.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "*.public.blob.vercel-storage.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "zextonsbackend-new-eosin.vercel.app",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "eshopinflix.sfo3.digitaloceanspaces.com",
-        pathname: "/**",
-      },
-    ],
+    remotePatterns: buildImageRemotePatterns(),
     // Allow unoptimized images for external URLs
     unoptimized: false,
   },
