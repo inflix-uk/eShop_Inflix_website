@@ -7,7 +7,7 @@ type CmsServerFetchInit = RequestInit & {
   next?: { revalidate?: number; tags?: string[] };
 };
 
-const CMS_SERVER_REVALIDATE_SECONDS = 60;
+const CMS_SERVER_REVALIDATE_SECONDS = 120;
 
 /**
  * Server-side CMS/upstream fetch with short ISR (not `no-store`) so document

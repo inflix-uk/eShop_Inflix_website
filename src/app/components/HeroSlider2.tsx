@@ -117,7 +117,7 @@ function HeroBannerVideoPoster({
           fill
           className="object-cover object-center"
           sizes="100vw"
-          quality={65}
+          quality={95}
           priority={priority}
           unoptimized={imageUnoptimized(posterSrc)}
         />
@@ -266,10 +266,10 @@ function HeroBannerActiveVideo({
 }
 
 /** Homepage hero — match Canva: large (desktop) + small (mobile). Embedded widgets keep their own ratios. */
-const HERO_LARGE_WIDTH = 1440;
-const HERO_LARGE_HEIGHT = 500;
-const HERO_SMALL_WIDTH = 1200;
-const HERO_SMALL_HEIGHT = 900;
+const HERO_LARGE_WIDTH = 1200;
+const HERO_LARGE_HEIGHT = 417;
+const HERO_SMALL_WIDTH = 1080;
+const HERO_SMALL_HEIGHT = 1920;
 
 /**
  * Blog/CMS embedded “Banners” widget (`HeroSlider2` + `embedded`): slide height in viewport units.
@@ -784,8 +784,8 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={HERO_SMALL_WIDTH}
                             height={HERO_SMALL_HEIGHT}
                             className="h-full w-full object-cover object-center"
-                            sizes="(max-width: 768px) 100vw, 1200px"
-                            quality={70}
+                            sizes="100vw"
+                            quality={95}
                             unoptimized={imageUnoptimized(
                               banner.srcSmall || banner.srcLarge
                             )}
@@ -804,10 +804,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={HERO_LARGE_WIDTH}
                             height={HERO_LARGE_HEIGHT}
                             className="h-full w-full object-cover object-center"
-                            sizes="(max-width: 768px) 100vw, 1200px"
+                            sizes="100vw"
                             fetchPriority={index === 0 ? "high" : "auto"}
                             priority={index === 0 && !embedded}
-                            quality={70}
+                            quality={95}
                             unoptimized={imageUnoptimized(
                               banner.srcLarge || banner.srcSmall
                             )}
@@ -881,8 +881,8 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={HERO_SMALL_WIDTH}
                             height={HERO_SMALL_HEIGHT}
                             className="h-full w-full object-cover object-center"
-                            sizes="(max-width: 768px) 100vw, 1200px"
-                            quality={70}
+                            sizes="100vw"
+                            quality={95}
                             unoptimized={imageUnoptimized(
                               banner.srcSmall || banner.srcLarge
                             )}
@@ -912,10 +912,10 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             width={HERO_LARGE_WIDTH}
                             height={HERO_LARGE_HEIGHT}
                             className="h-full w-full object-cover object-center"
-                            sizes="(max-width: 768px) 100vw, 1200px"
+                            sizes="100vw"
                             fetchPriority={index === 0 ? "high" : "auto"}
                             priority={index === 0 && !embedded}
-                            quality={70}
+                            quality={95}
                             unoptimized={imageUnoptimized(
                               banner.srcLarge || banner.srcSmall
                             )}

@@ -197,11 +197,11 @@ export async function generateMetadata({
     return metadata;
   }
 
-  // Not found
+  // Fallback - still allow indexing
   return {
     title: "",
     description: "",
-    robots: "noindex, nofollow",
+    robots: "index, follow",
   };
 }
 

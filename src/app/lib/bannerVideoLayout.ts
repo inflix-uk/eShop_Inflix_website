@@ -4,10 +4,10 @@ import type { CSSProperties } from "react";
  * Hero banner video display size / ratio (admin Video tab → storefront background).
  */
 
-export const BANNER_HERO_DESKTOP_W = 1440;
-export const BANNER_HERO_DESKTOP_H = 500;
-export const BANNER_HERO_MOBILE_W = 1200;
-export const BANNER_HERO_MOBILE_H = 900;
+export const BANNER_HERO_DESKTOP_W = 1200;
+export const BANNER_HERO_DESKTOP_H = 417;
+export const BANNER_HERO_MOBILE_W = 1080;
+export const BANNER_HERO_MOBILE_H = 1920;
 
 export type BannerVideoLayoutPreset =
   | "hero"
