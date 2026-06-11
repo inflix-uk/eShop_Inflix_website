@@ -54,7 +54,7 @@ export async function getSuperadminControlsPublic(): Promise<SuperadminPublicCon
 
     cache = {
       value: nextValue,
-      expiresAt: now + 30000,
+      expiresAt: now + 300000, // 5 minutes cache
     };
     return nextValue;
   } catch {

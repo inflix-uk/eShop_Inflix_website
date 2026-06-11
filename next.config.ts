@@ -77,6 +77,40 @@ function buildImageRemotePatterns(): NonNullable<
 }
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        // Cache static assets for 1 year
+        source: "/:all*(svg|jpg|jpeg|png|gif|ico|webp|mp4|webm|woff|woff2|ttf|otf)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // Cache JS/CSS chunks for 1 year (they have content hashes)
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // HTML pages: stale-while-revalidate for faster repeat visits
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=120, stale-while-revalidate=300",
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {
@@ -107,11 +141,16 @@ const nextConfig: NextConfig = {
       "@headlessui/react",
       "@reduxjs/toolkit",
       "react-redux",
+      "embla-carousel",
       "embla-carousel-react",
       "embla-carousel-fade",
       "html-react-parser",
       "react-toastify",
       "react-select",
+      "react-spinners",
+      "axios",
+      "@stripe/stripe-js",
+      "@stripe/react-stripe-js",
     ],
   },
   trailingSlash: SITE_USES_TRAILING_SLASH,
@@ -119,7 +158,7 @@ const nextConfig: NextConfig = {
     ? { env: { NEXT_PUBLIC_API_URL: normalizedApiUrl } }
     : {}),
   images: {
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 31536000, // 1 year
     formats: ["image/avif", "image/webp"],
     remotePatterns: buildImageRemotePatterns(),
     // Allow unoptimized images for external URLs

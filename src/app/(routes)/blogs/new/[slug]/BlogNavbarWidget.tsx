@@ -12,7 +12,37 @@ import {
   FiMenu,
   FiX,
   FiChevronDown,
+  FiHeart,
+  FiMail,
+  FiMapPin,
+  FiClock,
+  FiCheck,
+  FiArrowRight,
+  FiArrowLeft,
+  FiSettings,
+  FiLogOut,
+  FiEdit,
+  FiTrash2,
+  FiPlus,
+  FiMinus,
+  FiEye,
+  FiInfo,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiExternalLink,
+  FiShare2,
 } from "react-icons/fi";
+import {
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedin,
+  FaYoutube,
+  FaTiktok,
+  FaWhatsapp,
+  FaPinterest,
+} from "react-icons/fa";
+import { GiFlame } from "react-icons/gi";
 import {
   createContext,
   useCallback,
@@ -33,18 +63,6 @@ import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
 import { useAuth } from "@/app/context/Auth";
 import Link from "next/link";
 import type { IconType } from "react-icons";
-import * as FaIcons from "react-icons/fa";
-import * as Fa6Icons from "react-icons/fa6";
-import * as MdIcons from "react-icons/md";
-import * as Io5Icons from "react-icons/io5";
-import * as AiIcons from "react-icons/ai";
-import * as BiIcons from "react-icons/bi";
-import * as BsIcons from "react-icons/bs";
-import * as RiIcons from "react-icons/ri";
-import * as GiIcons from "react-icons/gi";
-import * as TbIcons from "react-icons/tb";
-import * as Hi2Icons from "react-icons/hi2";
-import * as LuIcons from "react-icons/lu";
 
 
 
@@ -110,37 +128,54 @@ export type NavbarWidgetContent = {
   stickyNavbar?: boolean;
 };
 
+/** Curated icon map - only commonly used icons for fast bundle. */
+const NAVBAR_ICON_MAP: Record<string, IconType> = {
+  // Feather icons
+  FiHome,
+  FiGrid,
+  FiStar,
+  FiTag,
+  FiShoppingCart,
+  FiUser,
+  FiDownload,
+  FiPhone,
+  FiSearch,
+  FiMenu,
+  FiX,
+  FiChevronDown,
+  FiHeart,
+  FiMail,
+  FiMapPin,
+  FiClock,
+  FiCheck,
+  FiArrowRight,
+  FiArrowLeft,
+  FiSettings,
+  FiLogOut,
+  FiEdit,
+  FiTrash2,
+  FiPlus,
+  FiMinus,
+  FiEye,
+  FiInfo,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiExternalLink,
+  FiShare2,
+  // Social icons
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedin,
+  FaYoutube,
+  FaTiktok,
+  FaWhatsapp,
+  FaPinterest,
+};
+
 function resolveNavbarIconByName(iconName: string | undefined, fallback: IconType): IconType {
-  const coreIconMap: Record<string, IconType> = {
-    FiHome,
-    FiGrid,
-    FiStar,
-    FiTag,
-    FiShoppingCart,
-    FiUser,
-    FiDownload,
-    FiPhone,
-    FiSearch,
-  };
-
-  const globalIconMap: Record<string, IconType> = {
-    ...coreIconMap,
-    ...(FaIcons as Record<string, IconType>),
-    ...(Fa6Icons as Record<string, IconType>),
-    ...(MdIcons as Record<string, IconType>),
-    ...(Io5Icons as Record<string, IconType>),
-    ...(AiIcons as Record<string, IconType>),
-    ...(BiIcons as Record<string, IconType>),
-    ...(BsIcons as Record<string, IconType>),
-    ...(RiIcons as Record<string, IconType>),
-    ...(GiIcons as Record<string, IconType>),
-    ...(TbIcons as Record<string, IconType>),
-    ...(Hi2Icons as Record<string, IconType>),
-    ...(LuIcons as Record<string, IconType>),
-  };
-
   const normalized = String(iconName || "").trim();
-  return globalIconMap[normalized] || fallback;
+  return NAVBAR_ICON_MAP[normalized] || fallback;
 }
 
 function resolveHref(raw?: string): string {
@@ -336,15 +371,15 @@ const NAVBAR_BUSINESS_BTN_H = "h-8 min-h-8 max-h-8";
 const NAVBAR_BUSINESS_CTA_H = "h-[32px] min-h-[35px] max-h-[40px]";
 /** Business desktop: compact single-row CTAs beside search/icons. */
 const NAVBAR_BUSINESS_CTA_CLASS =
-  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[8.25rem] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md px-2.5 py-0 text-[10px] font-semibold leading-none shadow-sm sm:max-w-[9.5rem] sm:gap-1.5 sm:px-3 sm:text-[11px] lg:max-w-[10.5rem] lg:text-xs`;
+  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[7rem] shrink items-center justify-center gap-0.5 whitespace-nowrap rounded-md px-2 py-0 text-[9px] font-semibold leading-none shadow-sm sm:max-w-[8rem] sm:gap-1 sm:px-2.5 sm:text-[10px] lg:max-w-[9rem] lg:text-[11px]`;
 /** Dark overlay inside the admin-colored strip (right zone, slanted left edge). */
 const NAVBAR_BUSINESS_STRIP_RIGHT_BG = "rgba(0, 0, 0, 0.8)";
 /** Slanted left edge: bottom extends further left than top (matches reference). */
 const NAVBAR_BUSINESS_STRIP_RIGHT_CLIP =
   "polygon(1.35rem 0, 100% 0, 100% 100%, 0 100%)";
-/** Width includes slant overhang so no gap vs blue base strip. */
+/** Width covers buttons area only — increase if buttons overflow. */
 const NAVBAR_BUSINESS_STRIP_RIGHT_W =
-  "w-[calc(39%+1.35rem)] min-w-[calc(9rem+1.35rem)]";
+  "w-[calc(37%+1.35rem)] min-w-[calc(16rem+1.35rem)]";
 
 /** Developer dark pill: keep CTAs on one row with icon rail. */
 const NAVBAR_DEVELOPER_CTA_CLASS =
@@ -1658,7 +1693,7 @@ function NavbarBusiness({
     : undefined;
   return (
     <>
-      <header className="relative mx-auto w-full max-w-6xl overflow-visible px-4 py-3 sm:px-6">
+      <header className="relative mx-auto w-full max-w-full overflow-visible px-4 py-3 sm:px-3 lg:px-0 xl:px-0">
       <div className="flex items-center justify-between md:hidden">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
@@ -1684,21 +1719,12 @@ function NavbarBusiness({
         </div>
 
         <div
-          className={`${NAVBAR_BUSINESS_ROW_H} relative isolate flex min-h-0 min-w-0 flex-1 items-center overflow-hidden rounded-lg py-1`}
-          style={businessLeftStripBgStyle}
+          className={`${NAVBAR_BUSINESS_ROW_H} relative flex items-stretch rounded-xl`}
         >
-          {/* Dark right zone sits on top of admin strip (same box — no separate blue block). */}
-          <div
-            aria-hidden
-            className={`pointer-events-none absolute inset-y-0 right-0 z-0 ${NAVBAR_BUSINESS_STRIP_RIGHT_W}`}
-            style={{
-              backgroundColor: NAVBAR_BUSINESS_STRIP_RIGHT_BG,
-              clipPath: NAVBAR_BUSINESS_STRIP_RIGHT_CLIP,
-              WebkitClipPath: NAVBAR_BUSINESS_STRIP_RIGHT_CLIP,
-            }}
-          />
+          {/* LEFT STRAP: Nav links on blue background */}
           <nav
-            className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 overflow-visible px-2"
+            className="relative z-[1] flex min-h-0 flex-nowrap items-center justify-center gap-0.5 rounded-l-xl px-3 sm:px-4"
+            style={businessLeftStripBgStyle}
             aria-label="Primary"
           >
             {links.map((link, i) => (
@@ -1709,13 +1735,17 @@ function NavbarBusiness({
                 fallbackIcon={FiGrid}
                 bodyPortalFlyout
                 compact
-                linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 text-xs font-medium leading-none transition sm:px-2`}
+                linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 text-[10px] font-medium leading-none transition sm:text-[11px]`}
               />
             ))}
           </nav>
 
-          <div className="relative z-[1] flex shrink-0 flex-nowrap items-center justify-end">
-            <div className="relative flex flex-nowrap items-center justify-end gap-1.5 py-0 pl-5 pr-2 sm:gap-2 sm:pl-7 sm:pr-2.5">
+          {/* RIGHT STRAP: Buttons on dark background */}
+          <div
+            className="relative z-[1] flex shrink-0 flex-nowrap items-center justify-end rounded-r-xl px-3 sm:px-4"
+            style={{ backgroundColor: NAVBAR_BUSINESS_STRIP_RIGHT_BG }}
+          >
+            <div className="relative flex flex-nowrap items-center justify-end gap-1.5 py-0 sm:gap-2">
             {showIcons ? (
               <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <ActionIconLink
@@ -2413,7 +2443,7 @@ function NavbarPillBlack({
                       className="h-full w-full min-h-0 min-w-0 max-h-full max-w-full object-contain"
                     />
                   ) : (
-                    <GiIcons.GiFlame className="h-6 w-6 shrink-0 text-[#2563eb] sm:h-7 sm:w-7" aria-hidden />
+                    <GiFlame className="h-6 w-6 shrink-0 text-[#2563eb] sm:h-7 sm:w-7" aria-hidden />
                   )}
                 </LogoHomeLink>
               </div>
@@ -2928,7 +2958,7 @@ function NavbarRetailTwoRow({
   const pinTopRow = parseStickyNavbarFlag(content?.stickyNavbar);
 
   /** Fixed top row only; links offset only when sticky is enabled in admin. */
-  const topRowShellClass = "mx-auto w-full max-w-6xl px-4 py-3 sm:px-10 lg:px-10";
+  const topRowShellClass = "mx-auto w-full max-w-6xl px-4 py-4 sm:px-10 lg:px-10";
 
   const phoneDisplay = content?.secondaryButtonLabel?.trim() || "0333 344 8147";
   const phoneHref = `tel:${String(phoneDisplay).replace(/[^\d+]/g, "")}`;
@@ -3083,7 +3113,7 @@ function NavbarRetailTwoRow({
       className="relative left-1/2 w-screen sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df]"
       style={retailLinksBarBgStyle}
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-1 sm:px-6 md:px-10 lg:px-14">
+      <div className="mx-auto w-full max-w-6xl mt-6 px-4 py-1 sm:px-6 md:px-10 lg:px-14">
         <nav className="hidden h-12 w-full items-center justify-center gap-8 overflow-visible sm:gap-10 lg:flex">
           {links.map((link, i) => (
             <NavLinkItemNode

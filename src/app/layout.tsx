@@ -13,7 +13,7 @@ import { HTML_FONT_VARIABLE_CLASSES } from "@/app/lib/fonts";
 import SiteScriptsRaw from "@/app/components/SiteScriptsRaw";
 import FooterShell from "@/app/components/footer/FooterShell";
 import DeferredLayoutWidgets from "@/app/components/DeferredLayoutWidgets";
-import AnnouncementBar from "@/app/components/AnnouncementBar";
+import AnnouncementBarWrapper from "@/app/components/AnnouncementBarWrapper";
 import { getAnnouncementBannerPublic } from "@/app/services/announcementBannerService";
 import { getSiteThemePublic } from "@/app/services/siteThemeService";
 import { getGoogleVerificationCode } from "@/app/services/googleVerificationService";
@@ -145,19 +145,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const backendAvailable = await isBackendAvailable();
-  const [siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding] =
+  const [backendAvailable, siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding] =
     await Promise.all([
+      isBackendAvailable(),
       getSiteScriptsPublic(),
-      backendAvailable
-        ? getSiteThemePublic()
-        : Promise.resolve({
-            colors: resolveSiteTheme(
-              DEFAULT_SITE_THEME.primaryColor,
-              DEFAULT_SITE_THEME.secondaryColor
-            ),
-            typography: cloneTypographyDefaults(),
-          }),
+      getSiteThemePublic().catch(() => ({
+        colors: resolveSiteTheme(
+          DEFAULT_SITE_THEME.primaryColor,
+          DEFAULT_SITE_THEME.secondaryColor
+        ),
+        typography: cloneTypographyDefaults(),
+      })),
       getAnnouncementBannerPublic(),
       getSiteWideSchemaPublic(),
       getLogoSettingsPublic(),
@@ -228,7 +226,7 @@ export default async function RootLayout({
           <AuthProvider>
             <BackendAvailabilityProvider backendAvailable={backendAvailable}>
               {backendAvailable && <SiteBrandColors />}
-              {backendAvailable && <AnnouncementBar initial={announcementBanner} />}
+              {backendAvailable && <AnnouncementBarWrapper initial={announcementBanner} />}
               {children}
               <FooterShell />
               {backendAvailable && <DeferredLayoutWidgets />}

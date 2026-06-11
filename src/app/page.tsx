@@ -21,7 +21,7 @@ import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTe
 import { getHomeServerCmsBundle } from "@/app/lib/homeServerCms";
 import { buildHomepageFaqJsonLdStrings } from "@/app/lib/faqJsonLd";
 
-export const revalidate = 30;
+export const revalidate = 120;
 
 type StaticMetaPagePayload = {
   titleTag?: string;
@@ -105,15 +105,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const backendAvailable = await isBackendAvailable();
-
   const emptyHeroPayload: HomepageHeroPayload = {
     banners: [],
     heroSocial: emptyHeroSocial(),
   };
 
-  const [homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig, cmsBundle] =
+  const [backendAvailable, homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig, cmsBundle] =
     await Promise.all([
+      isBackendAvailable(),
       getHomepagePublicSeo().catch((err) => {
         console.error("[Home] homepage SEO fetch failed:", err);
         return null;

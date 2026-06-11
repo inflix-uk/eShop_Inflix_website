@@ -75,17 +75,17 @@ export function createFallbackHomeServerCmsBundle(): HomeServerCmsBundle {
 export const getHomeServerCmsBundle = cache(
   async (): Promise<HomeServerCmsBundle> => {
     const fallback = createFallbackHomeServerCmsBundle();
-    const live = { live: true as const };
+    // Use cached fetches for SSR performance - client-side HomeClient does live refetch
     const results = await Promise.allSettled([
-      getHomepageData(live),
-      getHomepageNewsletterWidgetPublic(live),
-      getSiteWidgetSettingsPublic(live),
-      getTrustpilotSettings(live),
-      getCategoryCardsSectionSettings(live),
-      getHomeNavLinksPublicServer(live),
-      getBuyNowPayLater(live),
-      getSellBuyCards(live),
-      getTinyPhoneBanner(live),
+      getHomepageData(),
+      getHomepageNewsletterWidgetPublic(),
+      getSiteWidgetSettingsPublic(),
+      getTrustpilotSettings(),
+      getCategoryCardsSectionSettings(),
+      getHomeNavLinksPublicServer(),
+      getBuyNowPayLater(),
+      getSellBuyCards(),
+      getTinyPhoneBanner(),
       getLogo().catch(() => null),
     ]);
 

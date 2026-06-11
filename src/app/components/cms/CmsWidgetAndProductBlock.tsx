@@ -37,51 +37,51 @@ function WidgetChunkFallback() {
 
 const ContentProductSlider = dynamic(
   () => import("@/app/components/ContentProductSlider"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogSliderWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogSliderWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogVideoWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogVideoWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogMapWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogMapWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogGalleryWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogGalleryWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogIconBoxWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogIconBoxWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogTestimonialsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogTestimonialsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogTrustpilotEmbedWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogTrustpilotEmbedWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogCategoryCardsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogCategoryCardsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogPromotionalSectionsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogPromotionalSectionsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogLatestBlogsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogLatestBlogsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const NewsletterSignupWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/NewsletterSignupWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const FaqWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/FaqWidget"),
@@ -89,27 +89,27 @@ const FaqWidget = dynamic(
 );
 const BlogHtmlCssWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const ActiveDealsWidget = dynamic(
   () => import("@/app/components/deals/ActiveDealsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const DealsDiscountCardsWidget = dynamic(
   () => import("@/app/components/deals/DealsDiscountCardsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogContactUsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogContactUsWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const BlogNavbarWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogNavbarWidget"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 const HeroSlider2 = dynamic(
   () => import("@/app/components/HeroSlider2"),
-  { loading: WidgetChunkFallback }
+  { loading: WidgetChunkFallback, ssr: false }
 );
 
 export type CmsWidgetAndProductBlockProps = {

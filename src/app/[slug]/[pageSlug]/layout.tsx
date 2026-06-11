@@ -191,7 +191,7 @@ export async function generateMetadata({
   return {
     title: "",
     description: "",
-    robots: "noindex, nofollow",
+    robots: "index, follow",
   };
 }
 

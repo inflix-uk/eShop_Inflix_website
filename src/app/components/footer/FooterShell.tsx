@@ -1,4 +1,4 @@
-import Footer from "@/app/components/footer/footer";
+import FooterWrapper from "@/app/components/footer/FooterWrapper";
 import { getFooterSettingsCached } from "@/app/services/footerPublicService";
 
 function hostLooksLocal(host: string): boolean {
@@ -39,7 +39,7 @@ export default async function FooterShell() {
   const initialFooterSettings = await getFooterSettingsCached();
 
   return (
-    <Footer
+    <FooterWrapper
       initialFooterSettings={initialFooterSettings}
       siteHostIsLocal={siteHostIsLocal}
       copyrightYear={copyrightYear}
