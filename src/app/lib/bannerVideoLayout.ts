@@ -1,13 +1,25 @@
 import type { CSSProperties } from "react";
+import {
+  DEFAULT_BANNER_DESKTOP_H,
+  DEFAULT_BANNER_DESKTOP_W,
+  DEFAULT_BANNER_MOBILE_H,
+  DEFAULT_BANNER_MOBILE_W,
+  type BannerImageDimensions,
+} from "@/app/lib/homepageBannerShared";
 
 /**
  * Hero banner video display size / ratio (admin Video tab → storefront background).
  */
 
-export const BANNER_HERO_DESKTOP_W = 1200;
-export const BANNER_HERO_DESKTOP_H = 417;
-export const BANNER_HERO_MOBILE_W = 1080;
-export const BANNER_HERO_MOBILE_H = 1920;
+export const BANNER_HERO_DESKTOP_W = DEFAULT_BANNER_DESKTOP_W;
+export const BANNER_HERO_DESKTOP_H = DEFAULT_BANNER_DESKTOP_H;
+export const BANNER_HERO_MOBILE_W = DEFAULT_BANNER_MOBILE_W;
+export const BANNER_HERO_MOBILE_H = DEFAULT_BANNER_MOBILE_H;
+
+export type BannerHeroImageDims = {
+  desktop: BannerImageDimensions;
+  mobile: BannerImageDimensions;
+};
 
 export type BannerVideoLayoutPreset =
   | "hero"
@@ -55,7 +67,8 @@ export function resolveBannerVideoAspect(
   preset: BannerVideoLayoutPreset,
   customWidthPx: number | undefined,
   customHeightPx: number | undefined,
-  variant: "desktop" | "mobile" = "desktop"
+  variant: "desktop" | "mobile" = "desktop",
+  heroImageDims?: BannerHeroImageDims
 ): ResolvedVideoAspect {
   if (preset === "custom") {
     const w = customWidthPx;
@@ -70,8 +83,16 @@ export function resolveBannerVideoAspect(
   }
 
   if (preset === "hero") {
-    const w = variant === "mobile" ? BANNER_HERO_MOBILE_W : BANNER_HERO_DESKTOP_W;
-    const h = variant === "mobile" ? BANNER_HERO_MOBILE_H : BANNER_HERO_DESKTOP_H;
+    const dims =
+      variant === "mobile"
+        ? heroImageDims?.mobile
+        : heroImageDims?.desktop;
+    const w =
+      dims?.width ??
+      (variant === "mobile" ? BANNER_HERO_MOBILE_W : BANNER_HERO_DESKTOP_W);
+    const h =
+      dims?.height ??
+      (variant === "mobile" ? BANNER_HERO_MOBILE_H : BANNER_HERO_DESKTOP_H);
     return { width: w, height: h, aspectRatioCss: `${w} / ${h}` };
   }
 

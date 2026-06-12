@@ -2,6 +2,69 @@
  * Pure helpers + types for homepage / widget hero banners (shared by client slider + server prefetch).
  */
 
+export const DEFAULT_BANNER_DESKTOP_W = 1200;
+export const DEFAULT_BANNER_DESKTOP_H = 417;
+export const DEFAULT_BANNER_MOBILE_W = 1080;
+export const DEFAULT_BANNER_MOBILE_H = 1920;
+
+export type BannerImageVariant = "desktop" | "mobile";
+
+export type BannerImageDimensions = {
+  width: number;
+  height: number;
+};
+
+export function resolveBannerImageDimensions(
+  banner: Pick<
+    Banner,
+    | "imageLargeWidthPx"
+    | "imageLargeHeightPx"
+    | "imageSmallWidthPx"
+    | "imageSmallHeightPx"
+  >,
+  variant: BannerImageVariant
+): BannerImageDimensions {
+  if (variant === "mobile") {
+    const width =
+      banner.imageSmallWidthPx && banner.imageSmallWidthPx > 0
+        ? banner.imageSmallWidthPx
+        : DEFAULT_BANNER_MOBILE_W;
+    const height =
+      banner.imageSmallHeightPx && banner.imageSmallHeightPx > 0
+        ? banner.imageSmallHeightPx
+        : DEFAULT_BANNER_MOBILE_H;
+    return { width, height };
+  }
+
+  const width =
+    banner.imageLargeWidthPx && banner.imageLargeWidthPx > 0
+      ? banner.imageLargeWidthPx
+      : DEFAULT_BANNER_DESKTOP_W;
+  const height =
+    banner.imageLargeHeightPx && banner.imageLargeHeightPx > 0
+      ? banner.imageLargeHeightPx
+      : DEFAULT_BANNER_DESKTOP_H;
+  return { width, height };
+}
+
+/** Next/Image `sizes` hint from admin-set intrinsic width (hero is full viewport width). */
+export function bannerImageSizesAttr(widthPx: number): string {
+  const w = Math.max(1, Math.round(widthPx));
+  return `(max-width: 768px) 100vw, ${w}px`;
+}
+
+/** CSS aspect-ratio box matching admin image dimensions (avoids object-cover crop vs fixed 80vh). */
+export function buildBannerImageContainerStyle(
+  dims: BannerImageDimensions
+): { width: string; aspectRatio: string } {
+  const w = Math.max(1, Math.round(dims.width));
+  const h = Math.max(1, Math.round(dims.height));
+  return {
+    width: "100%",
+    aspectRatio: `${w} / ${h}`,
+  };
+}
+
 export interface BannerContent {
   title?: string;
   subtitle?: string;
@@ -38,6 +101,10 @@ export interface Banner {
   videoMobileLayout?: string;
   videoMobileWidthPx?: number;
   videoMobileHeightPx?: number;
+  imageLargeWidthPx?: number;
+  imageLargeHeightPx?: number;
+  imageSmallWidthPx?: number;
+  imageSmallHeightPx?: number;
   content?: BannerContent;
   extraImage?: string;
   buttonText?: string;
@@ -81,6 +148,10 @@ export interface ApiBanner {
   videoMobileLayout?: string;
   videoMobileWidthPx?: number;
   videoMobileHeightPx?: number;
+  imageLargeWidthPx?: number;
+  imageLargeHeightPx?: number;
+  imageSmallWidthPx?: number;
+  imageSmallHeightPx?: number;
   altText: string;
   buttonText?: string;
   buttonLink?: string;
@@ -105,6 +176,10 @@ export type InlineBannerBlockPayload = {
   videoMobileLayout?: string;
   videoMobileWidthPx?: number;
   videoMobileHeightPx?: number;
+  imageLargeWidthPx?: number;
+  imageLargeHeightPx?: number;
+  imageSmallWidthPx?: number;
+  imageSmallHeightPx?: number;
   extraImage?: string;
   altText?: string;
   buttonText?: string;
@@ -232,6 +307,10 @@ export function transformApiBannerToBanner(
     videoMobileLayout: apiBanner.videoMobileLayout || "hero",
     videoMobileWidthPx: apiBanner.videoMobileWidthPx ?? undefined,
     videoMobileHeightPx: apiBanner.videoMobileHeightPx ?? undefined,
+    imageLargeWidthPx: apiBanner.imageLargeWidthPx ?? DEFAULT_BANNER_DESKTOP_W,
+    imageLargeHeightPx: apiBanner.imageLargeHeightPx ?? DEFAULT_BANNER_DESKTOP_H,
+    imageSmallWidthPx: apiBanner.imageSmallWidthPx ?? DEFAULT_BANNER_MOBILE_W,
+    imageSmallHeightPx: apiBanner.imageSmallHeightPx ?? DEFAULT_BANNER_MOBILE_H,
     alt: apiBanner.altText || "Banner",
     content: hasContent
       ? {
@@ -340,6 +419,10 @@ export function bannersFromInlinePayload(
         videoMobileLayout: b.videoMobileLayout,
         videoMobileWidthPx: b.videoMobileWidthPx,
         videoMobileHeightPx: b.videoMobileHeightPx,
+        imageLargeWidthPx: b.imageLargeWidthPx,
+        imageLargeHeightPx: b.imageLargeHeightPx,
+        imageSmallWidthPx: b.imageSmallWidthPx,
+        imageSmallHeightPx: b.imageSmallHeightPx,
         altText: b.altText || "Banner",
         buttonText: b.buttonText,
         buttonLink: b.buttonLink,

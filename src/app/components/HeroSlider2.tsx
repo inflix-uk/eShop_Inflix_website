@@ -10,10 +10,13 @@ import {
   type Banner,
   type InlineBannerBlockPayload,
   type HeroSocialSettings,
+  bannerImageSizesAttr,
   bannersFromInlinePayload,
+  buildBannerImageContainerStyle,
   buildHeroBannersFromApiPayload,
   emptyHeroSocial,
   extractHeroSocialFromActiveBannersPayload,
+  resolveBannerImageDimensions,
 } from "@/app/lib/homepageBannerShared";
 import {
   buildBannerVideoBoxStyle,
@@ -37,9 +40,14 @@ const getApiBaseUrl = (): string => {
 const API_BASE_URL = getApiBaseUrl();
 
 /**
- * Use the image optimizer for remote HTTPS (e.g. Vercel Blob) so Lighthouse gets WebP/AVIF + resized assets.
- * Skip only cases the optimizer cannot fetch or that are intentionally local.
+ * Hero background images: always serve the CDN/original file.
+ * Next.js `/_next/image` would re-encode to AVIF/WebP and downscale (hurts banner quality).
  */
+function heroBannerImageUnoptimized(): boolean {
+  return true;
+}
+
+/** Extra/overlay images — skip optimizer only for local dev blobs. */
 function imageUnoptimized(src: string | undefined | null): boolean {
   if (!src) return false;
   if (src.startsWith("data:") || src.startsWith("blob:")) return true;
@@ -64,6 +72,8 @@ function resolveBannerVideoBoxStyle(
       ? banner.videoMobileLayout
       : banner.videoDesktopLayout
   );
+  const desktopImageDims = resolveBannerImageDimensions(banner, "desktop");
+  const mobileImageDims = resolveBannerImageDimensions(banner, "mobile");
   const aspect = resolveBannerVideoAspect(
     preset,
     parseBannerVideoPx(
@@ -76,7 +86,8 @@ function resolveBannerVideoBoxStyle(
         ? banner.videoMobileHeightPx
         : banner.videoDesktopHeightPx
     ),
-    variant
+    variant,
+    { desktop: desktopImageDims, mobile: mobileImageDims }
   );
   return buildBannerVideoBoxStyle(aspect);
 }
@@ -119,7 +130,7 @@ function HeroBannerVideoPoster({
           sizes="100vw"
           quality={95}
           priority={priority}
-          unoptimized={imageUnoptimized(posterSrc)}
+          unoptimized={heroBannerImageUnoptimized()}
         />
         <div
           className="absolute inset-0 z-[1] pointer-events-none"
@@ -265,12 +276,6 @@ function HeroBannerActiveVideo({
   );
 }
 
-/** Homepage hero — match Canva: large (desktop) + small (mobile). Embedded widgets keep their own ratios. */
-const HERO_LARGE_WIDTH = 1200;
-const HERO_LARGE_HEIGHT = 417;
-const HERO_SMALL_WIDTH = 1080;
-const HERO_SMALL_HEIGHT = 1920;
-
 /**
  * Blog/CMS embedded “Banners” widget (`HeroSlider2` + `embedded`): slide height in viewport units.
  * Change this single value to resize embedded banners everywhere.
@@ -303,11 +308,25 @@ function desktopTextBlockRowJustify(pos: HAlign): string {
   return "justify-end";
 }
 
-/** Matches image layer so slide height is never below the original hero min-heights. Embedded height uses `embeddedBannerBoxStyle()` on the slide shell. */
-function fullBannerMinHeightClass(embedded: boolean): string {
+/** Fixed viewport height for video heroes / embedded widgets — not used for image heroes (those use admin aspect ratio). */
+function heroVideoHeightClass(embedded: boolean): string {
   return embedded
-    ? ""
-    : "h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[72vh]";
+    ? "h-full min-h-0"
+    : "h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh]";
+}
+
+/** Full-banner grid shell: image slides size from aspect-ratio; video keeps viewport height. */
+function fullBannerShellClass(
+  embedded: boolean,
+  usesVideo: boolean
+): string {
+  if (embedded) {
+    return "relative isolate grid grid-cols-1 grid-rows-1 min-h-0 h-full w-full";
+  }
+  if (usesVideo) {
+    return `relative isolate grid grid-cols-1 ${heroVideoHeightClass(false)}`;
+  }
+  return "relative isolate grid w-full grid-cols-1";
 }
 
 /** Horizontal padding + max-width (desktop). Vertical: flex-1 spacers + pb match original layout. */
@@ -543,6 +562,27 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
     setError(null);
   }, [inlineBannersProp, serverBanners, heroSocialProp]);
 
+  useEffect(() => {
+    if (banners.length === 0) return;
+    console.log(
+      "[HeroSlider2] Banner image sizes (px):",
+      banners.map((banner) => {
+        const desktop = resolveBannerImageDimensions(banner, "desktop");
+        const mobile = resolveBannerImageDimensions(banner, "mobile");
+        return {
+          id: banner.id,
+          alt: banner.alt,
+          desktop: `${desktop.width}×${desktop.height}`,
+          mobile: `${mobile.width}×${mobile.height}`,
+          imageLargeWidthPx: banner.imageLargeWidthPx,
+          imageLargeHeightPx: banner.imageLargeHeightPx,
+          imageSmallWidthPx: banner.imageSmallWidthPx,
+          imageSmallHeightPx: banner.imageSmallHeightPx,
+        };
+      })
+    );
+  }, [banners]);
+
   // Fetch banners from API (homepage hero only) when not inline and no server payload
   useEffect(() => {
     if (inlineBannersProp !== undefined) return;
@@ -743,6 +783,17 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
           {banners.map((banner, index) => {
             const textAlign = resolveBannerTextAlign(banner.content);
             const textPos = resolveTextPosition(banner.content);
+            const desktopImageDims = resolveBannerImageDimensions(banner, "desktop");
+            const mobileImageDims = resolveBannerImageDimensions(banner, "mobile");
+            const usesVideo = bannerUsesVideo(banner);
+            const desktopImageBoxStyle =
+              !embedded && !usesVideo
+                ? buildBannerImageContainerStyle(desktopImageDims)
+                : undefined;
+            const mobileImageBoxStyle =
+              !embedded && !usesVideo
+                ? buildBannerImageContainerStyle(mobileImageDims)
+                : undefined;
             return (
             <div
               key={banner.id}
@@ -753,7 +804,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
               <div
                 className={
                   banner.type === "full"
-                    ? `relative isolate grid grid-cols-1 ${embedded ? "grid-rows-1 min-h-0 h-full w-full " : ""}${fullBannerMinHeightClass(embedded)}`.trimEnd()
+                    ? fullBannerShellClass(embedded, usesVideo)
                     : embedded
                       ? "relative h-full min-h-0 w-full"
                       : "relative w-full"
@@ -765,11 +816,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     className={
                       embedded
                         ? "relative col-start-1 row-start-1 row-span-1 min-h-0 w-full"
-                        : "relative col-start-1 row-start-1 h-[80vh] max-h-[85vh] min-h-[320px] w-full sm:h-[82vh]"
+                        : usesVideo
+                          ? `relative col-start-1 row-start-1 w-full ${heroVideoHeightClass(false)}`
+                          : "relative col-start-1 row-start-1 w-full"
                     }
                     style={embedded ? embeddedBannerBoxStyle() : undefined}
                   >
-                    {bannerUsesVideo(banner) ? (
+                    {usesVideo ? (
                       <HeroBannerVideoSlide
                         banner={banner}
                         slideIndex={index}
@@ -777,18 +830,31 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       />
                     ) : (
                       <>
-                        <div className="absolute inset-0 sm:hidden">
+                        <div
+                          className={
+                            embedded
+                              ? "absolute inset-0 sm:hidden"
+                              : "relative w-full overflow-hidden sm:hidden"
+                          }
+                          style={
+                            embedded
+                              ? undefined
+                              : mobileImageBoxStyle
+                          }
+                        >
                           <Image
                             src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
                             alt={banner.alt}
-                            width={HERO_SMALL_WIDTH}
-                            height={HERO_SMALL_HEIGHT}
-                            className="h-full w-full object-cover object-center"
-                            sizes="100vw"
+                            width={mobileImageDims.width}
+                            height={mobileImageDims.height}
+                            className={
+                              embedded
+                                ? "h-full w-full object-cover object-center"
+                                : "block h-full w-full object-cover object-center"
+                            }
+                            sizes={bannerImageSizesAttr(mobileImageDims.width)}
                             quality={95}
-                            unoptimized={imageUnoptimized(
-                              banner.srcSmall || banner.srcLarge
-                            )}
+                            unoptimized={heroBannerImageUnoptimized()}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (target && banner.srcSmall && banner.srcLarge && target.src.includes(banner.srcSmall)) {
@@ -797,20 +863,33 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             }}
                           />
                         </div>
-                        <div className="absolute inset-0 hidden sm:block">
+                        <div
+                          className={
+                            embedded
+                              ? "absolute inset-0 hidden sm:block"
+                              : "relative hidden w-full overflow-hidden sm:block"
+                          }
+                          style={
+                            embedded
+                              ? undefined
+                              : desktopImageBoxStyle
+                          }
+                        >
                           <Image
                             src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
                             alt={banner.alt}
-                            width={HERO_LARGE_WIDTH}
-                            height={HERO_LARGE_HEIGHT}
-                            className="h-full w-full object-cover object-center"
-                            sizes="100vw"
+                            width={desktopImageDims.width}
+                            height={desktopImageDims.height}
+                            className={
+                              embedded
+                                ? "h-full w-full object-cover object-center"
+                                : "block h-full w-full object-cover object-center"
+                            }
+                            sizes={bannerImageSizesAttr(desktopImageDims.width)}
                             fetchPriority={index === 0 ? "high" : "auto"}
                             priority={index === 0 && !embedded}
                             quality={95}
-                            unoptimized={imageUnoptimized(
-                              banner.srcLarge || banner.srcSmall
-                            )}
+                            unoptimized={heroBannerImageUnoptimized()}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (target && banner.srcLarge && banner.srcSmall && target.src.includes(banner.srcLarge)) {
@@ -852,12 +931,12 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     }
                   >
                     {/* Simple banners: sized box + fill avoids h-auto CLS when intrinsic dimensions load */}
-                    {bannerUsesVideo(banner) ? (
+                    {usesVideo ? (
                       <div
                         className={
                           embedded
                             ? "relative z-0 h-full min-h-0 w-full overflow-hidden"
-                            : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px] sm:h-[82vh]"
+                            : `relative z-0 w-full overflow-hidden ${heroVideoHeightClass(false)}`
                         }
                       >
                         <HeroBannerVideoSlide
@@ -872,20 +951,23 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           className={
                             embedded
                               ? "relative z-0 w-full overflow-hidden sm:hidden h-full min-h-0"
-                              : "relative z-0 w-full overflow-hidden h-[80vh] max-h-[85vh] min-h-[320px]"
+                              : "relative z-0 w-full overflow-hidden sm:hidden"
                           }
+                          style={mobileImageBoxStyle}
                         >
                           <Image
                             src={banner.srcSmall || banner.srcLarge || "/placeholder.svg"}
                             alt={banner.alt}
-                            width={HERO_SMALL_WIDTH}
-                            height={HERO_SMALL_HEIGHT}
-                            className="h-full w-full object-cover object-center"
-                            sizes="100vw"
+                            width={mobileImageDims.width}
+                            height={mobileImageDims.height}
+                            className={
+                              embedded
+                                ? "h-full w-full object-cover object-center"
+                                : "block h-full w-full object-cover object-center"
+                            }
+                            sizes={bannerImageSizesAttr(mobileImageDims.width)}
                             quality={95}
-                            unoptimized={imageUnoptimized(
-                              banner.srcSmall || banner.srcLarge
-                            )}
+                            unoptimized={heroBannerImageUnoptimized()}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (
@@ -903,22 +985,25 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           className={
                             embedded
                               ? "relative z-0 hidden sm:block w-full overflow-hidden h-full min-h-0"
-                              : "relative z-0 hidden sm:block w-full overflow-hidden h-[82vh] max-h-[85vh] min-h-[320px]"
+                              : "relative z-0 hidden w-full overflow-hidden sm:block"
                           }
+                          style={desktopImageBoxStyle}
                         >
                           <Image
                             src={banner.srcLarge || banner.srcSmall || "/placeholder.svg"}
                             alt={banner.alt}
-                            width={HERO_LARGE_WIDTH}
-                            height={HERO_LARGE_HEIGHT}
-                            className="h-full w-full object-cover object-center"
-                            sizes="100vw"
+                            width={desktopImageDims.width}
+                            height={desktopImageDims.height}
+                            className={
+                              embedded
+                                ? "h-full w-full object-cover object-center"
+                                : "block h-full w-full object-cover object-center"
+                            }
+                            sizes={bannerImageSizesAttr(desktopImageDims.width)}
                             fetchPriority={index === 0 ? "high" : "auto"}
                             priority={index === 0 && !embedded}
                             quality={95}
-                            unoptimized={imageUnoptimized(
-                              banner.srcLarge || banner.srcSmall
-                            )}
+                            unoptimized={heroBannerImageUnoptimized()}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               if (
