@@ -563,8 +563,8 @@ const Footer: React.FC<FooterProps> = ({
                     alt={logoAltText}
                     width={180}
                     height={80}
-                    className="block h-20 w-[150px] max-w-full object-cover object-center md:object-left"
-                    sizes="180px"
+                    className="block h-auto w-full max-w-full object-contain object-center md:object-left"
+                    sizes="(max-width: 768px) 100vw, 320px"
                     loading="lazy"
                     onError={() => {
                       if (logoUrl) handleImageError(logoUrl);
