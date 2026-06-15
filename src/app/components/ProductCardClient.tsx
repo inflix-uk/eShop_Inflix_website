@@ -7,6 +7,7 @@ import {
   getInitialStockStatus,
   getProductCardDisplayData,
 } from "./productCardUtils";
+import { useProductCardDesign } from "@/app/context/ProductCardDesignContext";
 
 type ProductCardClientProps = {
   product: Product;
@@ -15,6 +16,7 @@ type ProductCardClientProps = {
 export default function ProductCardClient({ product }: ProductCardClientProps) {
   const display = getProductCardDisplayData(product);
   const initialInStock = getInitialStockStatus(product);
+  const cardDesign = useProductCardDesign();
 
   return (
     <ProductCardEnhancersDefault product={product}>
@@ -22,6 +24,7 @@ export default function ProductCardClient({ product }: ProductCardClientProps) {
         display={display}
         isInStock={initialInStock}
         variant="default"
+        cardDesign={cardDesign}
       />
     </ProductCardEnhancersDefault>
   );

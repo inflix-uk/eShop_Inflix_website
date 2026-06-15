@@ -2,17 +2,20 @@ import Link from "next/link";
 import { StarIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
 import type { ProductCardDisplay } from "./productCardUtils";
+import type { ProductCardDesign } from "@/app/services/productCardSettingsService";
 
 type ProductCardViewProps = {
   display: ProductCardDisplay;
   isInStock: boolean;
   variant?: "default" | "withStock";
+  cardDesign?: ProductCardDesign;
 };
 
 export default function ProductCardView({
   display,
   isInStock,
   variant = "withStock",
+  cardDesign = "classic",
 }: ProductCardViewProps) {
   const {
     name,
@@ -27,6 +30,78 @@ export default function ProductCardView({
     hasGroupPrice,
     averageRating,
   } = display;
+
+  // Modern Card Design - Clean & Minimal
+  if (cardDesign === "modern") {
+    return (
+      <div className="w-full py-2 sm:py-3">
+        <div className="relative group cursor-pointer">
+          {/* Product Image */}
+          <div className="relative w-full aspect-[3/5] overflow-hidden bg-gray-50 rounded-sm flex items-center justify-center">
+            {/* Discount Badge - Top Left */}
+            {discountPercentage > 0 && (
+              <div className="absolute top-2 left-2 z-10 sm:text-sm text-[10px] bg-black px-2 py-0.5 text-white rounded-lg flex items-center justify-center text-nowrap">
+                <span>{discountPercentage}% OFF</span>
+              </div>
+            )}
+            
+            {thumbnailSrc ? (
+              <Image
+                className={`object-contain transition-transform duration-500 ease-out group-hover:scale-105 ${
+                  !isInStock ? "opacity-50" : ""
+                }`}
+                src={thumbnailSrc}
+                alt={thumbnailAlt}
+                title={thumbnailTitle}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                loading="lazy"
+                style={{ objectPosition: "center" }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                <svg
+                  className="w-12 h-12 text-gray-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+            )}
+
+            {/* Out of Stock Overlay */}
+            {!isInStock && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  Out of Stock
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Product Info */}
+          <div className="mt-3 space-y-1">
+            <h3 className="text-[11px] sm:text-xs font-normal text-gray-800 uppercase tracking-wide leading-tight">
+              <Link href={productHref} className="line-clamp-2 hover:text-gray-600">
+                {name}
+                <span className="absolute inset-0 z-[1]" aria-hidden="true" />
+              </Link>
+            </h3>
+            <p className="text-[11px] sm:text-xs font-normal text-gray-600">
+              £{displayPrice}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === "default") {
     return (

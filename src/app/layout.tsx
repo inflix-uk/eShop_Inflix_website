@@ -31,6 +31,8 @@ import {
 import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
 import { BackendAvailabilityProvider } from "@/app/context/BackendAvailabilityContext";
+import { ProductCardDesignProvider } from "@/app/context/ProductCardDesignContext";
+import { getProductCardSettingsPublic } from "@/app/services/productCardSettingsService";
 import { DEFAULT_SITE_THEME, resolveSiteTheme } from "@/app/lib/siteThemeUtils";
 import { cloneTypographyDefaults } from "@/app/lib/typographyThemeUtils";
 
@@ -145,7 +147,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [backendAvailable, siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding] =
+  const [backendAvailable, siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding, productCardSettings] =
     await Promise.all([
       isBackendAvailable(),
       getSiteScriptsPublic(),
@@ -159,6 +161,7 @@ export default async function RootLayout({
       getAnnouncementBannerPublic(),
       getSiteWideSchemaPublic(),
       getLogoSettingsPublic(),
+      getProductCardSettingsPublic(),
     ]);
 
   const effectiveBranding = backendAvailable ? siteBranding : null;
@@ -225,11 +228,13 @@ export default async function RootLayout({
         <StoreProvider>
           <AuthProvider>
             <BackendAvailabilityProvider backendAvailable={backendAvailable}>
-              {backendAvailable && <SiteBrandColors />}
-              {backendAvailable && <AnnouncementBarWrapper initial={announcementBanner} />}
-              {children}
-              <FooterShell />
-              {backendAvailable && <DeferredLayoutWidgets />}
+              <ProductCardDesignProvider design={productCardSettings.activeDesign}>
+                {backendAvailable && <SiteBrandColors />}
+                {backendAvailable && <AnnouncementBarWrapper initial={announcementBanner} />}
+                {children}
+                <FooterShell />
+                {backendAvailable && <DeferredLayoutWidgets />}
+              </ProductCardDesignProvider>
             </BackendAvailabilityProvider>
           </AuthProvider>
         </StoreProvider>

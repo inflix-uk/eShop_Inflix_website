@@ -3110,10 +3110,10 @@ function NavbarRetailTwoRow({
 
   const retailLinksSection = (
     <div
-      className="relative left-1/2 w-screen sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df]"
+      className="relative left-1/2 w-screen sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df] mt-6"
       style={retailLinksBarBgStyle}
     >
-      <div className="mx-auto w-full max-w-6xl mt-6 px-4 py-1 sm:px-6 md:px-10 lg:px-14">
+      <div className="mx-auto w-full max-w-6xl px-4 py-2 sm:px-6 md:px-10 lg:px-14">
         <nav className="hidden h-12 w-full items-center justify-center gap-8 overflow-visible sm:gap-10 lg:flex">
           {links.map((link, i) => (
             <NavLinkItemNode
