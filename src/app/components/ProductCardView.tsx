@@ -37,7 +37,7 @@ export default function ProductCardView({
       <div className="w-full py-2 sm:py-3">
         <div className="relative group cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md">
           {/* Product Image */}
-          <div className="relative w-full aspect-[9/11] overflow-hidden bg-gray-50 rounded-sm flex items-center justify-center">
+          <div className="relative w-full aspect-[9/16] overflow-hidden bg-white rounded-sm flex items-center justify-center">
             {/* Discount Badge - Top Left */}
             {discountPercentage > 0 && (
               <div className="absolute top-2 left-2 z-10 sm:text-sm text-[10px] bg-black px-2 py-0.5 text-white rounded-lg flex items-center justify-center text-nowrap">
@@ -54,7 +54,6 @@ export default function ProductCardView({
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 loading="lazy"
-                style={{ objectPosition: "center" }}
               />
             ) : (
               <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -74,14 +73,6 @@ export default function ProductCardView({
               </div>
             )}
 
-            {/* Out of Stock Overlay */}
-            {!isInStock && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/40">
-                <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">
-                  Out of Stock
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Product Info */}
