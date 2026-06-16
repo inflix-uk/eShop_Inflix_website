@@ -35,9 +35,9 @@ export default function ProductCardView({
   if (cardDesign === "modern") {
     return (
       <div className="w-full py-2 sm:py-3">
-        <div className="relative group cursor-pointer">
+        <div className="relative group cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md">
           {/* Product Image */}
-          <div className="relative w-full aspect-[3/5] overflow-hidden bg-gray-50 rounded-sm flex items-center justify-center">
+          <div className="relative w-full aspect-[9/11] overflow-hidden bg-gray-50 rounded-sm flex items-center justify-center">
             {/* Discount Badge - Top Left */}
             {discountPercentage > 0 && (
               <div className="absolute top-2 left-2 z-10 sm:text-sm text-[10px] bg-black px-2 py-0.5 text-white rounded-lg flex items-center justify-center text-nowrap">
@@ -47,9 +47,7 @@ export default function ProductCardView({
             
             {thumbnailSrc ? (
               <Image
-                className={`object-contain transition-transform duration-500 ease-out group-hover:scale-105 ${
-                  !isInStock ? "opacity-50" : ""
-                }`}
+                className={`object-contain ${!isInStock ? "opacity-50" : ""}`}
                 src={thumbnailSrc}
                 alt={thumbnailAlt}
                 title={thumbnailTitle}
