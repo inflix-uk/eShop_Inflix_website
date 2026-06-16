@@ -32,23 +32,29 @@ export type BlogCategoryCardsWidgetProps = {
 function toDisplayCards(items: CategoryCardBlockItem[] | undefined): CategoryCard[] {
   return (items || [])
     .filter((it) => it && it.isActive !== false)
-    .map((it) => ({
-      _id: it.id || `cc-${it.categoryName || "card"}`,
-      categoryName: it.categoryName || "",
-      shopNowLink: (it.shopNowLink || "").trim(),
-      itemCount: it.itemCount ?? 0,
-      categoryNameColor: it.categoryNameColor,
-      itemCountColor: it.itemCountColor,
-      overlayColor: it.overlayColor,
-      backgroundImage: it.backgroundImage || "",
-      categoryImage: it.categoryImage || "",
-      order: it.order ?? 0,
-      isActive: true,
-    }))
+    .map((it) => {
+      const categoryName = it.categoryName || "";
+      // Auto-generate shopNowLink if empty
+      const shopNowLink = (it.shopNowLink || "").trim() || 
+        (categoryName ? `/categories/${encodeURIComponent(categoryName.toLowerCase().replace(/\s+/g, "-"))}` : "");
+      
+      return {
+        _id: it.id || `cc-${categoryName || "card"}`,
+        categoryName,
+        shopNowLink,
+        itemCount: it.itemCount ?? 0,
+        categoryNameColor: it.categoryNameColor,
+        itemCountColor: it.itemCountColor,
+        overlayColor: it.overlayColor,
+        backgroundImage: it.backgroundImage || "",
+        categoryImage: it.categoryImage || "",
+        order: it.order ?? 0,
+        isActive: true,
+      };
+    })
     .filter(
       (c) =>
         c.categoryName.trim().length > 0 &&
-        c.shopNowLink.length > 0 &&
         c.backgroundImage.trim().length > 0
     );
 }

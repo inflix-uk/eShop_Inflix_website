@@ -50,6 +50,11 @@ function buildImageRemotePatterns(): NonNullable<
       hostname: "eshopinflix.sfo3.digitaloceanspaces.com",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "api.refurb.market",
+      pathname: "/**",
+    },
   ];
 
   if (normalizedApiUrl) {
