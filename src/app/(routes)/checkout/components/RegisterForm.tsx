@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ChangeEvent, FC, FormEvent } from "react";
+import React, { useState, ChangeEvent, FC, FormEvent, useEffect, useRef } from "react";
 import { useAuth } from "@/app/context/Auth";
 import axios from "axios";
 import NewsletterSuccessModal from "@/app/components/common/NewsletterSuccessModal"; // Adjust the import path as needed
@@ -60,41 +60,32 @@ const RegisterForm: FC<RegisterFormProps> = ({
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showThankYou, setShowThankYou] = useState<boolean>(false); // State for Thank You modal
+  const [showThankYou, setShowThankYou] = useState<boolean>(false);
+  const hasSubscribedRef = useRef(false);
+
+  const getSubscriptionDetails = () => ({
+    userEmail: (auth?.user ? auth.user.email : email)?.trim() || "",
+    userFirstName: (auth?.user ? auth.user.firstname : shippingInformation.firstName)?.trim() || "",
+    userLastName: (auth?.user ? auth.user.lastname : shippingInformation.lastName)?.trim() || "",
+  });
 
   const handleClose = () => {
-    setShowThankYou(false); // Reset thank you modal state
+    setShowThankYou(false);
   };
 
-  const handleSubmit = async () => {
-    // Reset success and error messages
+  const submitNewsletter = async (): Promise<boolean> => {
+    if (hasSubscribedRef.current) return true;
+
     setError(null);
     setSuccess(null);
 
-    // Log to verify handleSubmit is being called
-    console.log("Submitting subscription...");
-
-    // Get values based on authentication
-    const userEmail = auth?.user ? auth.user.email : email;
-    const userFirstName = auth?.user
-      ? auth.user.firstname
-      : shippingInformation.firstName;
-    const userLastName = auth?.user
-      ? auth.user.lastname
-      : shippingInformation.lastName;
+    const { userEmail, userFirstName, userLastName } = getSubscriptionDetails();
 
     if (!userEmail || !userFirstName || !userLastName) {
-      setError("Please provide all the required information.");
-      console.error("Missing information:", {
-        userEmail,
-        userFirstName,
-        userLastName,
-      });
-      return;
+      return false;
     }
 
-    // Check if ip exists and handle accordingly
-    const ip = auth?.ip || `${process.env.NEXT_PUBLIC_API_URL}/`; // Provide a fallback if ip is not available
+    const ip = auth?.ip || `${process.env.NEXT_PUBLIC_API_URL}/`;
 
     try {
       const response = await axios.post(`${ip}newsletter/subscribers`, {
@@ -104,31 +95,46 @@ const RegisterForm: FC<RegisterFormProps> = ({
       });
 
       if (response.status === 201) {
+        hasSubscribedRef.current = true;
         setSuccess("You have successfully subscribed!");
-        setEmail(""); // Clear email field
-        console.log("Subscription successful!");
         setShowThankYou(true);
-      } else {
-        setError("Something went wrong. Please try again.");
+        return true;
       }
+
+      setError("Something went wrong. Please try again.");
+      return false;
     } catch (err: any) {
       setError("Error: " + err.message);
       console.error("Error while submitting:", err);
+      return false;
     }
   };
 
   const handleCheckboxChange = (e: ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     setIsSubscribed(isChecked);
+    setError(null);
 
-    // Log checkbox change
-    console.log("Checkbox changed:", isChecked);
-
-    if (isChecked) {
-      // If the checkbox is checked, trigger the form submission
-      handleSubmit();
+    if (!isChecked) {
+      hasSubscribedRef.current = false;
+      return;
     }
+
+    void submitNewsletter();
   };
+
+  useEffect(() => {
+    if (!isSubscribed || hasSubscribedRef.current) return;
+    void submitNewsletter();
+  }, [
+    isSubscribed,
+    email,
+    shippingInformation.firstName,
+    shippingInformation.lastName,
+    auth?.user?.email,
+    auth?.user?.firstname,
+    auth?.user?.lastname,
+  ]);
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] =

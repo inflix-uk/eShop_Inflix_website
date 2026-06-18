@@ -76,14 +76,14 @@ export default function ProductCardView({
           </div>
 
           {/* Product Info */}
-          <div className="mt-3 space-y-1">
-            <h3 className="text-[11px] sm:text-xs font-normal text-gray-800 uppercase tracking-wide leading-tight">
+          <div className="mt-3 space-y-1 px-2">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-800 uppercase tracking-wide leading-tight">
               <Link href={productHref} className="line-clamp-2 hover:text-gray-600">
                 {name}
                 <span className="absolute inset-0 z-[1]" aria-hidden="true" />
               </Link>
             </h3>
-            <p className="text-[11px] sm:text-xs font-normal text-gray-600">
+            <p className="text-xs sm:text-sm font-normal text-gray-600">
               £{displayPrice}
             </p>
           </div>

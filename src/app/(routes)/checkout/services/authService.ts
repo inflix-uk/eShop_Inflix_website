@@ -62,7 +62,11 @@ export class AuthService {
     );
 
     if (this.hasValidationErrors(errors)) {
-      throw new Error('Validation failed');
+      const firstError = Object.values(errors).find((error) => error !== '');
+      return {
+        status: 400,
+        message: firstError || 'Validation failed',
+      };
     }
 
     try {
