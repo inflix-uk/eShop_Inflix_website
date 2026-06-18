@@ -150,6 +150,9 @@ export class ValidationService {
     const addressError = this.validateAddress(shippingInformation.address);
     if (addressError) errors.address = addressError;
 
+    const cityError = this.validateCity(shippingInformation.city);
+    if (cityError) errors.city = cityError;
+
     const postalCodeError = this.validatePostalCode(shippingInformation.postalCode);
     if (postalCodeError) errors.postalCode = postalCodeError;
 

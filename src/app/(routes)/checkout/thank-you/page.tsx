@@ -76,46 +76,57 @@ export default function ThankYouPage() {
 
   // Trustpilot JavaScript Integration - sends review invitation
   useEffect(() => {
-    if (order && order.customerEmail && order.orderNumber && !hasTrustpilotInvited.current) {
-      hasTrustpilotInvited.current = true;
-      console.log('📧 Triggering Trustpilot invitation...');
-      console.log('   Customer:', order.customerName);
-      console.log('   Email:', order.customerEmail);
-      console.log('   Order:', order.orderNumber);
-
-      // Load Trustpilot invite script and trigger invitation
-      const script = document.createElement('script');
-      script.src = '//invitejs.trustpilot.com/tp.min.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('✅ Trustpilot script loaded, invoking invitation...');
-        // Use type assertion for Trustpilot on window
-        const trustpilot = (window as unknown as { Trustpilot?: { Invoke: (config: TrustpilotConfig) => void } }).Trustpilot;
-        if (trustpilot) {
-          trustpilot.Invoke({
-            key: TRUSTPILOT_KEY,
-            recipientEmail: order.customerEmail || '',
-            recipientName: order.customerName || 'Customer',
-            referenceId: order.orderNumber,
-            source: 'InvitationScript'
-          });
-          console.log('✅ Trustpilot invitation sent!');
-        } else {
-          console.error('❌ Trustpilot object not available after script load');
-        }
-      };
-      script.onerror = () => {
-        console.error('❌ Failed to load Trustpilot script');
-      };
-      document.head.appendChild(script);
-
-      // Cleanup
-      return () => {
-        if (document.head.contains(script)) {
-          document.head.removeChild(script);
-        }
-      };
+    if (!order?.customerEmail || !order?.orderNumber || hasTrustpilotInvited.current) {
+      return;
     }
+
+    const SCRIPT_ID = 'trustpilot-invite-script';
+
+    const invokeInvitation = () => {
+      const trustpilot = (window as unknown as {
+        Trustpilot?: { Invoke: (config: TrustpilotConfig) => void };
+      }).Trustpilot;
+
+      if (!trustpilot) {
+        return false;
+      }
+
+      trustpilot.Invoke({
+        key: TRUSTPILOT_KEY,
+        recipientEmail: order.customerEmail || '',
+        recipientName: order.customerName || 'Customer',
+        referenceId: order.orderNumber,
+        source: 'InvitationScript',
+      });
+      hasTrustpilotInvited.current = true;
+      return true;
+    };
+
+    const existingScript = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      if ((window as unknown as { Trustpilot?: unknown }).Trustpilot) {
+        invokeInvitation();
+      } else {
+        existingScript.addEventListener('load', () => {
+          invokeInvitation();
+        }, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = SCRIPT_ID;
+    script.src = 'https://invitejs.trustpilot.com/tp.min.js';
+    script.async = true;
+    script.onload = () => {
+      if (!invokeInvitation()) {
+        console.warn('Trustpilot invitation API unavailable after script load');
+      }
+    };
+    script.onerror = () => {
+      console.warn('Trustpilot invitation script could not be loaded (blocked or offline)');
+    };
+    document.head.appendChild(script);
   }, [order]);
 
   // Clean up order data after some time

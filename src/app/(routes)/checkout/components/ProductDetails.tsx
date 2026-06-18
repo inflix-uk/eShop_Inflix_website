@@ -32,6 +32,20 @@ interface ShippingMethod {
   order: number;
 }
 
+export interface CheckoutBookingData {
+  holdId: string;
+  packageId: string;
+  packageName: string;
+  packageType: string;
+  packagePrice: number;
+  packageDuration: number;
+  date: string;
+  startTime: string;
+  endTime: string;
+  holdExpiresAt: string;
+  sessionId: string;
+}
+
 interface ProductDetailsProps {
   products: any[];
   removeFromCart: (id: string) => void;
@@ -49,6 +63,8 @@ interface ProductDetailsProps {
   onStockDataUpdate?: (
     stockData: Record<string, { availableQuantity: number; inStock: boolean }>
   ) => void;
+  bookingData?: CheckoutBookingData | null;
+  onRemoveBooking?: () => void;
   // Shipping props
   shippingMethods?: ShippingMethod[];
   selectedShippingMethod?: ShippingMethod | null;
@@ -78,6 +94,24 @@ const calculateDiscountedPrice = (
   return total > 0 ? total.toFixed(2) : "0.00";
 };
 
+const formatBookingDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatBookingTime = (time: string) => {
+  const [hours, minutes] = time.split(":");
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
 const ProductDetails: FC<ProductDetailsProps> = ({
   products,
   removeFromCart,
@@ -93,6 +127,8 @@ const ProductDetails: FC<ProductDetailsProps> = ({
   updateCheckoutSession,
   couponError,
   onStockDataUpdate,
+  bookingData = null,
+  onRemoveBooking,
   shippingMethods = [],
   selectedShippingMethod,
   shippingCost = 0,
@@ -101,6 +137,9 @@ const ProductDetails: FC<ProductDetailsProps> = ({
   onShippingMethodChange,
 }) => {
   const numericTotalSalePrice = Number(totalSalePrice) || 0;
+  const bookingAmount = bookingData?.packagePrice ?? 0;
+  const combinedSubtotal = numericTotalSalePrice + bookingAmount;
+  const isBookingOnly = !!bookingData && products.length === 0;
 
   const [isCouponApplied, setIsCouponApplied] = useState<boolean>(false);
   const [discountedPrice, setDiscountedPrice] = useState<number>(
@@ -194,6 +233,59 @@ const ProductDetails: FC<ProductDetailsProps> = ({
   return (
     <>
       <ul role="list" className="divide-y divide-gray-200">
+        {bookingData && (
+          <li className="flex sm:flex-nowrap flex-wrap wrap px-4 py-6 sm:px-6">
+            <div className="flex-shrink-0">
+              <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center">
+                <svg className="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="ml-6 flex flex-1 flex-col">
+              <div className="flex">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm">
+                    <p className="font-medium text-gray-700 hover:text-gray-800">
+                      {bookingData.packageName}
+                    </p>
+                  </h4>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {formatBookingDate(bookingData.date)} • {formatBookingTime(bookingData.startTime)} - {formatBookingTime(bookingData.endTime)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 capitalize">
+                    {bookingData.packageType} • {bookingData.packageDuration} mins
+                  </p>
+                </div>
+
+                {onRemoveBooking && (
+                  <div className="ml-4 flow-root flex-shrink-0">
+                    <button
+                      type="button"
+                      className="-m-2.5 flex items-center justify-center bg-white p-2.5 text-gray-400 hover:text-gray-500"
+                      onClick={onRemoveBooking}
+                    >
+                      <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex gap-2 items-center">
+                  <p className="font-medium text-gray-900">
+                    £{bookingData.packagePrice.toFixed(2)}
+                  </p>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm">Qty: 1</p>
+                </div>
+              </div>
+            </div>
+          </li>
+        )}
+
         {products.map((product: ProductItem) => {
           const productName = product.name;
           const modifiedProductName = productName.replace(/\s*\([^)]+\)/, ""); // remove everything inside parentheses
@@ -316,6 +408,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
         })}
       </ul>
 
+      {!isBookingOnly && (
       <dl className="space-y-4 border-t border-gray-200 px-4 py-6 sm:px-6">
         <dt className="text-base font-medium">Shipping Method</dt>
         {shippingMethods.length > 0 ? (
@@ -393,16 +486,17 @@ const ProductDetails: FC<ProductDetailsProps> = ({
           </div>
         )}
       </dl>
+      )}
 
       <dl className="space-y-2 border-t border-gray-200 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between border-gray-200">
           <dt className="text-sm text-gray-600">Subtotal</dt>
           <dd className="text-sm text-gray-900">
-            £{totalSalePrice}
+            £{combinedSubtotal.toFixed(2)}
           </dd>
         </div>
 
-        {shippingCost > 0 && (
+        {!isBookingOnly && shippingCost > 0 && (
           <div className="flex items-center justify-between border-gray-200">
             <dt className="text-sm text-gray-600">Shipping</dt>
             <dd className="text-sm text-gray-900">
@@ -411,7 +505,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
           </div>
         )}
 
-        {shippingCost === 0 && selectedShippingMethod && (
+        {!isBookingOnly && shippingCost === 0 && selectedShippingMethod && (
           <div className="flex items-center justify-between border-gray-200">
             <dt className="text-sm text-gray-600">Shipping</dt>
             <dd className="text-sm text-green-600 font-medium">
@@ -423,11 +517,13 @@ const ProductDetails: FC<ProductDetailsProps> = ({
         <div className="flex items-center justify-between border-gray-200 pt-2 border-t">
           <dt className="text-base font-medium">Total</dt>
           <dd className="text-base font-medium text-gray-900">
-            £{(Number(totalSalePrice) + shippingCost).toFixed(2)}
+            £{isBookingOnly
+              ? bookingAmount.toFixed(2)
+              : (Number(totalSalePrice) + shippingCost).toFixed(2)}
           </dd>
         </div>
 
-        {isCouponApplied && discountedPrice !== null && (
+        {!isBookingOnly && isCouponApplied && discountedPrice !== null && (
           <div className="flex items-center justify-between border-gray-200">
             <dt className="text-sm md:text-base font-medium">
               Discounted Price (Coupon: {appliedCoupon?.code})
@@ -480,6 +576,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
         </div>
       </dl>
 
+      {!isBookingOnly && (
       <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
         <div className="border-gray-200">
           <div className="flex flex-col w-full">
@@ -492,7 +589,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                 className={`px-2 py-2 border ${
                   couponError ? "border-red-500" : "border-gray-300"
                 } rounded focus:border-primary focus:ring-primary w-full`}
-                disabled={isCouponApplied} // Disable input if coupon is applied
+                disabled={isCouponApplied}
               />
               <button
                 className={`px-2 py-2.5 text-sm font-semibold text-gray-700 border border-gray-300 rounded focus:outline-none w-60
@@ -503,7 +600,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                       ? "hover:bg-primary hover:text-white focus:bg-primary focus:text-white"
                       : "bg-gray-200 cursor-not-allowed"
                   }`}
-                disabled={isCouponApplied || !isCouponValid} // Disable button if coupon is applied or not valid
+                disabled={isCouponApplied || !isCouponValid}
                 onClick={handleApplyCoupon}
               >
                 {isCouponApplied ? "Coupon Applied" : "APPLY COUPON"}
@@ -522,6 +619,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
           </div>
         </div>
       </dl>
+      )}
     </>
   );
 };

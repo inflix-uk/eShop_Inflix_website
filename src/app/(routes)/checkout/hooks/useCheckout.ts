@@ -817,9 +817,7 @@ export const useCheckout = () => {
     }
   };
 
-  // Handle successful payment from embedded form
-  // Note: The webhook will handle updating the order status to "Pending"
-  // This function just handles cleanup and redirect
+  // Handle successful payment from embedded form — update order to Pending (webhook may not run locally)
   const handlePaymentSuccess = useCallback(async (paymentIntentResult: any) => {
     setProgress(50);
     setIsProcessingPayment(true);
@@ -833,7 +831,6 @@ export const useCheckout = () => {
       const shippingInfo = JSON.parse(localStorage.getItem('shippingInformation') || 'null');
 
       console.log('💳 Payment successful! Order:', orderNum);
-      console.log('🔔 Webhook will update order status to Pending');
 
       // Get contact information
       const userForOrder = JSON.parse(localStorage.getItem('userForOrder') || '{}');
@@ -845,6 +842,56 @@ export const useCheckout = () => {
       } else if (auth.user) {
         contactInformation.email = auth.user.email;
         contactInformation.userId = auth.user._id;
+      }
+
+      const paymentIntent = paymentIntentResult?.paymentIntent;
+      const paymentDetailsPayload = {
+        paymentIntentId:
+          paymentIntent?.id ||
+          paymentIntentId ||
+          localStorage.getItem('paymentIntentId') ||
+          '',
+        paymentMethodId:
+          typeof paymentIntent?.payment_method === 'string'
+            ? paymentIntent.payment_method
+            : paymentIntent?.payment_method?.id || null,
+        cardDetails: paymentIntent?.charges?.data?.[0]?.payment_method_details?.card || {},
+        amount: paymentIntent?.amount ? paymentIntent.amount / 100 : undefined,
+        currency: paymentIntent?.currency,
+        status: paymentIntent?.status || 'succeeded',
+        paidAt: new Date(),
+      };
+
+      const shippingInfoForOrder = shippingInfo || shippingInformation;
+
+      if (orderNum && cartData.length > 0 && shippingInfoForOrder && contactInformation.email) {
+        try {
+          await api.updateOrderAfterPayment({
+            cart: cartData,
+            shippingInformation: shippingInfoForOrder,
+            contactInformation,
+            coupon: appliedCouponData,
+            paymentDetails: paymentDetailsPayload,
+            orderNumber: orderNum,
+            status: 'Pending',
+          });
+          console.log('✅ Order updated to Pending');
+        } catch (updateError: any) {
+          const message =
+            updateError?.response?.data?.message ||
+            updateError?.message ||
+            '';
+          if (!String(message).toLowerCase().includes('already pending')) {
+            console.error('❌ Failed to update order to Pending:', updateError);
+          }
+        }
+      } else {
+        console.warn('⚠️ Skipped order Pending update — missing order data', {
+          orderNum,
+          hasCart: cartData.length > 0,
+          hasShipping: !!shippingInfoForOrder,
+          hasEmail: !!contactInformation.email,
+        });
       }
 
       // Calculate total order value for analytics
@@ -909,7 +956,7 @@ export const useCheckout = () => {
       localStorage.removeItem('paymentIntentCreating');
       router.push('/checkout/thank-you');
     }
-  }, [currentOrderNumber, auth.user, router, orderService, paymentIntentId, setCurrentOrderNumber, selectedShippingMethod, shippingCost]);
+  }, [currentOrderNumber, auth.user, router, orderService, paymentIntentId, setCurrentOrderNumber, selectedShippingMethod, shippingCost, shippingInformation]);
 
   // Reset payment state (e.g., if user wants to go back and modify order)
   const resetPaymentState = useCallback(() => {
@@ -956,11 +1003,18 @@ export const useCheckout = () => {
           lastName: validationErrors.lastName || cleanErrors.lastName,
           phoneNumber: validationErrors.phoneNumber || cleanErrors.phoneNumber,
           address: validationErrors.address || cleanErrors.address,
-          postalCode: validationErrors.postalCode || cleanErrors.postalCode
+          city: validationErrors.city || cleanErrors.city,
+          postalCode: validationErrors.postalCode || cleanErrors.postalCode,
+          email: validationErrors.email || cleanErrors.email,
+          password: validationErrors.password || cleanErrors.password,
+          confirmPassword: validationErrors.confirmPassword || cleanErrors.confirmPassword,
         });
+        const firstError =
+          Object.values(validationErrors).find((error) => error !== '') ||
+          'Please fill in all required shipping fields';
         setProgress(100);
         setIsProcessingPayment(false);
-        return { success: false, error: 'Please fill in all required shipping fields' };
+        return { success: false, error: firstError };
       }
 
       // Check if user is logged in, if not - register them first
@@ -974,23 +1028,24 @@ export const useCheckout = () => {
         // User is not logged in - try to register them
         console.log('👤 User not logged in. Attempting registration...');
 
-        // Validate registration fields
-        if (!email || !email.includes('@')) {
-          setProgress(100);
-          setIsProcessingPayment(false);
-          return { success: false, error: 'Please enter a valid email address' };
-        }
+        const registrationErrors = ValidationService.validateRegistrationForm(
+          email,
+          password,
+          confirmPassword,
+          shippingInformation
+        );
 
-        if (!password || password.length < 6) {
+        if (ValidationService.hasValidationErrors(registrationErrors)) {
+          setErrors({
+            ...ValidationService.getCleanErrors(),
+            ...registrationErrors,
+          });
+          const firstError =
+            Object.values(registrationErrors).find((error) => error !== '') ||
+            'Please fill in all required fields';
           setProgress(100);
           setIsProcessingPayment(false);
-          return { success: false, error: 'Please enter a password (minimum 6 characters)' };
-        }
-
-        if (password !== confirmPassword) {
-          setProgress(100);
-          setIsProcessingPayment(false);
-          return { success: false, error: 'Passwords do not match' };
+          return { success: false, error: firstError };
         }
 
         try {

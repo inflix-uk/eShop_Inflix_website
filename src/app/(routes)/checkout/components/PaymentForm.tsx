@@ -25,6 +25,7 @@ interface PaymentFormProps {
   onBeforeExpressPayment?: (expressCheckoutData: any) => Promise<{ success: boolean; error?: string }>;
   expressShippingRates?: ExpressShippingRate[];
   onExpressShippingRateChange?: (rateId: string) => Promise<{ success: boolean }>;
+  returnUrl?: string;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -35,6 +36,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   onBeforeExpressPayment,
   expressShippingRates,
   onExpressShippingRateChange,
+  returnUrl,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -97,7 +99,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: `${window.location.origin}/checkout?payment_intent_success=true`,
+            return_url: returnUrl || `${window.location.origin}/checkout?payment_intent_success=true`,
           },
           redirect: 'if_required',
         });
@@ -305,7 +307,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const { error, paymentIntent } = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: `${window.location.origin}/checkout?payment_intent_success=true`,
+            return_url: returnUrl || `${window.location.origin}/checkout?payment_intent_success=true`,
           },
           redirect: 'if_required',
         });
