@@ -8,16 +8,9 @@ import {
   cmsPublicFetchInit,
 } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
-const getApiBaseUrl = (): string => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) {
-    return `${process.env.NEXT_PUBLIC_API_URL}`;
-  }
-  return apiUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = resolveCmsApiBase();
 
 export interface CategoryCard {
   _id: string;

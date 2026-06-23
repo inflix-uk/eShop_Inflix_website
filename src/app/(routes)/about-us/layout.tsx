@@ -3,13 +3,13 @@ import { buildStorePageMetadata } from "@/lib/pageMetadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildStorePageMetadata({
-    path: "/Sustainability",
-    fallbackTitle: "Sustainability",
-    fallbackDescription: "Learn about our sustainability practices.",
+    path: "/about-us",
+    fallbackTitle: "About Us",
+    fallbackDescription: "Learn more about our store.",
   });
 }
 
-export default function SustainabilityLayout({
+export default function AboutLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;

@@ -47,7 +47,7 @@ const PaymentForm = dynamic(
 );
 
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
-import BenefitsFromZextons from "./components/benefits-from-zextons";
+import CheckoutBenefits from "./components/checkout-benefits";
 import PaymentLogos from "@/app/components/PaymentLogos";
 
 // Booking data loaded from localStorage when user arrives from booking flow
@@ -770,7 +770,7 @@ export default function CheckoutPage() {
         </div>
 
         <TrustBoxWidget />
-        {/* <BenefitsFromZextons /> */}
+        {/* <CheckoutBenefits /> */}
       </main>
 
       </>

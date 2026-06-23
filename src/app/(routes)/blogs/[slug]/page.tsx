@@ -18,6 +18,17 @@ import {
   fetchAllStorefrontBlogs,
   slugMatchesBlogCategory,
 } from "../lib/blogCategorySlug";
+import { fetchNewBlogBySlug } from "../lib/fetchNewBlogBySlug";
+import {
+  extractBlogArticlePlainText,
+  getBlogSchemaDates,
+  getBlogOpenGraphTimes,
+} from "../lib/blogSchemaUtils";
+import {
+  fetchNestedFooterPage,
+  FooterPageShell,
+  isPublishedFooterPage,
+} from "@/app/lib/footerPagePublic";
 
 interface BlogData {
   _id: string;
@@ -80,34 +91,6 @@ function getLegacyBlogCategorySlugs(blog: BlogData): string[] {
   return primary ? [primary] : ["general"];
 }
 
-/** New admin blog posts (NewBlog model) — same API as /blogs/new/[slug] */
-const fetchNewBlogBySlug = async (slug: string): Promise<Record<string, unknown> | null> => {
-  const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (!base || !slug) return null;
-  try {
-    const res = await fetch(
-      `${base}/newblog/blog/postsBySlugWithoutCache/${encodeURIComponent(slug)}`,
-      { next: { revalidate: 60 } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data?.success || !data?.data) return null;
-    const post = data.data as Record<string, unknown>;
-    const isDev = process.env.NODE_ENV === "development";
-    // Production: only published. Dev: allow drafts so /blogs/[slug] matches admin without publishing.
-    if (
-      post.publishStatus &&
-      post.publishStatus !== "published" &&
-      !isDev
-    ) {
-      return null;
-    }
-    return post;
-  } catch {
-    return null;
-  }
-};
-
 export const dynamic = "force-dynamic";
 
 const getLegacyBlog = cache(async (slug: string): Promise<BlogData | null> => {
@@ -157,7 +140,6 @@ function formatDateISO(dateStr: string): string {
 
 function buildNewBlogBlogPostingJsonLd(
   post: Record<string, unknown>,
-  slug: string,
   canonicalPostUrl: string
 ): Record<string, unknown> {
   const title = typeof post.title === "string" ? post.title : "";
@@ -168,37 +150,32 @@ function buildNewBlogBlogPostingJsonLd(
   const metaDesc =
     typeof post.metaDescription === "string" ? post.metaDescription.trim() : "";
   const description = metaDesc || excerpt;
-  const content = typeof post.content === "string" ? post.content : "";
-  const staticContent = getStaticContent(content);
-  const plainBody = staticContent.replace(/<[^>]*>/g, "");
-  const publishRaw =
-    (post.publishDate as string) ||
-    (post.createdAt as string) ||
-    new Date().toISOString();
-  const modifiedRaw = (post.updatedAt as string) || publishRaw;
+  const articleBody = extractBlogArticlePlainText(post);
+  const { datePublished, dateModified } = getBlogSchemaDates(post);
   const banner =
     typeof post.bannerImage === "string" ? post.bannerImage : "";
   const featured =
     typeof post.featuredImage === "string" ? post.featuredImage : "";
   const imagePath = banner || featured;
   const imageUrl = imagePath ? getFullImageUrl(imagePath) : undefined;
-  const pageUrl = canonicalPostUrl;
+
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline,
     description,
-    datePublished: formatDateISO(String(publishRaw)),
-    dateModified: formatDateISO(String(modifiedRaw)),
-    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+    ...(imageUrl ? { image: imageUrl } : {}),
+    datePublished,
+    dateModified,
+    ...(articleBody
+      ? {
+          articleBody,
+          wordCount: articleBody.split(/\s+/).filter(Boolean).length,
+        }
+      : {}),
+    url: canonicalPostUrl,
   };
-  if (imageUrl) {
-    jsonLd.image = imageUrl;
-  }
-  if (plainBody.trim()) {
-    jsonLd.articleBody = plainBody;
-    jsonLd.wordCount = plainBody.split(/\s+/).filter(Boolean).length;
-  }
+
   return jsonLd;
 }
 
@@ -265,6 +242,8 @@ export async function generateMetadata({
             .join(", ")
         : undefined;
 
+    const ogTimes = getBlogOpenGraphTimes(newBlog);
+
     return {
       title: displayTitle,
       description,
@@ -274,8 +253,8 @@ export async function generateMetadata({
         title: displayTitle,
         description,
         type: "article",
-        publishedTime: newBlog.publishDate as string | undefined,
-        modifiedTime: newBlog.updatedAt as string | undefined,
+        publishedTime: ogTimes.publishedTime,
+        modifiedTime: ogTimes.modifiedTime,
         url: canonicalUrl,
         images: ogImage ? [ogImage] : [],
       },
@@ -359,6 +338,22 @@ export default async function BlogPage({
   const { slug, category } = await params;
 
   if (!category && slug !== "new") {
+    const decodedSlug = decodeURIComponent(slug).toLowerCase().trim();
+    const [footerPage, navbarVariantTestConfig] = await Promise.all([
+      fetchNestedFooterPage("blogs", decodedSlug),
+      getNavbarVariantTestPublicServer(),
+    ]);
+    if (isPublishedFooterPage(footerPage)) {
+      return (
+        <FooterPageShell
+          page={footerPage}
+          navbarVariantTestConfig={navbarVariantTestConfig}
+        />
+      );
+    }
+  }
+
+  if (!category && slug !== "new") {
     const newBlogProbe = await fetchNewBlogBySlug(slug);
     const legacyProbe = newBlogProbe ? null : await getLegacyBlog(slug);
     if (!newBlogProbe && !legacyProbe) {
@@ -390,7 +385,7 @@ export default async function BlogPage({
         notFound();
       }
     }
-    const blogPostingLd = buildNewBlogBlogPostingJsonLd(newBlog, slug, canonicalUrl);
+    const blogPostingLd = buildNewBlogBlogPostingJsonLd(newBlog, canonicalUrl);
     const metaSchemaRaw = newBlog.metaSchema;
     const metaSchemaList = Array.isArray(metaSchemaRaw)
       ? metaSchemaRaw.filter((x): x is string => typeof x === "string")
@@ -443,19 +438,24 @@ export default async function BlogPage({
   const staticContent = getStaticContent(blog.content);
   const publishedRaw = blog.blogpublisheddate || blog.createdAt;
   const dateDisplay = formatDateGB(publishedRaw);
-  const dateModifiedISO = formatDateISO(blog.updatedAt);
+  const { datePublished, dateModified } = getBlogSchemaDates({
+    publishDate: publishedRaw,
+    createdAt: blog.createdAt,
+    updatedAt: blog.updatedAt,
+  });
 
+  const plainBody = staticContent.replace(/<[^>]*>/g, "");
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     headline: blog.metaTitle || blog.name,
     description: blog.metaDescription || blog.blogShortDescription,
     image: heroImage,
-    datePublished: formatDateISO(publishedRaw),
-    dateModified: dateModifiedISO,
-    articleBody: staticContent.replace(/<[^>]*>/g, ""),
-    wordCount: staticContent.split(/\s+/).length,
-    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+    datePublished,
+    dateModified,
+    articleBody: plainBody,
+    wordCount: plainBody.split(/\s+/).filter(Boolean).length,
+    url: canonicalUrl,
   };
 
   // Parse any backend-provided metaschemas (array of JSON strings)

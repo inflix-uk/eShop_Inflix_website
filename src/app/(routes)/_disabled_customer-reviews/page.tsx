@@ -24,8 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!metaData) {
     return {
-      title: "Customer Reviews | Zextons Tech Store",
-      description: "Read customer reviews about Zextons Tech Store",
+      title: "Customer Reviews | Store",
+      description: "Read customer reviews about Store",
       robots: "index, follow",
     };
   }
@@ -36,23 +36,23 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: "our store",
       title: metaData.titleTag,
-      url: "https://zextons.co.uk/customer-reviews",
+      url: "https:///customer-reviews",
       description: metaData.metaDescription,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
+      site: "",
       title: metaData.titleTag,
       description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/customer-reviews",
-      languages: { "en-gb": "https://zextons.co.uk/customer-reviews" },
+      canonical: "https:///customer-reviews",
+      languages: { "en-gb": "https:///customer-reviews" },
     },
   };
 }
@@ -88,7 +88,7 @@ export default async function CustomerReviews() {
         <div className="mx-auto">
           <h3 className="text-2xl font-bold text-gray-600 my-10">
            {` We are proud to have received a range of feedback from our valued
-            customers. At Zextons, we strive to provide top-quality service and
+            customers. At our store, we strive to provide top-quality service and
             products, and we're grateful for your support. Here are some of the
             latest reviews shared on Trustpilot: `}
           </h3>
@@ -105,7 +105,7 @@ export default async function CustomerReviews() {
             data-review-languages="en"
           >
             <a
-              href="https://uk.trustpilot.com/review/zextons.co.uk"
+              href="https://uk.trustpilot.com/review/"
               target="_blank"
               rel="noopener"
             >
@@ -117,7 +117,7 @@ export default async function CustomerReviews() {
               {`   If you’ve had a positive experience with us, we’d love to hear
               from you! Your feedback helps us continue to improve and serve you
               better. Leave a review today and let us know how we’re doing.
-              Thank you for choosing Zextons! `}
+              Thank you for choosing our store! `}
             </p>
           </div>
         </div>

@@ -22,7 +22,7 @@ export default function WarrantyPage() {
     {
       question: "1. Is the warranty available for all refurbished products?",
       answer:
-        "Yes. Every refurbished device purchased directly from Zextons includes our full 18-month warranty at no extra cost.",
+        "Yes. Every refurbished device purchased directly from our store includes our full 18-month warranty at no extra cost.",
     },
     {
       question: "2. Do brand-new devices also have warranty coverage?",
@@ -32,7 +32,7 @@ export default function WarrantyPage() {
     {
       question: "3. Can I transfer my warranty to someone else?",
       answer:
-        "No, the warranty is only valid for the original buyer who purchased directly from Zextons.",
+        "No, the warranty is only valid for the original buyer who purchased directly from our store.",
     },
     {
       question: "4. How long does a repair take under warranty?",
@@ -56,17 +56,17 @@ export default function WarrantyPage() {
       <main className="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">
         <div>
           <h1 className="text-3xl font-bold text-primary mb-6">
-            Zextons 18-Month Warranty – Buy with Confidence in the UK
+            our store 18-Month Warranty – Buy with Confidence in the UK
           </h1>
 
           <div className="prose prose-lg max-w-none">
             <p className="text-gray-700 mb-8 leading-relaxed">
               When you buy a refurbished phone, tablet, or laptop from{" "}
               <Link
-                href="https://zextons.co.uk"
+                href="https://"
                 className="text-primary hover:underline font-semibold"
               >
-                Zextons
+                our store
               </Link>
               , you&apos;re not just saving money — you&apos;re investing in
               peace of mind. Every refurbished device we sell is backed by our
@@ -149,7 +149,7 @@ export default function WarrantyPage() {
                   </h3>
                   <p className="text-gray-700">
                     Reach our support team via the Contact Page or email
-                    hello@zextons.co.uk.
+                    hello@.
                   </p>
                 </div>
 
@@ -186,16 +186,16 @@ export default function WarrantyPage() {
 
             <div className="bg-yellow-50 p-6 rounded-lg mb-8">
               <h2 className="text-2xl font-bold text-primary mb-4 flex items-center">
-                💡 Why Choose Zextons Warranty?
+                💡 Why Choose our store Warranty?
               </h2>
               <p className="text-gray-700 mb-4">
                 Most refurbished tech stores offer just 12 months of coverage —
                 but at{" "}
                 <Link
-                  href="https://zextons.co.uk"
+                  href="https://"
                   className="text-primary hover:underline font-semibold"
                 >
-                  Zextons
+                  our store
                 </Link>
                 , we believe our customers deserve more protection and more
                 value.
@@ -240,10 +240,10 @@ export default function WarrantyPage() {
                     Whether you buy a refurbished iPhone, Samsung tablet, or
                     gaming console, you&apos;re always covered by{" "}
                     <Link
-                      href="https://zextons.co.uk"
+                      href="https://"
                       className="text-primary hover:underline font-semibold"
                     >
-                      Zextons
+                      our store
                     </Link>
                     .
                   </p>
@@ -259,10 +259,10 @@ export default function WarrantyPage() {
                 Our 18-month warranty applies to all refurbished and brand-new
                 products sold on{" "}
                 <Link
-                  href="https://zextons.co.uk"
+                  href="https://"
                   className="text-primary hover:underline font-semibold"
                 >
-                  Zextons
+                  our store
                 </Link>
                 , including:
               </p>
@@ -279,10 +279,10 @@ export default function WarrantyPage() {
                 Each product is certified, tested, and protected, giving you
                 full confidence when shopping with{" "}
                 <Link
-                  href="https://zextons.co.uk"
+                  href="https://"
                   className="text-primary hover:underline font-semibold"
                 >
-                  Zextons
+                  our store
                 </Link>
                 .
               </p>
@@ -349,10 +349,10 @@ export default function WarrantyPage() {
                 </li>
                 <li>
                   <Link
-                    href="/about-zextons"
+                    href="/about-us"
                     className="text-primary hover:underline font-semibold"
                   >
-                    About Zextons – Trusted UK Tech Store
+                    About our store – Trusted UK Tech Store
                   </Link>
                 </li>
                 <li>
@@ -376,15 +376,15 @@ export default function WarrantyPage() {
 
             <div className="bg-green-100 p-6 rounded-lg">
               <h2 className="text-2xl font-bold text-primary mb-4 flex items-center">
-                🌿 Confidence + Care = Zextons Guarantee
+                🌿 Confidence + Care = our store Guarantee
               </h2>
               <p className="text-gray-700 mb-4">
                 When you buy from{" "}
                 <Link
-                  href="https://zextons.co.uk"
+                  href="https://"
                   className="text-primary hover:underline font-semibold"
                 >
-                  Zextons
+                  our store
                 </Link>
                 , you&apos;re choosing quality, sustainability, and security.
                 Our 18-month warranty proves that every refurbished device we
@@ -393,10 +393,10 @@ export default function WarrantyPage() {
               <p className="text-gray-700 font-semibold">
                 Shop smart, buy safe, and stay protected — only at{" "}
                 <Link
-                  href="https://zextons.co.uk"
+                  href="https://"
                   className="text-primary hover:underline font-semibold"
                 >
-                  Zextons.co.uk
+                  
                 </Link>
                 .
               </p>

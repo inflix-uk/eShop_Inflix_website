@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { getCanonical } from "@/lib/getCanonical";
+import { buildStorePageMetadata } from "@/lib/pageMetadata";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const canonicalUrl = await getCanonical("/payment-successful");
-  return {
-    title: "Payment successful | Zextons Tech Store",
-    description: "Your payment was completed successfully.",
-    robots: "noindex, follow",
-    openGraph: { url: canonicalUrl, type: "website" },
-    alternates: { canonical: canonicalUrl },
-  };
+  return buildStorePageMetadata({
+    path: "/payment-successful",
+    fallbackTitle: "Payment successful",
+    fallbackDescription: "Your payment was successful.",
+  });
 }
 
 export default function PaymentSuccessfulLayout({

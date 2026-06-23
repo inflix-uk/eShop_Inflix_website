@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCanonical } from "@/lib/getCanonical";
+import { getStoreIdentity, ogImagesFromUrl } from "@/lib/storeIdentity";
 
 // Function to fetch subcategory data dynamically
 async function getSubCategoryData(subcategoryName: string) {
@@ -41,6 +42,12 @@ export async function generateMetadata({
   }
   const { metaTitle, metaDescription, metaKeywords, banner } = response;
   const canonicalUrl = await getCanonical(`/subcategory/${subCategoryName}`);
+  const identity = await getStoreIdentity();
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const bannerUrl = banner?.path
+    ? `${apiBase}/${String(banner.path).replace(/^\//, "")}`
+    : identity.ogImageUrl;
+  const images = ogImagesFromUrl(bannerUrl);
 
   return {
     title: metaTitle || "",
@@ -48,31 +55,18 @@ export async function generateMetadata({
     keywords: metaKeywords || "",
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons Tech Store",
+      ...(identity.siteName ? { siteName: identity.siteName } : {}),
       title: metaTitle || "",
       url: canonicalUrl,
       description: metaDescription || "",
       type: "website",
-      images: [
-        {
-          url: banner?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      ...(images.length ? { images } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
       title: metaTitle || "",
       description: metaDescription || "",
-      images: [
-        {
-          url: banner?.path
-            ? `${process.env.NEXT_PUBLIC_API_URL}/${banner.path}`
-            : `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-        },
-      ],
+      ...(images.length ? { images } : {}),
     },
     alternates: {
       canonical: canonicalUrl,

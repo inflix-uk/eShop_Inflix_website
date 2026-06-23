@@ -53,7 +53,7 @@ export default function SubscribeNewsletter() {
               <Link
                 href={"/"}
                 className="hover:underline"
-                aria-label="Go to Zextons Home"
+                aria-label="Go to our store Home"
               >
                 Home
               </Link>

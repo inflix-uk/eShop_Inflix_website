@@ -13,7 +13,7 @@ export async function GET() {
 
   try {
     const res = await fetch(upstreamAllBlogsUrl(), {
-      next: { revalidate: 300 },
+      cache: "no-store",
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
@@ -36,7 +36,7 @@ export async function GET() {
       {
         status: 200,
         headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=300",
+          "Cache-Control": "no-store",
         },
       }
     );

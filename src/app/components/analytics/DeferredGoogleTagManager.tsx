@@ -24,7 +24,7 @@ const ABSOLUTE_FALLBACK_MS = 55000;
 
 declare global {
   interface Window {
-    __zextonsIdlePixels?: boolean;
+    __storeIdlePixels?: boolean;
   }
 }
 
@@ -65,8 +65,8 @@ function injectClarity() {
 export default function DeferredGoogleTagManager() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.__zextonsIdlePixels) return;
-    window.__zextonsIdlePixels = true;
+    if (window.__storeIdlePixels) return;
+    window.__storeIdlePixels = true;
 
     let cancelled = false;
     let fired = false;

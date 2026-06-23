@@ -3,7 +3,7 @@ import TopBar from "@/app/topbar/page";
 import React from "react";
 import Link from "next/link";
 
-export default function AboutZextons() {
+export default function AboutStore() {
   return (
     <div>
       <header className="relative">
@@ -15,7 +15,7 @@ export default function AboutZextons() {
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h1 className="text-3xl font-bold mb-6 text-primary">
-            About Zextons Tech Store
+            About Store
           </h1>
           <p className="text-xl mb-8 text-gray-700 font-medium">
             Your Trusted Source for Refurbished & New Tech in the UK
@@ -27,7 +27,7 @@ export default function AboutZextons() {
           {/* Introduction Section */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 mb-12 border border-blue-100">
             <p className="mb-6 text-gray-700 leading-relaxed">
-              At Zextons, we believe everyone deserves access to premium
+              At our store, we believe everyone deserves access to premium
               technology — without overpaying or harming the planet. For over 15
               years, we&apos;ve been delivering refurbished and brand-new tech
               that combines quality, affordability, and sustainability. From
@@ -177,14 +177,14 @@ export default function AboutZextons() {
             </div>
           </div>
 
-          {/* Why Choose Zextons Section */}
+          {/* Why Choose our store Section */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 border border-gray-100">
             <div className="flex items-center mb-8">
               <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-4">
                 <span className="text-white text-xl">⭐</span>
               </div>
               <h2 className="text-3xl font-bold text-primary">
-                Why Choose Refurbished from Zextons
+                Why Choose Refurbished from our store
               </h2>
             </div>
             <p className="mb-8 text-gray-700 leading-relaxed">
@@ -285,7 +285,7 @@ export default function AboutZextons() {
               </h2>
             </div>
             <p className="mb-8 text-gray-700 leading-relaxed">
-              At Zextons, we go the extra mile to ensure every customer gets
+              At our store, we go the extra mile to ensure every customer gets
               reliability, performance, and value.
             </p>
             <div className="grid md:grid-cols-2 gap-6">
@@ -396,7 +396,7 @@ export default function AboutZextons() {
               >
                 <span className="text-2xl mr-3">🆘</span>
                 <span className="font-medium text-gray-800">
-                  Zextons Help Center
+                  our store Help Center
                 </span>
               </Link>
               <Link
@@ -458,7 +458,7 @@ export default function AboutZextons() {
                 <span className="text-white text-xl">👥</span>
               </div>
               <h2 className="text-3xl font-bold text-primary">
-                Join the Zextons Community
+                Join the our store Community
               </h2>
             </div>
             <p className="mb-8 text-gray-700 leading-relaxed">
@@ -523,10 +523,10 @@ export default function AboutZextons() {
           {/* Final CTA Section */}
           <div className="bg-gradient-to-r from-primary to-blue-600 rounded-2xl p-12 text-center text-white">
             <h2 className="text-3xl font-bold mb-6">
-              Experience the Zextons Difference
+              Experience the our store Difference
             </h2>
             <p className="text-xl mb-8 leading-relaxed">
-              At Zextons, we&apos;re not just selling devices — we&apos;re
+              At our store, we&apos;re not just selling devices — we&apos;re
               building trust, empowering users, and shaping a sustainable tech
               future.
             </p>
@@ -538,7 +538,7 @@ export default function AboutZextons() {
                 href="/"
                 className="text-yellow-300 hover:text-yellow-200 underline"
               >
-                Zextons Tech Store
+                Store
               </Link>
               .
             </p>

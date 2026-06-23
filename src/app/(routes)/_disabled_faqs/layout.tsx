@@ -20,8 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!metaData) {
     return {
-      title: "FAQs | Zextons Tech Store",
-      description: "Frequently asked questions about Zextons Tech Store",
+      title: "FAQs | Store",
+      description: "Frequently asked questions about Store",
       robots: "index, follow",
     };
   }
@@ -32,23 +32,23 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: "our store",
       title: metaData.titleTag,
-      url: "https://zextons.co.uk/faqs",
+      url: "https:///faqs",
       description: metaData.metaDescription,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
+      site: "",
       title: metaData.titleTag,
       description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/faqs",
-      languages: { "en-gb": "https://zextons.co.uk/faqs" },
+      canonical: "https:///faqs",
+      languages: { "en-gb": "https:///faqs" },
     },
   };
 }

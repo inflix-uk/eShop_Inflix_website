@@ -20,8 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!metaData) {
     return {
-      title: "Terms and Conditions | Zextons Tech Store",
-      description: "Terms and conditions for Zextons Tech Store",
+      title: "Terms and Conditions | Store",
+      description: "Terms and conditions for Store",
       robots: "index, follow",
     };
   }
@@ -32,23 +32,23 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: "our store",
       title: metaData.titleTag,
-      url: "https://zextons.co.uk/terms-and-conditions",
+      url: "https:///terms-and-conditions",
       description: metaData.metaDescription,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
+      site: "",
       title: metaData.titleTag,
       description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/terms-and-conditions",
-      languages: { "en-gb": "https://zextons.co.uk/terms-and-conditions" },
+      canonical: "https:///terms-and-conditions",
+      languages: { "en-gb": "https:///terms-and-conditions" },
     },
   };
 }

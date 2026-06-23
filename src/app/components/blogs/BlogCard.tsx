@@ -67,9 +67,13 @@ export default function BlogCard(
     }
   }
 
-  const publishDate = blog.publishDate || blog.blogpublisheddate || blog.createdAt;
-  const dateLabel = publishDate
-    ? new Date(publishDate).toLocaleDateString("en-GB", {
+  const cardDate =
+    blog.updatedAt ||
+    blog.publishDate ||
+    blog.blogpublisheddate ||
+    blog.createdAt;
+  const dateLabel = cardDate
+    ? new Date(cardDate).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
         year: "numeric",

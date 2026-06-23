@@ -1,8 +1,6 @@
-import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
-import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
-import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 import { notFound } from "next/navigation";
 import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
+import { FooterPageShell, isPublishedFooterPage } from "@/app/lib/footerPagePublic";
 import { fetchFooterPageBySlugFresh } from "@/app/services/footerPageService";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
@@ -12,9 +10,7 @@ function isPublishedWithBlocks(page: {
   publishStatus?: string;
   blocks?: unknown[];
 }): boolean {
-  const pub = String(page.publishStatus ?? "").toLowerCase().trim();
-  if (pub !== "published") return false;
-  return Array.isArray(page.blocks) && page.blocks.length > 0;
+  return isPublishedFooterPage(page as never);
 }
 
 export default async function DynamicPage({
@@ -35,12 +31,9 @@ export default async function DynamicPage({
     notFound();
   }
   return (
-    <>
-      {/* <SlugRouteHeader /> */}
-      <NavbarVariantTestBar config={navbarVariantTestConfig} />
-      <div className="max-w-7xl mx-auto p-6">
-        <FooterPageContent page={page} />
-      </div>
-    </>
+    <FooterPageShell
+      page={page}
+      navbarVariantTestConfig={navbarVariantTestConfig}
+    />
   );
 }

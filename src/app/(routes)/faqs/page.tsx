@@ -100,18 +100,18 @@ export default function FAQSPage() {
         "Yes, we offer comprehensive technical support for all our devices. Our team can assist you with troubleshooting, software updates, and other technical inquiries",
     },
   ];
-  const AboutZextons = [
+  const AboutStore = [
     {
-      question: "What is Zextons' mission?",
+      question: "What is our store' mission?",
       answer:
         "Our mission is to make high-quality tech accessible and affordable for everyone, while also minimizing our environmental impact by promoting the reuse of electronic devices.",
     },
     {
-      question: "How long has Zextons been in business?",
+      question: "How long has our store been in business?",
       answer: "We've been serving customers for over 15 years!",
     },
     {
-      question: "Why should I choose Zextons for my refurbished tech needs?",
+      question: "Why should I choose our store for my refurbished tech needs?",
       answer:
         "We offer a wide selection of top-quality devices at competitive prices. We prioritize customer satisfaction with exceptional service and support. Plus, by choosing refurbished, you're making a responsible choice for the environment.",
     },
@@ -228,10 +228,10 @@ export default function FAQSPage() {
             ))}
           </dl>
           <h2 className="text-3xl font-bold text-primary mb-4 mt-10">
-            About Zextons
+            About our store
           </h2>
           <dl className=" space-y-6 divide-y divide-gray-900/10">
-            {AboutZextons.map((about) => (
+            {AboutStore.map((about) => (
               <Disclosure as="div" key={about.question} className="pt-6">
                 {({ open }) => (
                   <>
@@ -332,7 +332,7 @@ export default function FAQSPage() {
               </p>
               <p className="font-bold mt-4">
                 Email:{" "}
-                <a href="mailto:hello@zextons.co.uk">hello@zextons.co.uk</a> –
+                <a href="mailto:hello@">hello@</a> –
                 Phone: 0333 344 8541
               </p>
             </div>
@@ -349,7 +349,7 @@ export default function FAQSPage() {
           )}
         </div>
         <p className="mt-5">
-          {`We hope this FAQ helps answer your questions about Zextons and our
+          {`We hope this FAQ helps answer your questions about our store and our
           selection of refurbished devices. If you have any further questions,
           please don't hesitate to contact us! We're here to help!`}
         </p>

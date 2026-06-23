@@ -8,6 +8,7 @@ import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPu
 import { SITE_ANNOUNCEMENT_TOP_OFFSET } from "@/app/components/AnnouncementBar";
 import { parseStickyNavbarFlag } from "@/app/lib/parseStickyNavbarFlag";
 import NavbarCart from "@/app/components/navbar/NavbarCart";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 interface NavbarVariantTestBarProps {
   config: NavbarVariantTestConfig | null;
@@ -29,7 +30,7 @@ export default function NavbarVariantTestBar({
   const effectiveLogoText =
     String(cfg.logoText || "").trim() ||
     String(serverBootstrapLogo?.logoAlt || "").trim() ||
-    "Zextons";
+    DEFAULT_LOGO_ALT;
   const linkTextColor = String(cfg.menuLinkTextColor || "#334155");
   const linkHoverColor = String(cfg.menuLinkHoverColor || "#0f172a");
 

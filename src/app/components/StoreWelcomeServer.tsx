@@ -330,17 +330,17 @@ const getFeatureIcon = (feature: string) => {
   return <CheckCircleIcon />; // Default icon if no specific match
 };
 
-const ZextonsWelcome: React.FC = () => {
+const StoreWelcome: React.FC = () => {
   const welcomeData: WelcomeSectionData[] = [
     {
-      title: "Welcome to Zextons – Your Trusted Tech Store in the UK",
+      title: "Welcome to our store – Your Trusted Tech Store in the UK",
       content: [
-        "Looking for high-quality refurbished phones, tablets, and tech accessories? At Zextons, we offer expertly tested, warranty-backed devices at unbeatable prices — with next-day delivery and 5-star service you can rely on.",
+        "Looking for high-quality refurbished phones, tablets, and tech accessories? At our store, we offer expertly tested, warranty-backed devices at unbeatable prices — with next-day delivery and 5-star service you can rely on.",
       ],
       type: "default",
     },
     {
-      title: "Why Choose Zextons?",
+      title: "Why Choose our store?",
       content: [
         "18-Month Warranty on all refurbished devices",
         "Free UK Next-Day Delivery",
@@ -376,8 +376,8 @@ const ZextonsWelcome: React.FC = () => {
       date: "30 July 2025",
       reply: {
         text: "Thank you for the great feedback! 😊 We're glad your phone arrived on time and that you appreciated the free case and screen protector. It's also great to hear our team was able to assist you promptly — we're always happy to help!",
-        email: "hello@zextons.co.uk",
-        website: "zextons.co.uk",
+        email: "hello@",
+        website: "",
       },
     },
     {
@@ -399,7 +399,7 @@ const ZextonsWelcome: React.FC = () => {
       rating: 5,
       timeAgo: "18 hours ago",
       reviewText:
-        "Ordered on a Sunday at 1600hrs. Delivered Tuesday at 1200hrs. Tracked parcel with signature required.Excellent service with a great price. Included a phone cover and screen glass. Would definitely to buy again from Zextons.",
+        "Ordered on a Sunday at 1600hrs. Delivered Tuesday at 1200hrs. Tracked parcel with signature required.Excellent service with a great price. Included a phone cover and screen glass. Would definitely to buy again from our store.",
       date: "3 August 2025",
     },
     {
@@ -425,9 +425,9 @@ const ZextonsWelcome: React.FC = () => {
         "All refurbished devices come with an 18-month warranty. Brand new items follow manufacturer warranty terms.",
     },
     {
-      question: "Are Zextons devices unlocked?",
+      question: "Are our store devices unlocked?",
       answer:
-        "Yes! All phones and tablets sold by Zextons are unlocked and SIM-free, ready to use with any UK network.",
+        "Yes! All phones and tablets sold by our store are unlocked and SIM-free, ready to use with any UK network.",
     },
     {
       question: "Is next-day delivery really free?",
@@ -533,7 +533,7 @@ const ZextonsWelcome: React.FC = () => {
                   className="text-green-800 underline underline-offset-2 hover:text-green-900 font-semibold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded"
                 >
                   See full grading guide
-                </Link>
+                 </Link>
               </div>
             </CustomCardContent>
           </CustomCard>
@@ -592,7 +592,7 @@ const ZextonsWelcome: React.FC = () => {
       <CustomCard className="mb-12">
         <CustomCardHeader>
           <CustomCardTitle className="text-2xl font-bold text-gray-900">
-            Why Customers Love Zextons
+            Why Customers Love our store
           </CustomCardTitle>
         </CustomCardHeader>
         <CustomCardContent>
@@ -706,7 +706,7 @@ const ZextonsWelcome: React.FC = () => {
       <CustomCard className="mb-12">
         <CustomCardHeader>
           <CustomCardTitle className="text-2xl font-bold text-gray-800">
-            FAQs – Zextons at a Glance
+            FAQs – our store at a Glance
           </CustomCardTitle>
         </CustomCardHeader>
         <CustomCardContent>
@@ -738,12 +738,12 @@ const ZextonsWelcome: React.FC = () => {
                 <h3 className="flex justify-center items-center gap-2 font-semibold text-gray-900 mb-2 text-xl">
                   <MailIcon /> Email
                 </h3>
-                <Link
-                  href="mailto:hello@zextons.co.uk"
+                <a
+                  href="mailto:hello@"
                   className="text-green-700 hover:text-green-800 underline underline-offset-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded"
                 >
-                  hello@zextons.co.uk
-                </Link>
+                  hello@
+                 </a>
               </CustomCardContent>
             </CustomCard>
             <CustomCard className="text-center p-4">
@@ -751,12 +751,12 @@ const ZextonsWelcome: React.FC = () => {
                 <h3 className="flex justify-center items-center gap-2 font-semibold text-gray-900 mb-2 text-xl">
                   <PhoneIcon /> Phone
                 </h3>
-                <Link
+                <a
                   href="tel:03333448541"
                   className="text-green-700 hover:text-green-800 underline underline-offset-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded"
                 >
                   0333 344 8541
-                </Link>
+                 </a>
               </CustomCardContent>
             </CustomCard>
             <CustomCard className="text-center p-4">
@@ -774,4 +774,4 @@ const ZextonsWelcome: React.FC = () => {
   );
 };
 
-export default ZextonsWelcome;
+export default StoreWelcome;

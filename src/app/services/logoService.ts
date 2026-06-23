@@ -4,15 +4,10 @@
  */
 
 import { cache } from "react";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
-// Origin only — paths are joined as `${base}/get/logo` (avoid `//` after host).
-const getApiBaseUrl = (): string => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) return "";
-  return apiUrl.replace(/\/+$/, "");
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = resolveCmsApiBase();
 
 export interface LogoResponse {
   success: boolean;
@@ -113,7 +108,7 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
         if (data.success && data.data && data.data.logoUrl && data.data.logoUrl.trim() !== '') {
           const fullUrl = getLogoUrl(data.data.logoUrl);
           if (fullUrl) {
-            const altText = data.data.altText || 'Zextons';
+            const altText = data.data.altText?.trim() || DEFAULT_LOGO_ALT;
             return { logoUrl: fullUrl, altText };
           }
         }
@@ -130,13 +125,13 @@ export async function getLogo(): Promise<{ logoUrl: string; altText: string } | 
 }
 
 /**
- * Strips legacy stock “Zextons” web image when the admin API still points the favicon at it.
+ * Strips legacy stock “our store” web image when the admin API still points the favicon at it.
  * Otherwise non-HTML routes (e.g. `/sitemap.xml`) pick it up via `/favicon.ico` / metadata icons.
  */
 function sanitizePublicFaviconUrl(url: string | null): string | null {
   if (!url || url.trim() === "") return null;
   const pathOnly = url.split("?")[0].toLowerCase();
-  if (/\/uploads\/web\/zextons\.(webp|png|jpg|jpeg|ico)$/i.test(pathOnly)) {
+  if (/\/uploads\/web\/store\.(webp|png|jpg|jpeg|ico)$/i.test(pathOnly)) {
     return null;
   }
   return url;
@@ -184,7 +179,7 @@ async function fetchLogoSettingsPublic(): Promise<LogoSettings | null> {
 
         return {
           logoUrl,
-          altText: data.data.altText || 'Zextons',
+          altText: data.data.altText?.trim() || DEFAULT_LOGO_ALT,
           faviconUrl,
           faviconVersion,
         };

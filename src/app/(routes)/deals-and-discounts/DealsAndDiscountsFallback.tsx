@@ -231,7 +231,7 @@ export default function DealsAndDiscountsFallback() {
           <Link
             href="/"
             className="hover:underline"
-            aria-label="Go to Zextons Home"
+            aria-label="Go to our store Home"
           >
             Home
           </Link>
@@ -246,7 +246,7 @@ export default function DealsAndDiscountsFallback() {
           Deals & Discounts
         </h1>
         <p className="text-lg md:text-xl">
-          The latest promo codes and offers at Zextons and how to use them.
+          The latest promo codes and offers at our store and how to use them.
         </p>
       </div>
 

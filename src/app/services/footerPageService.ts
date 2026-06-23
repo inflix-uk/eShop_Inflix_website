@@ -4,6 +4,7 @@
  */
 
 import { cache } from "react";
+import { normalizeApiOriginForFetch } from "@/app/lib/cmsApiBase";
 import { cmsServerFetch } from "@/app/lib/cmsServerFetch";
 
 // Get API base URL from environment variable
@@ -11,10 +12,9 @@ import { cmsServerFetch } from "@/app/lib/cmsServerFetch";
 const getApiBaseUrl = (): string => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) {
-    console.warn('NEXT_PUBLIC_API_URL is not set in environment variables. Using default.');
-    return 'http://localhost:4000';
+    return normalizeApiOriginForFetch("http://localhost:4000");
   }
-  return apiUrl;
+  return normalizeApiOriginForFetch(apiUrl);
 };
 
 const API_BASE_URL = getApiBaseUrl();

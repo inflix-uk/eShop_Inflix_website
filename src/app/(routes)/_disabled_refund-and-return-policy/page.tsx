@@ -24,7 +24,7 @@ export default function RefundAndReturnPolicy() {
         </nav>
         <div className="flex justify-between items-center bg-gray-200 p-5">
           <div className="text-primary">
-            <span className="text-primary">Zextons</span> – Tech Store – 27
+            <span className="text-primary">our store</span> – Tech Store – 27
             Church Street | St Helens | WA10 1AX
           </div>
           <div className="flex items-center space-x-2">
@@ -40,10 +40,10 @@ export default function RefundAndReturnPolicy() {
               </g>
             </svg>
             <a
-              href="mailto:hello@zextons.co.uk"
+              href="mailto:hello@"
               className="text-primary hover:underline"
             >
-              hello@zextons.co.uk
+              hello@
             </a>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function RefundAndReturnPolicy() {
         </div>
         <div className="p-6 bg-card text-card-foreground">
           <h1 className="text-3xl font-bold text-primary mb-4">
-            Zextons’s Return and Refund Policy
+            our store’s Return and Refund Policy
           </h1>
           <p className="mb-4">
             This detailed return and refund policy supplements the general
@@ -126,10 +126,10 @@ export default function RefundAndReturnPolicy() {
                 </strong>{" "}
                 Contact our customer service team at{" "}
                 <a
-                  href="mailto:hello@zextons.co.uk"
+                  href="mailto:hello@"
                   className="text-primary hover:underline"
                 >
-                  hello@zextons.co.uk
+                  hello@
                 </a>{" "}
                 to obtain an RMA number. This helps us track your return and
                 expedite processing.
@@ -145,7 +145,7 @@ export default function RefundAndReturnPolicy() {
                 (recommended):
               </li>
             </ul>
-            <p>Zextons Tech Store 27 Church Street St Helens WA10 1AX</p>
+            <p>Store 27 Church Street St Helens WA10 1AX</p>
           </section>
           <section className="mb-8">
             <h2 className="text-2xl font-bold text-primary mb-4">
@@ -251,10 +251,10 @@ export default function RefundAndReturnPolicy() {
               {` If you have any questions regarding our return and refund policy,
               please don't hesitate to contact us at `}
               <a
-                href="mailto:hello@zextons.co.uk"
+                href="mailto:hello@"
                 className="text-primary hover:underline"
               >
-                hello@zextons.co.uk
+                hello@
               </a>
               .
             </p>

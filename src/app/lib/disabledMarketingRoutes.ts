@@ -11,7 +11,7 @@ const DISABLED = new Set([
   "sustainability",
   "18-months-warranty",
   "faqs",
-  "about-zextons",
+  "about-us",
   "deals-and-discounts",
 ]);
 

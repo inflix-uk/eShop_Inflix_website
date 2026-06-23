@@ -10,6 +10,7 @@ import {
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
 } from "@/app/lib/siteWidgetVisibilityDefaults";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 import {
   getTrustpilotSettings,
   type TrustpilotSettings,
@@ -136,7 +137,7 @@ export const getHomeServerCmsBundle = cache(
       logoRow?.logoUrl?.trim() && logoRow.logoUrl.trim().length > 0
         ? {
             logoUrl: logoRow.logoUrl.trim(),
-            altText: logoRow.altText?.trim() || "Zextons",
+            altText: logoRow.altText?.trim() || DEFAULT_LOGO_ALT,
           }
         : null;
     const rawHomepageBlocks = homepageData?.blocks?.length ? homepageData.blocks : [];

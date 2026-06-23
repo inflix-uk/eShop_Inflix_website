@@ -11,7 +11,7 @@ import type {
   AnnouncementSocialLinkPublic,
 } from "@/app/services/announcementBannerService";
 
-const STORAGE_KEY = "zextons_announcement_dismissed_updated_at";
+const STORAGE_KEY = "store_announcement_dismissed_updated_at";
 
 /** Synced to `document.documentElement` so fixed/sticky navbars can sit below the bar (see `BlogNavbarWidget`, `NavbarVariantTestBar`). */
 export const SITE_ANNOUNCEMENT_BANNER_HEIGHT_VAR = "--site-announcement-banner-height";

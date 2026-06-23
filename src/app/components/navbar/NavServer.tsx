@@ -15,7 +15,7 @@ export default function NavServer({ categories }: NavServerProps) {
       itemScope
       itemType="https://schema.org/SiteNavigationElement"
     >
-      <h1>Zextons - UK&apos;s Premium Refurbished Electronics Store</h1>
+      <h1>Store navigation</h1>
       <p>
         Browse all our product categories and pages - Hidden navigation for
         search engines
@@ -89,9 +89,9 @@ export default function NavServer({ categories }: NavServerProps) {
           <Link href="/deals-and-discounts">Deals</Link>
         </li>
         */}
-        {/* Route disabled (404): /about-zextons
+        {/* Route disabled (404): /about-us
         <li>
-          <Link href="/about-zextons">About</Link>
+          <Link href="/about-us">About</Link>
         </li>
         */}
         {/* <li>

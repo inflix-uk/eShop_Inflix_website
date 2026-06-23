@@ -24,7 +24,7 @@ export default function TermsandConditions() {
         </nav>
         <div className="flex justify-between items-center bg-gray-200 p-5">
           <div className="text-primary">
-            <span className="text-primary">Zextons</span> – Tech Store – 81 Bury
+            <span className="text-primary">our store</span> – Tech Store – 81 Bury
             New Road, Manchester, M8 8FX, United Kingdom
           </div>
           <div className="flex items-center space-x-2">
@@ -40,10 +40,10 @@ export default function TermsandConditions() {
               </g>
             </svg>
             <a
-              href="mailto:hello@zextons.co.uk"
+              href="mailto:hello@"
               className="text-primary hover:underline"
             >
-              hello@zextons.co.uk
+              hello@
             </a>
           </div>
         </div>
@@ -70,21 +70,21 @@ export default function TermsandConditions() {
             </h2>
             <p className="mb-2">
               <strong>1.1</strong> In these Terms and Conditions
-              (&quot;Terms&quot;), &quot;Zextons&quot;, &quot;we&quot;,
-              &quot;us&quot;, and &quot;our&quot; refer to Zextons Limited,
+              (&quot;Terms&quot;), &quot;our store&quot;, &quot;we&quot;,
+              &quot;us&quot;, and &quot;our&quot; refer to our store Limited,
               Company Number 10256988, VAT Number 379187051, whose trading
               address is 81 Bury New Road, Manchester, M8 8FX, United Kingdom.
             </p>
             <p className="mb-2">
               <strong>1.2</strong> &quot;Customer&quot;, &quot;you&quot;, and
               &quot;your&quot; refer to any person placing an order through
-              Zextons.co.uk or collecting goods via an authorised collection
+               or collecting goods via an authorised collection
               point.
             </p>
             <p className="mb-2">
               <strong>1.3</strong> &quot;Device&quot; refers to any mobile
               phone, tablet, accessory, or electronic product supplied by
-              Zextons.
+              our store.
             </p>
             <p className="mb-2">
               <strong>1.4</strong> &quot;Brand New Device&quot; means a device
@@ -104,7 +104,7 @@ export default function TermsandConditions() {
             </p>
             <p className="mb-2">
               <strong>1.7</strong> &quot;RMA&quot; refers to a Return
-              Merchandise Authorisation number issued by Zextons for approved
+              Merchandise Authorisation number issued by our store for approved
               returns.
             </p>
             <p className="mb-2">
@@ -120,7 +120,7 @@ export default function TermsandConditions() {
             </h2>
             <p className="mb-2">
               <strong>2.1</strong> These Terms govern the sale and supply of
-              Products from Zextons to the Customer.
+              Products from our store to the Customer.
             </p>
             <p className="mb-2">
               <strong>2.2</strong> By placing an order, you confirm that you
@@ -144,7 +144,7 @@ export default function TermsandConditions() {
               3. Account Creation and Customer Obligations
             </h2>
             <p className="mb-2">
-              <strong>3.1</strong> Zextons does not permit guest checkout. A
+              <strong>3.1</strong> our store does not permit guest checkout. A
               registered customer account is required to place an order.
             </p>
             <p className="mb-2">
@@ -153,7 +153,7 @@ export default function TermsandConditions() {
             </p>
             <p className="mb-2">
               <strong>3.3</strong> You must maintain the confidentiality of your
-              login credentials. Zextons accepts no liability for unauthorised
+              login credentials. our store accepts no liability for unauthorised
               access resulting from customer negligence.
             </p>
             <p className="mb-2">
@@ -167,7 +167,7 @@ export default function TermsandConditions() {
               4. Product Information and Description Accuracy
             </h2>
             <p className="mb-2">
-              <strong>4.1</strong> Zextons endeavours to describe and display
+              <strong>4.1</strong> our store endeavours to describe and display
               products as accurately as possible. However, minor variations may
               occur due to manufacturer changes, lighting, screen differences,
               or cosmetic tolerances.
@@ -183,7 +183,7 @@ export default function TermsandConditions() {
               reflect brand-new capacity.
             </p>
             <p className="mb-2">
-              <strong>4.4</strong> Zextons shall not be held liable for minor
+              <strong>4.4</strong> our store shall not be held liable for minor
               variations that do not materially affect device performance.
             </p>
           </section>
@@ -198,7 +198,7 @@ export default function TermsandConditions() {
             </p>
             <p className="mb-2">
               <strong>5.2</strong> Such devices carry a 12-month manufacturer
-              warranty, or where unavailable, a 12-month Zextons warranty of
+              warranty, or where unavailable, a 12-month our store warranty of
               equivalent protection.
             </p>
             <p className="mb-2">
@@ -219,7 +219,7 @@ export default function TermsandConditions() {
             </p>
             <p className="mb-2">
               <strong>6.2</strong> All refurbished devices include an 18-month
-              Zextons Warranty covering hardware and manufacturing defects.
+              our store Warranty covering hardware and manufacturing defects.
             </p>
             <p className="mb-2">
               <strong>6.3</strong> Refurbished grades:
@@ -244,7 +244,7 @@ export default function TermsandConditions() {
               without notice.
             </p>
             <p className="mb-2">
-              <strong>7.2</strong> Zextons accepts the following payment
+              <strong>7.2</strong> our store accepts the following payment
               methods:
             </p>
             <ul className="list-disc list-inside ml-4 mb-2">
@@ -310,7 +310,7 @@ export default function TermsandConditions() {
               </li>
             </ul>
             <p className="mb-2">
-              <strong>8.2</strong> Zextons is not responsible for decisions,
+              <strong>8.2</strong> our store is not responsible for decisions,
               approvals, or refusals made by external financial providers.
             </p>
           </section>
@@ -320,11 +320,11 @@ export default function TermsandConditions() {
               9. Fraud Screening and Verification
             </h2>
             <p className="mb-2">
-              <strong>9.1</strong> Zextons operates advanced fraud screening to
+              <strong>9.1</strong> our store operates advanced fraud screening to
               protect customers and the business.
             </p>
             <p className="mb-2">
-              <strong>9.2</strong> Zextons may request, at its sole discretion:
+              <strong>9.2</strong> our store may request, at its sole discretion:
             </p>
             <ul className="list-disc list-inside ml-4 mb-2">
               <li>Government-issued photo ID</li>
@@ -349,15 +349,15 @@ export default function TermsandConditions() {
             </h2>
             <p className="mb-2">
               <strong>10.1</strong> Order confirmation does not constitute
-              acceptance. Zextons reserves the right to refuse or cancel any
+              acceptance. our store reserves the right to refuse or cancel any
               order prior to dispatch.
             </p>
             <p className="mb-2">
-              <strong>10.2</strong> Acceptance occurs only when Zextons
+              <strong>10.2</strong> Acceptance occurs only when our store
               dispatches the item.
             </p>
             <p className="mb-2">
-              <strong>10.3</strong> Zextons is not liable for errors in
+              <strong>10.3</strong> our store is not liable for errors in
               customer-supplied information including address or contact
               details.
             </p>
@@ -384,7 +384,7 @@ export default function TermsandConditions() {
               guaranteed.
             </p>
             <p className="mb-2">
-              <strong>11.5</strong> Zextons is not liable for delays caused by
+              <strong>11.5</strong> our store is not liable for delays caused by
               couriers.
             </p>
             <p className="mb-2">
@@ -428,11 +428,11 @@ export default function TermsandConditions() {
               collection.
             </p>
             <p className="mb-2">
-              <strong>13.3</strong> Customers must contact Zextons to confirm
+              <strong>13.3</strong> Customers must contact our store to confirm
               stock.
             </p>
             <p className="mb-2">
-              <strong>13.4</strong> Zextons may require ID for collection
+              <strong>13.4</strong> our store may require ID for collection
               verification.
             </p>
           </section>
@@ -503,11 +503,11 @@ export default function TermsandConditions() {
               17. Faulty Returns
             </h2>
             <p className="mb-2">
-              <strong>17.1</strong> Customers must contact Zextons before
+              <strong>17.1</strong> Customers must contact our store before
               returning a faulty device.
             </p>
             <p className="mb-2">
-              <strong>17.2</strong> Zextons will troubleshoot the issue remotely
+              <strong>17.2</strong> our store will troubleshoot the issue remotely
               first.
             </p>
             <p className="mb-2">
@@ -526,7 +526,7 @@ export default function TermsandConditions() {
             </h2>
             <p className="mb-2">
               <strong>18.1</strong> Brand New Devices: 12-month warranty.
-              Refurbished Devices: 18-month Zextons warranty.
+              Refurbished Devices: 18-month our store warranty.
             </p>
             <p className="mb-2">
               <strong>18.2</strong> Warranty covers manufacturing or hardware
@@ -561,7 +561,7 @@ export default function TermsandConditions() {
               19. IMEI & Serial Number Recording
             </h2>
             <p className="mb-2">
-              <strong>19.1</strong> Zextons logs IMEI/serial numbers for all
+              <strong>19.1</strong> our store logs IMEI/serial numbers for all
               devices prior to dispatch.
             </p>
             <p className="mb-2">
@@ -579,7 +579,7 @@ export default function TermsandConditions() {
               20. Anti-Fraud Protections
             </h2>
             <p className="mb-2">
-              <strong>20.1</strong> Zextons video-records all return inspections
+              <strong>20.1</strong> our store video-records all return inspections
               and unboxings for evidential purposes.
             </p>
             <p className="mb-2">
@@ -594,7 +594,7 @@ export default function TermsandConditions() {
               <li>Tampering to simulate faults</li>
             </ul>
             <p className="mb-2">
-              <strong>20.3</strong> Zextons reserves the right to pursue legal
+              <strong>20.3</strong> our store reserves the right to pursue legal
               action against fraudulent customers.
             </p>
           </section>
@@ -647,11 +647,11 @@ export default function TermsandConditions() {
               23. Chargeback and Dispute Resolution
             </h2>
             <p className="mb-2">
-              <strong>23.1</strong> Customers must contact Zextons before
+              <strong>23.1</strong> Customers must contact our store before
               opening any chargeback.
             </p>
             <p className="mb-2">
-              <strong>23.2</strong> Zextons will provide banks with:
+              <strong>23.2</strong> our store will provide banks with:
             </p>
             <ul className="list-disc list-inside ml-4 mb-2">
               <li>Proof of delivery</li>
@@ -695,7 +695,7 @@ export default function TermsandConditions() {
               25. Data and Privacy
             </h2>
             <p className="mb-2">
-              <strong>25.1</strong> Zextons processes data in accordance with UK
+              <strong>25.1</strong> our store processes data in accordance with UK
               GDPR.
             </p>
             <p className="mb-2">
@@ -713,7 +713,7 @@ export default function TermsandConditions() {
               26. Liability Limitations
             </h2>
             <p className="mb-2">
-              <strong>26.1</strong> Zextons is not liable for:
+              <strong>26.1</strong> our store is not liable for:
             </p>
             <ul className="list-disc list-inside ml-4 mb-2">
               <li>Loss of data</li>
@@ -732,7 +732,7 @@ export default function TermsandConditions() {
               27. Force Majeure
             </h2>
             <p className="mb-2">
-              <strong>27.1</strong> Zextons shall not be liable for delays or
+              <strong>27.1</strong> our store shall not be liable for delays or
               failures caused by events outside its control, including:
             </p>
             <ul className="list-disc list-inside ml-4 mb-2">
@@ -758,7 +758,7 @@ export default function TermsandConditions() {
               29. Variation of Terms
             </h2>
             <p className="mb-2">
-              <strong>29.1</strong> Zextons may amend these Terms at any time.
+              <strong>29.1</strong> our store may amend these Terms at any time.
             </p>
             <p className="mb-2">
               <strong>29.2</strong> Updated Terms will be published on the
@@ -787,14 +787,14 @@ export default function TermsandConditions() {
             <p className="mb-4">
               📧{" "}
               <a
-                href="mailto:hello@zextons.co.uk"
+                href="mailto:hello@"
                 className="text-primary hover:underline"
               >
-                hello@zextons.co.uk
+                hello@
               </a>
             </p>
             <p className="mb-2">
-              Zextons Tech Store
+              Store
               <br />
               81 Bury New Road
               <br />

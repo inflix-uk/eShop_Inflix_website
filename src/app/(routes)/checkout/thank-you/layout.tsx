@@ -1,18 +1,15 @@
 import type { Metadata } from "next";
-import { getCanonical } from "@/lib/getCanonical";
+import { buildStorePageMetadata } from "@/lib/pageMetadata";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const canonicalUrl = await getCanonical("/checkout/thank-you");
-  return {
-    title: "Thank you | Zextons Tech Store",
-    description: "Thank you for your order.",
-    robots: "noindex, follow",
-    openGraph: { url: canonicalUrl, type: "website" },
-    alternates: { canonical: canonicalUrl },
-  };
+  return buildStorePageMetadata({
+    path: "/checkout/thank-you",
+    fallbackTitle: "Thank you",
+    fallbackDescription: "Your order has been received.",
+  });
 }
 
-export default function CheckoutThankYouLayout({
+export default function ThankYouLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;

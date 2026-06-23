@@ -1,21 +1,17 @@
-import DynamicPageClient from "@/app/[slug]/DynamicPageClient";
-import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
-import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import { notFound } from "next/navigation";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
+import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
+import {
+  fetchNestedFooterPage,
+  FooterPageShell,
+  isPublishedFooterPage,
+  normalizeFooterSlug,
+} from "@/app/lib/footerPagePublic";
 import { fetchFooterPageBySlugFresh } from "@/app/services/footerPageService";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 export const dynamic = "force-dynamic";
-
-function isPublishedWithBlocks(page: {
-  publishStatus?: string;
-  blocks?: unknown[];
-}): boolean {
-  const pub = String(page.publishStatus ?? "").toLowerCase().trim();
-  if (pub !== "published") return false;
-  return Array.isArray(page.blocks) && page.blocks.length > 0;
-}
 
 /**
  * Two-segment CMS footer URLs: /{parentSlug}/{pageSlug}
@@ -28,26 +24,25 @@ export default async function CategoryFooterDynamicPage({
   params: Promise<{ slug: string; pageSlug: string }>;
 }) {
   const { slug, pageSlug } = await params;
-  const decodedParentSlug = decodeURIComponent(slug).toLowerCase().trim();
-  const decodedPageSlug = decodeURIComponent(pageSlug).toLowerCase().trim();
+  const decodedParentSlug = normalizeFooterSlug(slug);
+  const decodedPageSlug = normalizeFooterSlug(pageSlug);
 
   if (!decodedParentSlug || isDisabledRootSlug(decodedPageSlug)) {
     notFound();
   }
 
   const [page, navbarVariantTestConfig] = await Promise.all([
-    fetchFooterPageBySlugFresh(decodedPageSlug, decodedParentSlug),
+    fetchNestedFooterPage(decodedParentSlug, decodedPageSlug).then(
+      (resolved) =>
+        resolved ??
+        fetchFooterPageBySlugFresh(decodedPageSlug, decodedParentSlug)
+    ),
     getNavbarVariantTestPublicServer(),
   ]);
-  if (!page || !isPublishedWithBlocks(page)) {
+
+  if (!isPublishedFooterPage(page)) {
     notFound();
   }
 
-  return (
-    <>
-      {/* <SlugRouteHeader /> */}
-      <NavbarVariantTestBar config={navbarVariantTestConfig} />
-      <DynamicPageClient slug={decodedPageSlug} parentSlug={decodedParentSlug} />
-    </>
-  );
+  return <FooterPageShell page={page} navbarVariantTestConfig={navbarVariantTestConfig} />;
 }

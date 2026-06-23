@@ -5,66 +5,23 @@ import Image from "next/image";
 import bulkrecycle from "@/app/assets/bulkrecycle.png";
 import React from "react";
 import { Metadata } from "next";
-import { getCanonical } from "@/lib/getCanonical";
-
-async function getMetaData() {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const res = await fetch(
-      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/recycle-mobile-phone")}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch (error) {
-    return null;
-  }
-}
+import {
+  buildStorePageMetadata,
+  fetchStaticMetaByPath,
+} from "@/lib/pageMetadata";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const metaData = await getMetaData();
-  const canonicalUrl = await getCanonical("/recycle-mobile-phone");
-
-  if (!metaData) {
-    return {
-      title: "Recycle Mobile Phone | Zextons Tech Store",
-      description: "Recycle your old mobile phone with Zextons Tech Store",
-      robots: "index, follow",
-      alternates: { canonical: canonicalUrl, languages: { "en-gb": canonicalUrl } },
-      openGraph: { url: canonicalUrl },
-    };
-  }
-
-  return {
-    title: metaData.titleTag,
-    description: metaData.metaDescription,
-    keywords: metaData.metaKeywords,
-    robots: "index, follow",
-    openGraph: {
-      siteName: "Zextons",
-      title: metaData.titleTag,
-      url: canonicalUrl,
-      description: metaData.metaDescription,
-      type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: metaData.titleTag,
-      description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
-    },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: { "en-gb": canonicalUrl },
-    },
-  };
+  const metaData = await fetchStaticMetaByPath("/recycle-mobile-phone");
+  return buildStorePageMetadata({
+    path: "/recycle-mobile-phone",
+    fallbackTitle: "Recycle",
+    fallbackDescription: "Learn about our recycling programme.",
+    cmsMeta: metaData,
+  });
 }
 
 export default async function BulkRecycling() {
-  const metaData = await getMetaData();
+  const metaData = await fetchStaticMetaByPath("/recycle-mobile-phone");
 
   return (
     <>
@@ -102,21 +59,21 @@ export default async function BulkRecycling() {
             <p className="mb-4">
               Are you a business and willing to recycle your 10 or more mobile
               phones or other electronic items?{" "}
-              <a
-                href="mailto:sell@zextons.co.uk"
+              <Link
+                href="/contact-us"
                 className="text-primary underline"
               >
                 Contact us!
-              </a>{" "}
+              </Link>{" "}
               We can arrange to collect your unused items right from your
               doorsteps or get one of the recyclers who is paying the most price
               for your devices to contact you directly. Simply let us know by
               email at{" "}
               <Link
-                href="mailto:sell@zextons.co.uk"
+                href="/contact-us"
                 className="text-primary underline"
               >
-                sell@zextons.co.uk
+                our contact page
               </Link>{" "}
               or fill in the form below to provide details of any items such as
               Mobile phones that you wish to recycle, enter your business /
@@ -127,7 +84,7 @@ export default async function BulkRecycling() {
             <p>
               If you have less than 10 devices to sell, go over to our{" "}
               <a
-                // href="https://sell.zextons.co.uk/"
+                // href="https://sell./"
                 className="text-primary underline"
               >
                 buy-back website

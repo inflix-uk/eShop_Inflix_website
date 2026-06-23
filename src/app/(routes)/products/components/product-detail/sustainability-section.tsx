@@ -57,7 +57,7 @@ export default function SustainabilitySection({
 
             <p className="text-gray-600 text-base lg:text-lg leading-relaxed mb-8">
               Every year, millions of electronic devices are discarded, creating
-              unnecessary waste. At Zextons Tech Store, choosing a refurbished{" "}
+              unnecessary waste. When you choose a refurbished{" "}
               {productName} means you&apos;re making a smarter and greener
               choice. Each device we carefully restore and resell helps extend
               the life of valuable materials, reduces electronic waste, and
@@ -251,7 +251,7 @@ export default function SustainabilitySection({
                             reducing environmental impact.
                           </p>
                           <p className="text-gray-700 leading-relaxed">
-                            At Zextons Tech Store, we carefully restore and test
+                            We carefully restore and test
                             every device to ensure it meets our high quality
                             standards. This process gives electronics a second
                             life while providing you with a reliable,
