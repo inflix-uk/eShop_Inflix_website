@@ -10,15 +10,11 @@ import {
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
+  isCmsUnreachableFetchError,
 } from "@/app/lib/cmsTimedFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
-const getApiBaseUrl = (): string => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiUrl) return `${process.env.NEXT_PUBLIC_API_URL}`;
-  return apiUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = resolveCmsApiBase();
 
 export interface BuyNowPayLater {
   heading: string;
@@ -94,7 +90,10 @@ async function fetchSection<T>(
     if (result.success && result.data) return result.data as T;
     return null;
   } catch (err) {
-    if (!isCmsFetchAbortError(err)) {
+    if (
+      !isCmsFetchAbortError(err) &&
+      !isCmsUnreachableFetchError(err)
+    ) {
       console.error(`[Promo] Error fetching ${path}:`, err);
     }
     return null;

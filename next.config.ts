@@ -14,11 +14,6 @@ function buildImageRemotePatterns(): NonNullable<
 >["remotePatterns"] {
   const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
     {
-      protocol: "https",
-      hostname: "api.zextons.co.uk",
-      pathname: "/**",
-    },
-    {
       protocol: "http",
       hostname: "localhost",
       port: "4000",
@@ -38,11 +33,6 @@ function buildImageRemotePatterns(): NonNullable<
     {
       protocol: "https",
       hostname: "*.public.blob.vercel-storage.com",
-      pathname: "/**",
-    },
-    {
-      protocol: "https",
-      hostname: "zextonsbackend-new-eosin.vercel.app",
       pathname: "/**",
     },
     {

@@ -1,5 +1,5 @@
-const SESSION_KEY = "zextons_chat_session";
-const CONVERSATION_KEY = "zextons_chat_conversation";
+const SESSION_KEY = "store_chat_session";
+const CONVERSATION_KEY = "store_chat_conversation";
 
 /**
  * Generate a unique session ID

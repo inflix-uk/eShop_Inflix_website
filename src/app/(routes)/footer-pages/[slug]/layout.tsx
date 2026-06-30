@@ -5,6 +5,11 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import {
+  formatPageTitle,
+  getStoreIdentity,
+  ogImagesFromUrl,
+} from "@/lib/storeIdentity";
 
 interface FooterPageLayoutProps {
   children: React.ReactNode;
@@ -31,55 +36,48 @@ export async function generateMetadata({
   }
 
   if (!page) {
+    const identity = await getStoreIdentity();
     return {
-      title: "Page Not Found | Zextons Tech Store",
+      title: formatPageTitle("Page Not Found", identity.siteName),
       description: "The page you're looking for doesn't exist.",
       robots: "noindex, nofollow",
     };
   }
 
   const title = page.metaTitle || page.title;
+  const identity = await getStoreIdentity();
   const description =
-    page.metaDescription || `Read about ${page.title} at Zextons Tech Store`;
+    page.metaDescription ||
+    (identity.siteName
+      ? `Read about ${page.title} at ${identity.siteName}.`
+      : `Read about ${page.title}.`);
   const canonicalUrl = await getCanonical(`/footer-pages/${slug}`);
 
-  // Get API URL for image construction
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const pageImage = page.bannerImage
+    ? page.bannerImage.startsWith("http")
+      ? page.bannerImage
+      : `${apiUrl}/uploads/${page.bannerImage}`
+    : identity.ogImageUrl;
+  const images = ogImagesFromUrl(pageImage);
 
   const metadata: Metadata = {
-    title: `${title} | Zextons Tech Store`,
+    title: formatPageTitle(title, identity.siteName),
     description: description,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      ...(identity.siteName ? { siteName: identity.siteName } : {}),
       title: title,
       url: canonicalUrl,
       description: description,
       type: "website",
-      images: page.bannerImage
-        ? [
-            {
-              url: page.bannerImage.startsWith("http")
-                ? page.bannerImage
-                : `${apiUrl}/uploads/${page.bannerImage}`,
-            },
-          ]
-        : [{ url: `${apiUrl}/uploads/web/Zextons.webp` }],
+      ...(images.length ? { images } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
       title: title,
       description: description,
-      images: page.bannerImage
-        ? [
-            {
-              url: page.bannerImage.startsWith("http")
-                ? page.bannerImage
-                : `${apiUrl}/uploads/${page.bannerImage}`,
-            },
-          ]
-        : [{ url: `${apiUrl}/uploads/web/Zextons.webp` }],
+      ...(images.length ? { images } : {}),
     },
     alternates: {
       canonical: canonicalUrl,

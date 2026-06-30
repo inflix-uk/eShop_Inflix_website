@@ -47,7 +47,7 @@ export const DEALS_MODAL_STATIC_DEFAULTS: DealsModalPublicFields = {
   descriptionPrimary:
     "Discover the hottest UK deals with up to 70% OFF on premium tech products.",
   descriptionSecondary:
-    "Smart tech, smart gifts, smart savings – only at Zextons.",
+    "Sign up for exclusive savings on our latest products.",
   countdownLabel: "Sale Ends In:",
   emailPlaceholder: "Enter Your Email",
   submitButtonText: "Beat The Clock And Sign Me Up",

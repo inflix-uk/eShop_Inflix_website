@@ -149,7 +149,7 @@ export const whatWeTest: string[] = [
 export const faqs: FAQ[] = [
   {
     question: "Are refurbished phones unlocked?",
-    answer: "Yes, all Zextons devices are unlocked and SIM‑free.",
+    answer: "Yes, all our store devices are unlocked and SIM‑free.",
   },
   {
     question: "What's the difference between Excellent, Good and Fair?",
@@ -274,7 +274,7 @@ export const faqSchema = {
       name: "Are refurbished phones unlocked?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes. All Zextons devices are unlocked and SIM‑free for any UK network.",
+        text: "Yes. All our store devices are unlocked and SIM‑free for any UK network.",
       },
     },
     {

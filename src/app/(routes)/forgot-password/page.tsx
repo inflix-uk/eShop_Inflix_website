@@ -1,17 +1,58 @@
 "use client";
-import React from "react";
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import Image from "next/image";
 import LoadingBar from "react-top-loading-bar";
 import axios from "axios";
 import { useAuth } from "@/app/context/Auth"; // Adjust the path to your Auth context
-import Zextons from "@/app/assets/Zextons.png";
+import { getLogoUrl } from "@/app/services/logoService";
+
 export default function ForgotPasswordPage() {
   const auth = useAuth();
   const [email, setEmail] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const [errState, setErrState] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+  const [logoSrc, setLogoSrc] = useState<string>(
+    "/1775033425417_1773417790440_aroma_psd_logo__2_.png"
+  );
+  const [logoAlt, setLogoAlt] = useState<string>("Store logo");
+
+  useEffect(() => {
+    let cancelled = false;
+    const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+    if (!base) return () => void 0;
+
+    const endpoints = [
+      `${base}/get/logo/public`,
+      `${base}/api/get/logo/public`,
+      `${base}/get/logo`,
+      `${base}/api/get/logo`,
+    ];
+
+    const loadLogo = async () => {
+      for (const endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, { method: "GET" });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const resolved = getLogoUrl(data?.data?.logoUrl);
+          if (!resolved) continue;
+          if (!cancelled) {
+            setLogoSrc(resolved);
+            setLogoAlt(data?.data?.altText || "Store logo");
+          }
+          return;
+        } catch {
+          // try next endpoint
+        }
+      }
+    };
+
+    void loadLogo();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const resetPass = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -77,10 +118,10 @@ export default function ForgotPasswordPage() {
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
           <Image
             className="mx-auto h-20 w-auto"
-            src={Zextons}
-            alt="Zextons"
-            width={100}
-            height={90}
+            src={logoSrc}
+            alt={logoAlt}
+            width={384}
+            height={195}
             priority
           />
           <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">

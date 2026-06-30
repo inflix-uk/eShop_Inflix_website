@@ -554,7 +554,7 @@ const Footer: React.FC<FooterProps> = ({
               <Link
                 id="footer-logo"
                 href={logoLink}
-                // aria-label="Go to Zextons Home"
+                // aria-label="Go to our store Home"
                 className="block shrink-0 leading-none"
               >
                 {logoUrl && !imageErrors.has(logoUrl) ? (
@@ -677,7 +677,7 @@ const Footer: React.FC<FooterProps> = ({
                   <a
                     href={
                       footer.section5.ecologiLink ||
-                      "https://ecologi.com/zextons"
+                      "https://ecologi.com"
                     }
                     target="_blank"
                     rel="noopener noreferrer"

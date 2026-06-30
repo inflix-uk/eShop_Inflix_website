@@ -3,6 +3,15 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import {
+  fetchStaticMetaByPath,
+  type StaticMetaPagePayload,
+} from "@/lib/pageMetadata";
+import {
+  formatPageTitle,
+  getStoreIdentity,
+  ogImagesFromUrl,
+} from "@/lib/storeIdentity";
 import { getCanonical } from "@/lib/getCanonical";
 
 const SLUG = "deals-and-discounts";
@@ -17,67 +26,56 @@ async function getPublishedCmsPage(): Promise<FooterPage | null> {
   return null;
 }
 
-type StaticMetaRow = {
-  titleTag?: string;
-  metaDescription?: string;
-  metaKeywords?: string;
-  metaSchemas?: string[];
-};
-
-async function getStaticMetaFallback(): Promise<StaticMetaRow | null> {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return null;
-    const res = await fetch(
-      `${apiUrl}/get/static-meta-page/path/${encodeURIComponent("/deals-and-discounts")}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch {
-    return null;
+function resolveCmsImage(
+  bannerImage: string | undefined,
+  apiUrl: string,
+  fallback: string | null
+): string | null {
+  if (bannerImage?.startsWith("http")) return bannerImage;
+  if (bannerImage && apiUrl) {
+    return `${apiUrl}/uploads/${bannerImage.replace(/^\//, "")}`;
   }
+  return fallback;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const cms = await getPublishedCmsPage();
-  const canonicalUrl = await getCanonical("/deals-and-discounts");
+  const [cms, identity, staticMeta, canonicalUrl] = await Promise.all([
+    getPublishedCmsPage(),
+    getStoreIdentity(),
+    fetchStaticMetaByPath("/deals-and-discounts"),
+    getCanonical("/deals-and-discounts"),
+  ]);
+
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
   if (cms) {
     const title = cms.metaTitle || cms.title;
     const description =
-      cms.metaDescription ||
-      "Deals, coupons, and promo codes at Zextons Tech Store";
-
-    const ogImage =
-      cms.bannerImage && cms.bannerImage.startsWith("http")
-        ? cms.bannerImage
-        : cms.bannerImage && apiUrl
-          ? `${apiUrl}/uploads/${cms.bannerImage.replace(/^\//, "")}`
-          : apiUrl
-            ? `${apiUrl}/uploads/web/Zextons.webp`
-            : "";
+      cms.metaDescription || "Deals, coupons, and promo codes.";
+    const ogImage = resolveCmsImage(
+      cms.bannerImage,
+      apiUrl,
+      identity.ogImageUrl
+    );
+    const images = ogImagesFromUrl(ogImage);
 
     const metadata: Metadata = {
-      title: `${title} | Zextons Tech Store`,
+      title: formatPageTitle(title, identity.siteName),
       description,
       robots: "index, follow",
       openGraph: {
-        siteName: "Zextons",
+        ...(identity.siteName ? { siteName: identity.siteName } : {}),
         title,
         url: canonicalUrl,
         description,
         type: "website",
-        images: [{ url: ogImage }],
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
-        site: "@ZextonsTechStore",
         title,
         description,
-        images: [{ url: ogImage }],
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -92,43 +90,39 @@ export async function generateMetadata(): Promise<Metadata> {
     return metadata;
   }
 
-  const metaData = await getStaticMetaFallback();
-
+  const metaData: StaticMetaPagePayload = staticMeta;
   if (!metaData) {
     return {
-      title: "Deals and Discounts | Zextons Tech Store",
-      description: "Latest deals and discounts at Zextons Tech Store",
+      title: formatPageTitle("Deals and Discounts", identity.siteName),
+      description: "Latest deals and discounts.",
       robots: "index, follow",
     };
   }
 
-  const ogDefault = apiUrl ? `${apiUrl}/uploads/web/Zextons.webp` : "";
+  const title =
+    metaData.titleTag || formatPageTitle("Deals and Discounts", identity.siteName);
+  const description =
+    metaData.metaDescription || "Latest deals and discounts.";
+  const images = ogImagesFromUrl(identity.ogImageUrl);
 
   return {
-    title: metaData.titleTag || "Deals and Discounts | Zextons Tech Store",
-    description:
-      metaData.metaDescription ||
-      "Latest deals and discounts at Zextons Tech Store",
+    title,
+    description,
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
-      title: metaData.titleTag || "Deals and Discounts",
+      ...(identity.siteName ? { siteName: identity.siteName } : {}),
+      title,
       url: canonicalUrl,
-      description:
-        metaData.metaDescription ||
-        "Latest deals and discounts at Zextons Tech Store",
+      description,
       type: "website",
-      images: [{ url: ogDefault }],
+      ...(images.length ? { images } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
-      title: metaData.titleTag || "Deals and Discounts",
-      description:
-        metaData.metaDescription ||
-        "Latest deals and discounts at Zextons Tech Store",
-      images: [{ url: ogDefault }],
+      title,
+      description,
+      ...(images.length ? { images } : {}),
     },
     alternates: {
       canonical: canonicalUrl,
@@ -157,7 +151,7 @@ export default async function DealsAndDiscountsLayout({
     );
   }
 
-  const metaData = await getStaticMetaFallback();
+  const metaData = await fetchStaticMetaByPath("/deals-and-discounts");
   return (
     <>
       {metaData?.metaSchemas?.map((schema: string, index: number) => (

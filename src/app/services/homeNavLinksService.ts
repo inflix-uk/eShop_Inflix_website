@@ -1,4 +1,5 @@
 import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
 export interface HomeNavLink {
   label: string;
@@ -11,7 +12,7 @@ export interface HomeNavLink {
 export async function getHomeNavLinksPublicServer(options?: {
   live?: boolean;
 }): Promise<HomeNavLink[]> {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const base = resolveCmsApiBase();
   if (!base) return [];
   try {
     const json = await cmsServerFetchJson<{

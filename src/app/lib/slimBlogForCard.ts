@@ -29,6 +29,7 @@ export function slimBlogForCard(b: Record<string, unknown>): Record<string, unkn
     publishDate: b.publishDate,
     blogpublisheddate: b.blogpublisheddate,
     createdAt: b.createdAt,
+    updatedAt: b.updatedAt,
     blogShortDescription: b.blogShortDescription,
     excerpt: b.excerpt,
   };

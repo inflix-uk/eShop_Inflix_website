@@ -1,49 +1,21 @@
 import type { Metadata } from "next";
-import { getCanonical } from "@/lib/getCanonical";
+import {
+  buildStorePageMetadata,
+  fetchStaticMetaByPath,
+} from "@/lib/pageMetadata";
 
-type Props = {
-  children: React.ReactNode;
-  params: Promise<{ id: string }>;
-};
-
-export async function generateMetadata({
-  params,
-}: Props): Promise<Metadata> {
-  const { id } = await params;
-
-  const canonicalUrl = await getCanonical(`/searchproduct/${id}`);
-
-  const title = "Search | Zextons Tech Store";
-  const description = "Search for products on Zextons Tech Store";
-
-  return {
-    title,
-    description,
-    robots: "index, follow",
-
-    openGraph: {
-      siteName: "Zextons Tech Store",
-      title,
-      description,
-      url: canonicalUrl,
-      type: "website",
-    },
-
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
-
-    alternates: {
-      canonical: canonicalUrl,
-    },
-  };
+export async function generateMetadata(): Promise<Metadata> {
+  const metaData = await fetchStaticMetaByPath("/search");
+  return buildStorePageMetadata({
+    path: "/searchproduct",
+    fallbackTitle: "Search",
+    fallbackDescription: "Search for products in our store.",
+    cmsMeta: metaData,
+  });
 }
 
 export default function SearchProductLayout({
   children,
-  params: _params,
-}: Props) {
+}: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }

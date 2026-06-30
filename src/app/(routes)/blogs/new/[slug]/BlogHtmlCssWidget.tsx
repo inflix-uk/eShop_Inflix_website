@@ -1,12 +1,14 @@
-
 import { useId } from "react";
+import { extractHtmlDocumentFragment } from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
 
 /** Strip scripts and external stylesheets; keep fragment-only markup safe for innerHTML. */
 function sanitizeHtmlFragment(html: string): string {
-  let s = html ?? "";
+  let s = extractHtmlDocumentFragment(html);
   s = s.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
   s = s.replace(/<\/?script\b[^>]*>/gi, "");
   s = s.replace(/<link\b[^>]*>/gi, "");
+  s = s.replace(/<meta\b[^>]*>/gi, "");
+  s = s.replace(/<title\b[^<]*(?:(?!<\/title>)<[^<]*)*<\/title>/gi, "");
   return s;
 }
 

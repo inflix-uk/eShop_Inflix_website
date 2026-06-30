@@ -4,6 +4,7 @@ export const DEFAULT_SITE_THEME = {
   secondaryColor: "transparent",
   primaryRgb: "0 0 0",
   secondaryRgb: "0 0 0",
+  bodyBgColor: "#ffffff",
 } as const;
 
 export function hexToRgbSpaceSeparated(hex: string): string | null {
@@ -21,11 +22,21 @@ export type SiteThemeResolved = {
   secondaryColor: string;
   primaryRgb: string;
   secondaryRgb: string;
+  bodyBgColor: string;
 };
+
+export function resolveBodyBgColor(raw: string): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return DEFAULT_SITE_THEME.bodyBgColor;
+  return hexToRgbSpaceSeparated(trimmed) != null
+    ? trimmed
+    : DEFAULT_SITE_THEME.bodyBgColor;
+}
 
 export function resolveSiteTheme(
   primaryColor: string,
-  secondaryColor: string
+  secondaryColor: string,
+  bodyBgColor?: string
 ): SiteThemeResolved {
   const pr = hexToRgbSpaceSeparated(primaryColor);
   const sr = hexToRgbSpaceSeparated(secondaryColor);
@@ -40,10 +51,11 @@ export function resolveSiteTheme(
     secondaryColor: s,
     primaryRgb,
     secondaryRgb,
+    bodyBgColor: resolveBodyBgColor(bodyBgColor ?? ""),
   };
 }
 
 /** Single `:root` block for `<style>` in document head (overrides `globals.css`). */
 export function siteThemeRootStyleCss(theme: SiteThemeResolved): string {
-  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};}`;
+  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};}body{background-color:var(--body-bg-color);}`;
 }

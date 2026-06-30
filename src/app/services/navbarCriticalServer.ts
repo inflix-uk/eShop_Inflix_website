@@ -8,6 +8,7 @@ import {
   DEFAULT_HEADER_SUPPORT_PHONE,
   fetchNavbarHeaderPublic,
 } from "@/app/services/navbarHeaderPublicService";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 export type HomeNavbarServerBootstrap = {
   items: NavbarItem[];
@@ -69,7 +70,7 @@ export const getHomeNavbarCriticalServer = cache(async (): Promise<HomeNavbarSer
   return {
     items,
     logoUrl: logo?.logoUrl ?? null,
-    logoAlt: logo?.altText?.trim() ? logo.altText.trim() : "Zextons",
+    logoAlt: logo?.altText?.trim() ? logo.altText.trim() : DEFAULT_LOGO_ALT,
     supportPhone: header.supportPhone || DEFAULT_HEADER_SUPPORT_PHONE,
     supportEmail: header.supportEmail || DEFAULT_HEADER_SUPPORT_EMAIL,
   };

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { normalizeApiOriginForFetch } from "@/app/lib/cmsApiBase";
 
 const HEALTH_PATH = "/health";
 const HEALTH_TIMEOUT_MS = 2000;
@@ -10,7 +11,7 @@ const HEALTH_TIMEOUT_MS = 2000;
  */
 /** API origin for server-side fetches (robots.txt, health, etc.). */
 export function resolveApiBase(): string {
-  const trim = (s: string) => s.trim().replace(/\/$/, "");
+  const trim = (s: string) => normalizeApiOriginForFetch(s);
   const fromPublic = trim(process.env.NEXT_PUBLIC_API_URL || "");
   if (fromPublic) return fromPublic;
   return trim(process.env.API_URL || process.env.BACKEND_URL || "");

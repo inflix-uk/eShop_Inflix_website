@@ -3,6 +3,7 @@ import type {
   HomepageBlock,
   WidgetNavbarContent,
 } from "@/app/services/homepageDataService";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 export type PublicStoreLogoPayload = {
   logoUrl: string;
@@ -31,7 +32,7 @@ export function mergePublicStoreLogoIntoHomepageBlocks(
   if (!blocks?.length) return [];
   const url = logo?.logoUrl?.trim();
   if (!url) return blocks;
-  const alt = logo?.altText?.trim() || "Zextons";
+  const alt = logo?.altText?.trim() || DEFAULT_LOGO_ALT;
 
   return blocks.map((row) => ({
     ...row,

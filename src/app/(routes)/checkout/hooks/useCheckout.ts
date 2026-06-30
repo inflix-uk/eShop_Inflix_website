@@ -94,10 +94,36 @@ export const useCheckout = () => {
   useEffect(() => {
     const initStripe = async () => {
       const stripe = await paymentService.initializeStripe();
+      if (!stripe) {
+        setPaymentError(
+          'Unable to load payment provider. Check your connection and refresh the page.'
+        );
+      }
       setStripePromise(stripe);
     };
     initStripe();
   }, [paymentService]);
+
+  // Recover PaymentIntent from localStorage (e.g. React Strict Mode remount wrote storage but skipped setState)
+  useEffect(() => {
+    if (clientSecret) return;
+
+    const storedSecret = localStorage.getItem('clientSecret');
+    const storedPaymentIntentId = localStorage.getItem('paymentIntentId');
+    const createdTimestamp = localStorage.getItem('paymentIntentCreatedAt');
+    const isRecentlyCreated =
+      createdTimestamp && Date.now() - parseInt(createdTimestamp, 10) < 300000;
+
+    if (
+      storedSecret?.includes('_secret_') &&
+      storedPaymentIntentId &&
+      isRecentlyCreated
+    ) {
+      setClientSecret(storedSecret);
+      setPaymentIntentId(storedPaymentIntentId);
+      setIsPaymentReady(true);
+    }
+  }, [clientSecret]);
 
   // Fetch shipping methods on page load
   useEffect(() => {
@@ -275,65 +301,61 @@ export const useCheckout = () => {
     updatePaymentAmount();
   }, [shippingCost, selectedShippingMethod, paymentIntentId, clientSecret]);
 
-  // Create PaymentIntent when cart data is available - only runs ONCE per page load
-  // Use localStorage as the primary lock since useRef resets on Strict Mode remount
+  // Create PaymentIntent when cart data is available
   useEffect(() => {
     let isMounted = true;
 
+    const applyStoredPaymentIntent = (): boolean => {
+      const storedSecret = localStorage.getItem('clientSecret');
+      const storedPaymentIntentId = localStorage.getItem('paymentIntentId');
+      const createdTimestamp = localStorage.getItem('paymentIntentCreatedAt');
+      const isRecentlyCreated =
+        createdTimestamp && Date.now() - parseInt(createdTimestamp, 10) < 300000;
+
+      if (
+        storedSecret?.includes('_secret_') &&
+        storedPaymentIntentId &&
+        isRecentlyCreated
+      ) {
+        if (isMounted) {
+          setClientSecret(storedSecret);
+          setPaymentIntentId(storedPaymentIntentId);
+          setIsPaymentReady(true);
+        }
+        return true;
+      }
+      return false;
+    };
+
     const createInitialPaymentIntent = async () => {
-      // Generate a unique session ID for this page load
-      const sessionId = sessionStorage.getItem('checkoutSessionId') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      if (clientSecret || isPaymentReady) return;
+
+      const sessionId =
+        sessionStorage.getItem('checkoutSessionId') ||
+        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       if (!sessionStorage.getItem('checkoutSessionId')) {
         sessionStorage.setItem('checkoutSessionId', sessionId);
       }
 
-      // Check if we already have a valid clientSecret from CURRENT session
-      const existingClientSecret = localStorage.getItem('clientSecret');
-      const existingPaymentIntentId = localStorage.getItem('paymentIntentId');
-      const creationLock = localStorage.getItem('paymentIntentCreating');
-      const createdTimestamp = localStorage.getItem('paymentIntentCreatedAt');
-      const createdSessionId = localStorage.getItem('paymentIntentSessionId');
+      if (applyStoredPaymentIntent()) return;
 
-      // If creation is in progress (lock exists and is recent), wait and check again
+      const creationLock = localStorage.getItem('paymentIntentCreating');
       if (creationLock) {
         const lockTime = parseInt(creationLock, 10);
-        if (Date.now() - lockTime < 30000) { // 30 second lock
+        if (Date.now() - lockTime < 30000) {
           console.log('⏳ PaymentIntent creation in progress, waiting...');
-          // Wait a bit then check if clientSecret was set
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          const newClientSecret = localStorage.getItem('clientSecret');
-          const newPaymentIntentId = localStorage.getItem('paymentIntentId');
-          if (newClientSecret && newPaymentIntentId && isMounted) {
-            console.log('✅ Using PaymentIntent from concurrent creation:', newPaymentIntentId);
-            setClientSecret(newClientSecret);
-            setPaymentIntentId(newPaymentIntentId);
-            setIsPaymentReady(true);
+          for (let attempt = 0; attempt < 6; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            if (applyStoredPaymentIntent()) return;
           }
-          return;
-        } else {
-          // Lock is stale, clear it
-          localStorage.removeItem('paymentIntentCreating');
+          console.warn('PaymentIntent lock held but no secret found — clearing and retrying');
         }
+        localStorage.removeItem('paymentIntentCreating');
       }
 
-      // Reuse PaymentIntent if:
-      // 1. It exists and is valid
-      // 2. It was created within the last 5 minutes (to handle page refreshes)
-      // 3. It's from the same session (to prevent Strict Mode duplicates)
-      const isRecentlyCreated = createdTimestamp && (Date.now() - parseInt(createdTimestamp, 10) < 300000); // 5 minutes
-      const isSameSession = createdSessionId === sessionId;
+      const existingClientSecret = localStorage.getItem('clientSecret');
+      const existingPaymentIntentId = localStorage.getItem('paymentIntentId');
 
-      if (existingClientSecret && existingClientSecret.includes('_secret_') && existingPaymentIntentId && isRecentlyCreated) {
-        console.log('✅ Using existing PaymentIntent:', existingPaymentIntentId, isSameSession ? '(same session)' : '(previous session)');
-        if (isMounted) {
-          setClientSecret(existingClientSecret);
-          setPaymentIntentId(existingPaymentIntentId);
-          setIsPaymentReady(true);
-        }
-        return;
-      }
-
-      // Clear old PaymentIntent data if it exists (it's stale)
       if (existingClientSecret || existingPaymentIntentId) {
         console.log('🧹 Clearing stale PaymentIntent data...');
         localStorage.removeItem('clientSecret');
@@ -342,7 +364,6 @@ export const useCheckout = () => {
         localStorage.removeItem('paymentIntentSessionId');
       }
 
-      // Get cart data
       const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
 
       if (cartData.length === 0) {
@@ -350,7 +371,6 @@ export const useCheckout = () => {
         return;
       }
 
-      // SET LOCK IMMEDIATELY before any async operation
       console.log('🔒 Setting PaymentIntent creation lock...');
       localStorage.setItem('paymentIntentCreating', Date.now().toString());
 
@@ -426,13 +446,10 @@ export const useCheckout = () => {
 
     createInitialPaymentIntent();
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
-    // Only run on mount - empty dependency array
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [products.length, clientSecret, isPaymentReady]);
 
   // Load coupons
   useEffect(() => {

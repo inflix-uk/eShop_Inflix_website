@@ -10,6 +10,10 @@ import Nav from "@/app/components/navbar/Nav";
 import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 
 import { getFullImageUrl } from "./blogUtils";
+import {
+  blogHasHtmlCssPrimaryContent,
+  normalizeBlogBlockColumns,
+} from "../../lib/blogHtmlCssUtils";
 import BlogSliderWidget from "./BlogSliderWidget";
 import BlogVideoWidget from "./BlogVideoWidget";
 import BlogMapWidget from "./BlogMapWidget";
@@ -325,8 +329,10 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
 
   const author = getPersonData(blog?.author);
   const reviewer = getPersonData(blog?.reviewer);
+  const htmlCssPrimary = blogHasHtmlCssPrimaryContent(blog);
   const showPeopleSection =
-    (author && author.name) || (reviewer && reviewer.name);
+    !htmlCssPrimary &&
+    ((author && author.name) || (reviewer && reviewer.name));
   const endCards = [author, reviewer].filter((person) => person && person.name);
 
   return (
@@ -378,8 +384,8 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
             <div className="max-w-[1500px] mx-auto min-w-0">
               {blog ? (
                 <>
-                  {/* Featured Image Banner - Responsive */}
-                  {blog.bannerImage && (
+                  {/* Featured Image Banner - skip when HTML/CSS widget owns the layout */}
+                  {!htmlCssPrimary && blog.bannerImage && (
                     <div className="w-full h-[14rem] xs:h-[18rem] sm:h-[22rem] md:h-[28rem] lg:h-[35rem] rounded-lg overflow-hidden bg-gray-100 mb-4 sm:mb-6 mx-2 sm:mx-0 relative">
                       <Image
                         src={getFullImageUrl(blog.bannerImage) || "/placeholder.svg"}
@@ -395,7 +401,11 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                   
                   <div className="flex flex-col xl:flex-row-reverse gap-4 sm:gap-6 relative min-w-0">
                     {/* Blog content first in DOM for correct heading outline (H1 before TOC chrome); xl:flex-row-reverse keeps TOC visually on the left */}
-                    <div id="blog-content" className="flex-1 min-w-0 mx-2 sm:mx-0 relative" style={contentBlockStyles}>
+                    <div
+                      id="blog-content"
+                      className={`flex-1 min-w-0 relative ${htmlCssPrimary ? "" : "mx-2 sm:mx-0"}`}
+                      style={contentBlockStyles}
+                    >
                       {/* Initial TOC Button Placeholder - helps with positioning */}
                       <div className="xl:hidden h-12 w-full mb-4 relative">
                         <div className="text-sm text-gray-500 flex items-center justify-end pr-16">
@@ -403,10 +413,12 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                         </div>
                       </div>
 
-                      {/* Title - Responsive typography */}
+                      {/* Title - hidden when Custom HTML/CSS block provides the hero */}
+                      {!htmlCssPrimary && (
                       <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight">
                         {blog.title}
                       </h1>
+                      )}
                       
 {/* Meta Section */}
 {showPeopleSection && (
@@ -515,8 +527,8 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
   </div>
 )}
                       
-                      {/* Excerpt - Responsive */}
-                      {blog.excerpt && (
+                      {/* Excerpt - skip when HTML/CSS widget owns intro copy */}
+                      {!htmlCssPrimary && blog.excerpt && (
                         <div className="bg-gray-50 border-l-4 border-gray-200 p-3 sm:p-4 italic text-gray-700 mb-4 sm:mb-6 text-sm sm:text-base">
                           {blog.excerpt}
                         </div>
@@ -527,7 +539,7 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                         <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6 min-w-0" style={contentBlockStyles}>
                           {blog.blocks.map((row, rowIndex) => (
                             <div key={`row-${rowIndex}`} className="flex flex-col lg:flex-row gap-3 sm:gap-4 min-w-0">
-                              {row.columns.map((column, colIndex) => {
+                              {normalizeBlogBlockColumns(row).map((column, colIndex, columns) => {
                                 const rawW = column.width;
                                 const n = Number(rawW);
                                 const hasSized =
@@ -546,9 +558,9 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
                                     hasSized
                                       ? {
                                           "--blog-col-pct": `${pct}%`,
-                                          zIndex: row.columns.length - colIndex,
+                                          zIndex: columns.length - colIndex,
                                         }
-                                      : { zIndex: row.columns.length - colIndex }
+                                      : { zIndex: columns.length - colIndex }
                                   }
                                 >
                                   {column.blocks.map((block, blockIndex) => {

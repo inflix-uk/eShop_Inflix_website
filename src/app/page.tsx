@@ -20,6 +20,7 @@ import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import { getHomeServerCmsBundle } from "@/app/lib/homeServerCms";
 import { buildHomepageFaqJsonLdStrings } from "@/app/lib/faqJsonLd";
+import { getStoreIdentity, DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 export const revalidate = 120;
 
@@ -110,7 +111,7 @@ export default async function Home() {
     heroSocial: emptyHeroSocial(),
   };
 
-  const [backendAvailable, homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig, cmsBundle] =
+  const [backendAvailable, homepageSeo, heroPayload, navServerBootstrap, navbarVariantTestConfig, cmsBundle, storeIdentity] =
     await Promise.all([
       isBackendAvailable(),
       getHomepagePublicSeo().catch((err) => {
@@ -126,7 +127,7 @@ export default async function Home() {
         return {
           items: [],
           logoUrl: null,
-          logoAlt: "Zextons",
+          logoAlt: DEFAULT_LOGO_ALT,
           supportPhone: "",
           supportEmail: "",
         };
@@ -139,6 +140,11 @@ export default async function Home() {
         console.error("[Home] CMS bundle fetch failed:", err);
         return null;
       }),
+      getStoreIdentity().catch(() => ({
+        siteName: "",
+        logoAlt: "Store logo",
+        ogImageUrl: null,
+      })),
     ]);
   const { banners: heroBanners, heroSocial } = heroPayload;
   const showOverallNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
@@ -159,7 +165,7 @@ export default async function Home() {
   const homepageJsonLdToRender = [
     ...(adminJsonLdStrings.length > 0
       ? adminJsonLdStrings
-      : [getDefaultHomepageJsonLdString(canonicalUrl)]),
+      : [getDefaultHomepageJsonLdString(canonicalUrl, storeIdentity.siteName)]),
     ...faqJsonLdStrings,
   ];
 

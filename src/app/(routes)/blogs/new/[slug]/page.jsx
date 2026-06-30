@@ -2,19 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import PropTypes from "prop-types";
 import { getFullImageUrl } from "./blogUtils";
 import { getCanonical } from "@/lib/getCanonical";
+import { fetchNewBlogBySlug } from "../../lib/fetchNewBlogBySlug";
 
 // Server-side data fetching function
 async function getBlogPostBySlugWithoutCache(slug) {
-  try {
-    const response = await fetch( `${process.env.NEXT_PUBLIC_API_URL}/newblog/blog/postsBySlugWithoutCache/${slug}`, {
-      next: { revalidate: 3600 } // Revalidate every hour
-    });
-    const data = await response.json();
-    return data.data;
-  } catch (error) {
-    console.error('Error getting blog post:', error);
-    return null;
-  }
+  return fetchNewBlogBySlug(slug);
 }
 
 function toCategorySlug(value) {

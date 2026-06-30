@@ -63,8 +63,8 @@ export default function ContactUs() {
                   />
                 </svg>
                 <p className="ps-2">
-                  <a href="mailto:hello@zextons.co.uk" className="hover:underline">
-                    hello@zextons.co.uk
+                  <a href="mailto:hello@" className="hover:underline">
+                    hello@
                   </a>
                 </p>
               </div>
@@ -98,8 +98,8 @@ export default function ContactUs() {
                   The contact form is not configured yet. An administrator can add a{" "}
                   <strong>Contact form</strong> widget where the block editor is available, or configure the
                   global contact form via the site API. Until then, please email{" "}
-                  <a href="mailto:hello@zextons.co.uk" className="font-medium underline">
-                    hello@zextons.co.uk
+                  <a href="mailto:hello@" className="font-medium underline">
+                    hello@
                   </a>
                   .
                 </p>

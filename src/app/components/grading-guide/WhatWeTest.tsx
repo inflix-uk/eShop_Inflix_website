@@ -21,7 +21,7 @@ const WhatWeTest: React.FC<WhatWeTestProps> = ({ whatWeTest }) => {
             What We Test
           </CustomCardTitle>
           <CustomCardDescription>
-            Every refurbished device at Zextons undergoes a rigorous 90-point
+            Every refurbished device at our store undergoes a rigorous 90-point
             diagnostic inspection to guarantee perfect functionality,
             reliability, and performance — just like new. Our certified
             technicians test every detail, from battery health to camera

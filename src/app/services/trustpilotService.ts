@@ -5,7 +5,9 @@ import {
 import {
   cmsTimedFetch,
   isCmsFetchAbortError,
+  isCmsUnreachableFetchError,
 } from "@/app/lib/cmsTimedFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
 export interface TrustpilotSettings {
   productPageTopScript: string;
@@ -17,8 +19,10 @@ export const getTrustpilotSettings = async (options?: {
   live?: boolean;
 }): Promise<TrustpilotSettings | null> => {
   const cacheInit = options?.live ? cmsLivePublicFetchInit() : cmsPublicFetchInit();
+  const base = resolveCmsApiBase();
+  if (!base) return null;
   try {
-    const response = await cmsTimedFetch(`${process.env.NEXT_PUBLIC_API_URL}/trustpilot/public`, {
+    const response = await cmsTimedFetch(`${base}/trustpilot/public`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -34,7 +38,10 @@ export const getTrustpilotSettings = async (options?: {
     const result = await response.json();
     return result.data || null;
   } catch (error) {
-    if (isCmsFetchAbortError(error)) {
+    if (
+      isCmsFetchAbortError(error) ||
+      isCmsUnreachableFetchError(error)
+    ) {
       return null;
     }
     console.error("Error fetching Trustpilot settings:", error);

@@ -16,7 +16,7 @@ export default function Sustainability() {
       question:
         "1. Why should I choose refurbished devices instead of new ones?",
       answer:
-        "Refurbished devices help reduce carbon emissions, minimize e-waste, and save you money — without compromising performance. At Zextons, every product is tested, cleaned, and backed by up to an 18-month warranty for peace of mind.",
+        "Refurbished devices help reduce carbon emissions, minimize e-waste, and save you money — without compromising performance. At our store, every product is tested, cleaned, and backed by up to an 18-month warranty for peace of mind.",
     },
     {
       question: "2. Are refurbished phones truly sustainable?",
@@ -24,17 +24,17 @@ export default function Sustainability() {
         "Yes. Buying refurbished tech extends the life of electronic components and prevents harmful waste. It's one of the most effective ways to cut down the environmental footprint of technology.",
     },
     {
-      question: "3. What happens to my old phone when I sell it to Zextons?",
+      question: "3. What happens to my old phone when I sell it to our store?",
       answer:
         "Your device is securely wiped, repaired, and either resold or responsibly recycled — ensuring zero waste and full data protection.",
     },
     {
-      question: "4. How does Zextons ensure eco-friendly packaging?",
+      question: "4. How does our store ensure eco-friendly packaging?",
       answer:
         "We use recyclable, plastic-free materials and compact boxes to minimize carbon emissions during transport.",
     },
     {
-      question: "5. How can I track Zextons' sustainability progress?",
+      question: "5. How can I track our store' sustainability progress?",
       answer:
         "You can follow updates on our Sustainability Blog — where we regularly share progress reports, impact data, and green initiatives.",
     },
@@ -51,7 +51,7 @@ export default function Sustainability() {
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h1 className="text-3xl font-bold mb-6 text-primary">
-            Sustainability at Zextons
+            Sustainability at our store
           </h1>
           <p className="text-xl mb-8 text-gray-700 font-medium">
             Giving Technology a Second Life — Responsibly
@@ -63,7 +63,7 @@ export default function Sustainability() {
           {/* Introduction Section */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-8 mb-12 border border-green-100">
             <p className="mb-6 text-gray-700 leading-relaxed">
-              At Zextons, sustainability isn&apos;t just a trend — it&apos;s our
+              At our store, sustainability isn&apos;t just a trend — it&apos;s our
               core mission. Every device we refurbish, every order we ship, and
               every customer we serve helps reduce electronic waste and build a
               greener future for the UK and beyond.
@@ -88,7 +88,7 @@ export default function Sustainability() {
             </div>
             <p className="mb-6 text-gray-700 leading-relaxed">
               Each year, millions of phones, tablets, and laptops end up in
-              landfills — many of them still functional. At Zextons, we&apos;re
+              landfills — many of them still functional. At our store, we&apos;re
               on a mission to break that waste cycle.
             </p>
             <p className="mb-8 text-gray-700 leading-relaxed">
@@ -169,7 +169,7 @@ export default function Sustainability() {
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 mb-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                By choosing refurbished tech from Zextons, you help:
+                By choosing refurbished tech from our store, you help:
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="flex items-center">
@@ -202,14 +202,14 @@ export default function Sustainability() {
             </div>
           </div>
 
-          {/* How Zextons Makes a Difference Section */}
+          {/* How our store Makes a Difference Section */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 border border-gray-100">
             <div className="flex items-center mb-6">
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mr-4">
                 <span className="text-white text-xl">💡</span>
               </div>
               <h2 className="text-2xl font-bold text-primary">
-                How Zextons Makes a Difference
+                How our store Makes a Difference
               </h2>
             </div>
 
@@ -244,7 +244,7 @@ export default function Sustainability() {
                   3. Energy-Efficient Operations
                 </h3>
                 <p className="text-gray-700">
-                  Zextons&apos; facilities use energy-efficient equipment and
+                  our store&apos; facilities use energy-efficient equipment and
                   digital documentation systems to reduce paper use.
                 </p>
               </div>
@@ -255,7 +255,7 @@ export default function Sustainability() {
                   4. Tree Planting with Every Order
                 </h3>
                 <p className="text-gray-700">
-                  For every purchase made, Zextons contributes to tree planting
+                  For every purchase made, our store contributes to tree planting
                   projects in the UK and overseas — turning your tech purchase
                   into an act of reforestation.
                 </p>
@@ -378,7 +378,7 @@ export default function Sustainability() {
             </div>
             <p className="mb-6 text-gray-700 leading-relaxed">
               Instead of following the old &quot;make–use–discard&quot; model,
-              Zextons champions a &quot;reuse–repair–recycle&quot; approach.
+              our store champions a &quot;reuse–repair–recycle&quot; approach.
             </p>
             <p className="mb-6 text-gray-700 leading-relaxed">
               By refurbishing instead of replacing, we:
@@ -455,7 +455,7 @@ export default function Sustainability() {
                   Recycle Responsibly
                 </h3>
                 <p className="text-gray-700">
-                  Sell your old gadgets through Zextons&apos;
+                  Sell your old gadgets through our store&apos;
                   bulk recycling program
                 </p>
               </div>
@@ -492,7 +492,7 @@ export default function Sustainability() {
               </h2>
             </div>
             <p className="mb-6 text-gray-700 leading-relaxed">
-              Zextons partners with trusted environmental organizations and
+              our store partners with trusted environmental organizations and
               refurbishing standards to ensure transparency and trust.
             </p>
 
@@ -542,14 +542,14 @@ export default function Sustainability() {
             </h2>
             <div className="grid md:grid-cols-3 gap-4">
               <Link
-                href="/about-zextons"
+                href="/about-us"
                 className="flex items-center p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-blue-300 group"
               >
                 <span className="text-2xl mr-3 group-hover:scale-110 transition-transform duration-200">
                   ℹ️
                 </span>
                 <span className="font-medium text-gray-800 group-hover:text-blue-600 transition-colors duration-200">
-                  About Zextons
+                  About our store
                 </span>
               </Link>
               <Link
@@ -633,7 +633,7 @@ export default function Sustainability() {
           <div className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-12 text-center text-white">
             <h2 className="text-2xl font-bold mb-6">💭 Final Thought</h2>
             <p className="text-xl= leading-relaxed">
-              At Zextons, sustainability isn&apos;t just a statement — it&apos;s
+              At our store, sustainability isn&apos;t just a statement — it&apos;s
               a promise.
             </p>
             <p className="text-lg= leading-relaxed">

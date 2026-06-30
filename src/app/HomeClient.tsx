@@ -10,7 +10,6 @@ import {
   type SiteWidgetVisibility,
 } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { useAuth } from "@/app/context/Auth";
-import { useBackendAvailability } from "@/app/context/BackendAvailabilityContext";
 import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
 import { mergePublicStoreLogoIntoHomepageBlocks } from "./lib/mergePublicStoreLogoIntoHomepageBlocks";
@@ -24,11 +23,6 @@ const HomepageContent = dynamic(() => import("./components/HomepageContent"), {
     </div>
   ),
 });
-
-const CookieConsent = dynamic(
-  () => import("./components/common/ConsentCookie"),
-  { ssr: false }
-);
 
 const NewsletterSuccessModal = dynamic(
   () => import("./components/common/NewsletterSuccessModal"),
@@ -57,8 +51,6 @@ export default function HomeClient({
     (state) => state.categories
   );
   const [showThankYou, setShowThankYou] = useState(false);
-  const [showConsent, setShowConsent] = useState<boolean>(false);
-  const backendAvailable = useBackendAvailability();
   const [mounted, setMounted] = useState(false);
   const category = "";
   const pricingGroupId = auth?.user?.pricingGroup
@@ -262,12 +254,6 @@ export default function HomeClient({
     setShowThankYou(false);
   };
 
-  useEffect(() => {
-    if (!mounted) return;
-    const consent = localStorage.getItem("cookieConsent");
-    setShowConsent(backendAvailable && (!consent || consent === "rejected"));
-  }, [mounted, backendAvailable]);
-
   return (
     <>
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
@@ -314,7 +300,6 @@ export default function HomeClient({
       {showThankYou && (
         <NewsletterSuccessModal onClose={handleClose} />
       )}
-      {showConsent && <CookieConsent />}
     </>
   );
 }

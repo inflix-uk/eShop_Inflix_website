@@ -14,6 +14,12 @@ import {
   getPaginatedProducts,
   PRODUCT_CARDS_PER_PAGE,
 } from "@/app/components/productCardUtils";
+import {
+  fetchNestedFooterPage,
+  FooterPageShell,
+  isPublishedFooterPage,
+  normalizeFooterSlug,
+} from "@/app/lib/footerPagePublic";
 import type { Product } from "../../../../../types";
 function toOriginalCase(slug: string) {
   return slug
@@ -81,6 +87,7 @@ export default async function CategoryPage({
   const pageRaw = Number((await searchParams).page || "1");
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const decodedSlug = normalizeFooterSlug(categoryName);
   const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getCategoryData(categoryName),
     getProducts(categoryName),
@@ -88,6 +95,15 @@ export default async function CategoryPage({
   ]);
 
   if (!categoryData) {
+    const footerPage = await fetchNestedFooterPage("categories", decodedSlug);
+    if (isPublishedFooterPage(footerPage)) {
+      return (
+        <FooterPageShell
+          page={footerPage}
+          navbarVariantTestConfig={navbarVariantTestConfig}
+        />
+      );
+    }
     notFound();
   }
 

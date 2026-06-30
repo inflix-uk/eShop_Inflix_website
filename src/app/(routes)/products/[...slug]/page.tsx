@@ -7,6 +7,11 @@ import Loading from "@/app/components/Loading";
 import VariantLinksSSR from "@/app/(routes)/products/components/VariantLinksSSR";
 import ProductSEOContent from "@/app/(routes)/products/components/ProductSEOContent";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import {
+  fetchNestedFooterPage,
+  FooterPageShell,
+  isPublishedFooterPage,
+} from "@/app/lib/footerPagePublic";
 
 // Force dynamic rendering since we use cache: "no-store" for fresh product data
 export const dynamic = 'force-dynamic';
@@ -392,6 +397,17 @@ export default async function Product({
     ]);
 
     if (!product) {
+      if (slug.length === 1) {
+        const footerPage = await fetchNestedFooterPage("products", productUrl);
+        if (isPublishedFooterPage(footerPage)) {
+          return (
+            <FooterPageShell
+              page={footerPage}
+              navbarVariantTestConfig={navbarVariantTestConfig}
+            />
+          );
+        }
+      }
       console.error('Product not found for productUrl:', productUrl);
       notFound();
     }

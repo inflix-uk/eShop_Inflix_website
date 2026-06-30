@@ -5,6 +5,8 @@ import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/app/context/Auth";
 import DeferredGoogleTagManagerGate from "@/app/components/analytics/DeferredGoogleTagManagerGate";
+import MarketingAttributionCaptureGate from "@/app/components/analytics/MarketingAttributionCaptureGate";
+import ConsentCookieGate from "@/app/components/common/ConsentCookieGate";
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
@@ -115,20 +117,17 @@ export async function generateMetadata(): Promise<Metadata> {
         }
       : {};
 
-  const ogImage = `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`;
+  const ogImage = siteBranding?.logoUrl?.trim() || undefined;
 
   const metadata: Metadata = {
     robots: "index, follow",
-    // Do not set alternates.openGraph.url here: without a per-route path, every
-    // page would inherit the homepage canonical. Use getCanonical in each
-    // route's generateMetadata (see app/page.tsx for "/").
     openGraph: {
       type: "website",
-      images: [{ url: ogImage }],
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      images: [{ url: ogImage }],
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
     },
     // Skip metadata.verification when GSC meta is injected via Site scripts head HTML (avoids duplicate tags)
     ...(verificationCode && {
@@ -190,23 +189,6 @@ export default async function RootLayout({
         />
         <FacebookPixelBlock />
         <DeferredGoogleTagManagerGate />
-        {/* Hardcoded Organization schema — kept as fallback reference
-        <Script
-          id="organization-schema"
-          type="application/ld+json"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              name: "Zextons",
-              alternateName: "Zextons",
-              url: "https://zextons.co.uk/",
-              logo: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp`,
-            }),
-          }}
-        />
-        */}
         {/* Dynamic site-wide schemas from admin panel */}
         {siteWideSchemas.map((jsonStr, i) => (
           <script
@@ -221,13 +203,15 @@ export default async function RootLayout({
       </head>
 
       <body
-        className="bg-white font-sans antialiased"
+        className="font-sans antialiased"
         suppressHydrationWarning
       >
         <SiteScriptsRaw html={combinedBodyStart} />
         <StoreProvider>
           <AuthProvider>
             <BackendAvailabilityProvider backendAvailable={backendAvailable}>
+              <ConsentCookieGate />
+              <MarketingAttributionCaptureGate />
               <ProductCardDesignProvider design={productCardSettings.activeDesign}>
                 {backendAvailable && <SiteBrandColors />}
                 {backendAvailable && <AnnouncementBarWrapper initial={announcementBanner} />}

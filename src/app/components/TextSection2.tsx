@@ -28,7 +28,7 @@ const TextSection2: React.FC = () => {
           <p className="mb-4">
             Avoid overspending on expensive new handsets when we have{" "}
             <Link
-              href="https://zextons.co.uk/categories/refurbished"
+              href="https:///categories/refurbished"
               className="underline text-green-600 cursor-pointer"
             >
               refurbished phones
@@ -44,7 +44,7 @@ const TextSection2: React.FC = () => {
             our website for the best deals and speak with our friendly customer
             service team, who will help you find the perfect device for your
             needs. As a popular choice both globally and in the UK, choosing the
-            right refurbished phone from Zextons means you get access to a wide
+            right refurbished phone from our store means you get access to a wide
             range of electronics and accessories, ideal for your mobile
             lifestyle.
           </p>
@@ -148,7 +148,7 @@ const TextSection2: React.FC = () => {
 
         <div className="bg-green-50 rounded-xl p-8 border-l-4 border-green-500 mb-8">
           <p className="mb-4">
-            By choosing refurbished electronics from Zextons, you&apos;re making
+            By choosing refurbished electronics from our store, you&apos;re making
             an environmentally conscious decision that helps reduce electronic
             waste. Our refurbished devices offer the same performance as new
             products but at significantly lower prices, making premium
@@ -256,7 +256,7 @@ const TextSection2: React.FC = () => {
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <p className="mb-4">
             Start saving money by purchasing the best refurbished electronics
-            from Zextons. Our high-quality, affordable devices help you access
+            from our store. Our high-quality, affordable devices help you access
             the latest technology without breaking the bank. We partner with
             leading brands to offer cutting-edge technology that&apos;s better
             for both your wallet and the environment.
@@ -272,7 +272,7 @@ const TextSection2: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Link
-                  href="https://zextons.co.uk/categories/refurbished"
+                  href="https:///categories/refurbished"
                   className="underline text-green-600 cursor-pointer font-medium"
                 >
                   Refurbished Smartphones:
@@ -283,7 +283,7 @@ const TextSection2: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <Link
-                  href="https://zextons.co.uk/categories/game-consoles"
+                  href="https:///categories/game-consoles"
                   className="underline text-green-600 cursor-pointer font-medium"
                 >
                   Gaming Consoles:
@@ -294,7 +294,7 @@ const TextSection2: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <Link
-                  href="https://zextons.co.uk/categories/iPads-and-Tablets"
+                  href="https:///categories/iPads-and-Tablets"
                   className="underline text-green-600 cursor-pointer font-medium"
                 >
                   iPad & tablets:
@@ -307,7 +307,7 @@ const TextSection2: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Link
-                  href="https://zextons.co.uk/categories/laptops-and-macbooks"
+                  href="https:///categories/laptops-and-macbooks"
                   className="underline text-green-600 cursor-pointer font-medium"
                 >
                   Laptops & MacBooks:
@@ -318,7 +318,7 @@ const TextSection2: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <Link
-                  href="https://zextons.co.uk/categories/smart-watches/apple-watch"
+                  href="https:///categories/smart-watches/apple-watch"
                   className="underline text-green-600 cursor-pointer font-medium"
                 >
                   Smartwatches:
@@ -374,12 +374,12 @@ const TextSection2: React.FC = () => {
           Fast Delivery and Stress-Free Returns
         </h2>
         <h3 className="text-2xl font-bold text-gray-700 mb-4">
-          Convenient Shopping Experience with Zextons
+          Convenient Shopping Experience with our store
         </h3>
 
         <div className="bg-green-50 rounded-xl p-8 border-l-4 border-green-500 mb-8">
           <p className="mb-4">
-            Shopping with Zextons is simple, fast, and reliable. Whether
+            Shopping with our store is simple, fast, and reliable. Whether
             you&apos;re looking for a smartphone, tablet, laptop, or gaming
             console, we deliver premium refurbished electronics at unbeatable
             prices with exceptional service.
@@ -540,10 +540,10 @@ const TextSection2: React.FC = () => {
         </div>
       </div>
 
-      {/* Why Choose Zextons Section */}
+      {/* Why Choose our store Section */}
       <div className="mb-16">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Why Choose Zextons?
+          Why Choose our store?
         </h2>
         <h3 className="text-2xl font-bold text-gray-700 mb-4">
           The UK&apos;s Most Trusted Refurbished Electronics Store
@@ -551,7 +551,7 @@ const TextSection2: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <p className="mb-4">
-            Choose affordability, quality, and trust with Zextons. We are the
+            Choose affordability, quality, and trust with our store. We are the
             UK&apos;s leading online refurbished electronics store, helping you
             stay current with the latest technology trends without overspending.
           </p>
@@ -760,7 +760,7 @@ const TextSection2: React.FC = () => {
         <div className="bg-gradient-to-r from-green-600 to-indigo-600 rounded-xl p-5 text-white">
           <h3 className="text-3xl font-bold mb-6">Ready to Get Started?</h3>
           <p className="text-xl mb-2 opacity-90 max-w-3xl mx-auto">
-            Contact Zextons today to discover how we can help you get the
+            Contact our store today to discover how we can help you get the
             perfect refurbished device at an unbeatable price, backed by our
             commitment to quality and customer satisfaction.
           </p>

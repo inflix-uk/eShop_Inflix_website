@@ -26,8 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!metaData) {
     return {
-      title: "Recycle Mobile Phone | Zextons Tech Store",
-      description: "Recycle your old mobile phone with Zextons Tech Store",
+      title: "Recycle Mobile Phone | Store",
+      description: "Recycle your old mobile phone with Store",
       robots: "index, follow",
     };
   }
@@ -38,23 +38,23 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: "our store",
       title: metaData.titleTag,
-      url: "https://zextons.co.uk/recycle-mobile-phone",
+      url: "https:///recycle-mobile-phone",
       description: metaData.metaDescription,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
+      site: "",
       title: metaData.titleTag,
       description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     alternates: {
-      canonical: "https://zextons.co.uk/recycle-mobile-phone",
-      languages: { "en-gb": "https://zextons.co.uk/recycle-mobile-phone" },
+      canonical: "https:///recycle-mobile-phone",
+      languages: { "en-gb": "https:///recycle-mobile-phone" },
     },
   };
 }
@@ -99,7 +99,7 @@ export default async function BulkRecycling() {
               Are you a business and willing to recycle your 10 or more mobile
               phones or other electronic items?{" "}
               <a
-                href="mailto:sell@zextons.co.uk"
+                href="mailto:sell@"
                 className="text-primary underline"
               >
                 Contact us!
@@ -109,10 +109,10 @@ export default async function BulkRecycling() {
               for your devices to contact you directly. Simply let us know by
               email at{" "}
               <Link
-                href="mailto:sell@zextons.co.uk"
+                href="mailto:sell@"
                 className="text-primary underline"
               >
-                sell@zextons.co.uk
+                sell@
               </Link>{" "}
               or fill in the form below to provide details of any items such as
               Mobile phones that you wish to recycle, enter your business /
@@ -123,7 +123,7 @@ export default async function BulkRecycling() {
             <p>
               If you have less than 10 devices to sell, go over to our{" "}
               <a
-                // href="https://sell.zextons.co.uk/"
+                // href="https://sell./"
                 className="text-primary underline"
               >
                 buy-back website

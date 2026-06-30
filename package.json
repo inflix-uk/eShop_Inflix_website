@@ -1,10 +1,11 @@
 {
-  "name": "nextjszextonsfrontend",
+  "name": "eshop-storefront",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "clean": "npx --yes rimraf@5 .next node_modules/.cache",
+    "clean": "node scripts/clean-next.mjs",
+    "prebuild": "node scripts/assert-no-dev-server.mjs",
     "dev": "next dev --turbopack -H 0.0.0.0",
     "dev:turbo": "next dev --turbopack -H 0.0.0.0",
     "dev:webpack": "next dev -H 0.0.0.0",

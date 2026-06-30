@@ -1,8 +1,8 @@
 import PrivateRoute from "@/app/privateroute";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
-  title: "Customer Dashboard | Zextons Tech Store",
-  description: "Customer Dashboard | Zextons Tech Store",
+  title: "Customer Dashboard | Store",
+  description: "Customer Dashboard | Store",
 };
 enum UserRoles {
   USER = "user",

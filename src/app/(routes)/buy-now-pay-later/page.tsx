@@ -32,7 +32,7 @@ export default function BuyNowPayLaterPage() {
         "Clearpay lets you pay for your purchase in four equal interest-free instalments, taken every two weeks. Example: £240 purchase = 4 x £60 instalments. No fees when you pay on time.",
     },
     {
-      question: "Can I use PayPal Pay in 3 on Zextons?",
+      question: "Can I use PayPal Pay in 3 on our store?",
       answer:
         "Yes! Eligible customers can select PayPal Pay in 3 at checkout. You'll split your order into three monthly payments with 0% interest.",
     },
@@ -59,7 +59,7 @@ export default function BuyNowPayLaterPage() {
     {
       question: "How do I get help with a BNPL payment issue?",
       answer:
-        "For payment issues, contact your provider directly. For order queries, contact Zextons Support at hello@zextons.co.uk.",
+        "For payment issues, contact your provider directly. For order queries, contact our store Support at hello@.",
     },
   ];
 
@@ -73,7 +73,7 @@ export default function BuyNowPayLaterPage() {
       <main className="mx-auto max-w-7xl p-3">
         <div>
           <h1 className="text-3xl font-bold text-primary mb-6">
-            Buy Now, Pay Later with Klarna, Clearpay & PayPal | Zextons
+            Buy Now, Pay Later with Klarna, Clearpay & PayPal | our store
           </h1>
 
           <div className="prose prose-lg max-w-none">
@@ -82,7 +82,7 @@ export default function BuyNowPayLaterPage() {
                 Shop Now. Pay Later. Stress-Free.
               </h2>
               <p className="text-gray-700 leading-relaxed">
-                At Zextons, we make it easier to get the tech you love today —
+                At our store, we make it easier to get the tech you love today —
                 and spread the cost over time with Klarna, Clearpay, and PayPal
                 Pay in 3. Choose the payment method that suits you best — all
                 with 0% interest, no hidden fees, and fast approval.
@@ -215,7 +215,7 @@ export default function BuyNowPayLaterPage() {
               </h2>
               <p className="text-gray-700 mb-4">
                 BNPL services are a form of credit. Please ensure you can afford
-                repayments before choosing these options. Zextons acts as an
+                repayments before choosing these options. our store acts as an
                 introducer, not a lender. Your agreement is with the chosen
                 provider.
               </p>
@@ -243,7 +243,7 @@ export default function BuyNowPayLaterPage() {
 
             <div className="bg-gray-50 p-6 rounded-lg mb-8">
               <h2 className="text-xl font-bold text-primary mb-6">
-                Frequently Asked Questions – Buy Now Pay Later at Zextons
+                Frequently Asked Questions – Buy Now Pay Later at our store
               </h2>
 
               <div className="space-y-4">
@@ -326,23 +326,23 @@ export default function BuyNowPayLaterPage() {
                   </a>
                 </li>
                 <li>
-                  <strong>Zextons Returns Policy:</strong>{" "}
+                  <strong>our store Returns Policy:</strong>{" "}
                   <a
-                    href="https://zextons.co.uk/refund-and-return-policy"
+                    href="https:///refund-and-return-policy"
                     className="text-primary hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    https://zextons.co.uk/refund-and-return-policy
+                    https:///refund-and-return-policy
                   </a>
                 </li>
                 <li>
-                  <strong>Contact Zextons Support (email):</strong>{" "}
+                  <strong>Contact our store Support (email):</strong>{" "}
                   <a
-                    href="mailto:hello@zextons.co.uk"
+                    href="mailto:hello@"
                     className="text-primary hover:underline"
                   >
-                    hello@zextons.co.uk
+                    hello@
                   </a>
                 </li>
               </ul>
@@ -353,7 +353,7 @@ export default function BuyNowPayLaterPage() {
                 Legal Disclaimer
               </h2>
               <p className="text-gray-700 mb-4">
-                Zextons Tech Store is not a lender and acts only as an
+                Store is not a lender and acts only as an
                 introducer to payment providers including Klarna Bank AB (publ),
                 Clearpay Finance Ltd, and PayPal (Europe) S.à r.l. et Cie,
                 S.C.A.
@@ -370,7 +370,7 @@ export default function BuyNowPayLaterPage() {
                 ensure you can make repayments on time.
               </p>
               <p className="text-gray-700 font-semibold">
-                Zextons Tech Store acts as an introducer and not a lender.
+                Store acts as an introducer and not a lender.
                 Credit is provided by Klarna, Clearpay, and PayPal, subject to
                 status. Terms and conditions apply. Please borrow responsibly.
               </p>

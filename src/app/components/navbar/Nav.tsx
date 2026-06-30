@@ -33,6 +33,7 @@ import MoreDropdown from "./MoreDropdown";
 import CategorySmallMenu from "./CategorySmallMenu";
 import { NavbarCustomLinkItem } from "./NavbarCustomLinkItem";
 import type { HomeNavbarServerBootstrap } from "@/app/services/navbarCriticalServer";
+import { DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 interface NavbarCategorySliceState {
   items: NavbarItem[];
@@ -57,7 +58,7 @@ export default function Nav({ serverBootstrap = null }: NavProps) {
     () => serverBootstrap?.logoUrl ?? null
   );
   const [logoAlt, setLogoAlt] = useState<string>(
-    () => serverBootstrap?.logoAlt?.trim() || "Zextons"
+    () => serverBootstrap?.logoAlt?.trim() || DEFAULT_LOGO_ALT
   );
   const [logoError, setLogoError] = useState<boolean>(false);
   const [supportPhone, setSupportPhone] = useState<string>(

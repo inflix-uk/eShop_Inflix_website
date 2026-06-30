@@ -3,7 +3,9 @@ import Script from "next/script";
 /**
  * When true, Meta/Facebook Pixel will not load even if GTM injects the tag:
  * the official bootstrap does `if (f.fbq) return` before fetching fbevents.js.
- * Set to false (or remove this component) to re-enable pixel.
+ * Real pixel is not enabled in this task — remains stubbed unless env override is set.
+ * When unblocked, GTM may still load Meta tags; targeting consent is enforced via
+ * cookieConsent / performance / targeting cookies elsewhere (GTM container config).
  */
 export const TEMPORARILY_BLOCK_FACEBOOK_PIXEL = true;
 

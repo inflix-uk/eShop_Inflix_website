@@ -22,8 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!metaData) {
     return {
-      title: "Contact Us | Zextons Tech Store",
-      description: "Get in touch with Zextons Tech Store",
+      title: "Contact Us | Store",
+      description: "Get in touch with Store",
       robots: "index, follow",
       alternates: { canonical: canonicalUrl, languages: { "en-gb": canonicalUrl } },
       openGraph: { url: canonicalUrl },
@@ -36,19 +36,19 @@ export async function generateMetadata(): Promise<Metadata> {
     keywords: metaData.metaKeywords,
     robots: "index, follow",
     openGraph: {
-      siteName: "Zextons",
+      siteName: "our store",
       title: metaData.titleTag,
       url: canonicalUrl,
       description: metaData.metaDescription,
       type: "website",
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@ZextonsTechStore",
+      site: "",
       title: metaData.titleTag,
       description: metaData.metaDescription,
-      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/uploads/web/Zextons.webp` }],
+      images: [{ url: `${process.env.NEXT_PUBLIC_API_URL}/` }],
     },
     alternates: {
       canonical: canonicalUrl,

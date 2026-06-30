@@ -38,7 +38,7 @@ export default function WarrantySection({
           </h2>
 
           <p className="text-white text-lg leading-relaxed mb-12 max-w-3xl mx-auto">
-            The {productName} from Zextons Tech Store comes with a Big warranty!
+            The {productName} from our store comes with a warranty!
             The policy covers any internal fault that may arise through normal
             use during the 18 month warranty period.
           </p>
@@ -150,7 +150,7 @@ export default function WarrantySection({
                           </div>
 
                           <p className="text-gray-700 leading-relaxed">
-                            Welcome to The Big Phone Store&apos;s warranty page.
+                            Welcome to our store&apos;s warranty page.
                             We are dedicated to providing our customers with
                             high-quality products and support. To ensure your
                             confidence in your purchase, we offer a

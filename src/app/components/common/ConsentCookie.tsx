@@ -6,6 +6,7 @@ import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import CookieImage from "@/app/assets/cookie.png";
 import Image from "next/image";
+import { dispatchCookieConsentUpdated } from "@/app/lib/cookieConsent";
 
 interface Preferences {
   necessary: boolean;
@@ -69,29 +70,40 @@ const CookieConsent: FC = () => {
 
   const handleAccept = () => {
     Cookies.set("cookieConsent", "accepted", { expires: 365 });
-    setPreferences((prev) => {
-      const newPreferences = { ...prev, performance: true, targeting: true };
-      savePreferences(newPreferences);
-      return newPreferences;
-    });
+    const prefs: Preferences = {
+      necessary: true,
+      performance: true,
+      targeting: true,
+    };
+    Cookies.set("performance", "true", { expires: 365 });
+    Cookies.set("targeting", "true", { expires: 365 });
+    setPreferences(prefs);
+    setShowPreferences(false);
     setVisible(false);
+    dispatchCookieConsentUpdated();
   };
 
   const handleReject = () => {
     Cookies.set("cookieConsent", "rejected", { expires: 365 });
-    savePreferences({
+    const prefs: Preferences = {
       necessary: true,
       performance: false,
       targeting: false,
-    });
+    };
+    Cookies.set("performance", "false", { expires: 365 });
+    Cookies.set("targeting", "false", { expires: 365 });
+    setPreferences(prefs);
+    setShowPreferences(false);
     setVisible(false);
+    dispatchCookieConsentUpdated();
   };
 
   const savePreferences = (prefs: Preferences) => {
     Cookies.set("performance", String(prefs.performance), { expires: 365 });
     Cookies.set("targeting", String(prefs.targeting), { expires: 365 });
+    setPreferences(prefs);
     setShowPreferences(false);
-    console.log("Saved preferences:", prefs);
+    dispatchCookieConsentUpdated();
   };
 
   const handleClose = () => {

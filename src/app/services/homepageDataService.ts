@@ -8,22 +8,11 @@ import {
   isCmsFetchAbortError,
   isCmsUnreachableFetchError,
 } from "@/app/lib/cmsTimedFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 
-/** Normalized API origin for homepage CMS calls (SSR + client). Never use a bare undefined in URL templates. */
+/** Normalized API origin for homepage CMS calls (SSR + client). */
 function getHomepageCmsApiBase(): string {
-  const raw = String(
-    process.env.NEXT_PUBLIC_CMS_API_URL || process.env.NEXT_PUBLIC_API_URL || ""
-  )
-    .trim()
-    .replace(/\/+$/, "");
-  if (raw) {
-    // Node undici often resolves localhost to ::1; backend may only listen on IPv4.
-    return raw.replace(/^http:\/\/localhost(?=[:/]|$)/i, "http://127.0.0.1");
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return "http://127.0.0.1:3001";
-  }
-  return "";
+  return resolveCmsApiBase();
 }
 
 /** Admin Homepage SEO (`PATCH /homepage-data/seo`) exposed publicly for metadata */

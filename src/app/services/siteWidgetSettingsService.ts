@@ -3,6 +3,7 @@ import {
   cmsPublicFetchInit,
 } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import {
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
@@ -11,7 +12,7 @@ import {
 export type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
 export { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = resolveCmsApiBase();
 
 /**
  * Global widget visibility (slider, newsletter, FAQ) for the public site.

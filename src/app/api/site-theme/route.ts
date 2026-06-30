@@ -10,6 +10,7 @@ export const revalidate = 120;
 const NO_CMS_THEME_COLORS = {
   primaryColor: "transparent",
   secondaryColor: "transparent",
+  bodyBgColor: "",
 } as const;
 
 export async function GET() {

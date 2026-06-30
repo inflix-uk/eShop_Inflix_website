@@ -69,14 +69,15 @@ export function metaSchemaEntryToJsonLdString(raw: string): string | null {
  * WebSite only — root layout already injects Organization JSON-LD.
  * @param siteUrl — absolute origin for this request (e.g. from {@link getCanonical} with path "").
  */
-export function getDefaultHomepageJsonLdString(siteUrl: string): string {
+export function getDefaultHomepageJsonLdString(
+  siteUrl: string,
+  siteName = ""
+): string {
   return JSON.stringify({
     "@context": SCHEMA_CONTEXT,
     "@type": "WebSite",
-    name: "Zextons Tech Store",
+    ...(siteName ? { name: siteName } : {}),
     url: siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`,
-    description:
-      "Refurbished and new mobile phones in the UK. Shop with warranty and fast delivery.",
   });
 }
 
