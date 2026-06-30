@@ -5,6 +5,8 @@ import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/app/context/Auth";
 import DeferredGoogleTagManagerGate from "@/app/components/analytics/DeferredGoogleTagManagerGate";
+import MarketingAttributionCaptureGate from "@/app/components/analytics/MarketingAttributionCaptureGate";
+import ConsentCookieGate from "@/app/components/common/ConsentCookieGate";
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
@@ -201,13 +203,15 @@ export default async function RootLayout({
       </head>
 
       <body
-        className="bg-white font-sans antialiased"
+        className="font-sans antialiased"
         suppressHydrationWarning
       >
         <SiteScriptsRaw html={combinedBodyStart} />
         <StoreProvider>
           <AuthProvider>
             <BackendAvailabilityProvider backendAvailable={backendAvailable}>
+              <ConsentCookieGate />
+              <MarketingAttributionCaptureGate />
               <ProductCardDesignProvider design={productCardSettings.activeDesign}>
                 {backendAvailable && <SiteBrandColors />}
                 {backendAvailable && <AnnouncementBarWrapper initial={announcementBanner} />}

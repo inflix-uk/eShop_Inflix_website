@@ -19,6 +19,7 @@
     min-width: 0;
     overflow-x: clip;
     overflow-y: visible;
+    background-color: var(--body-bg-color);
     /* Font family / weight / style: CMS typography + `body.font-sans` in root layout (`TypographyThemeStyles`) */
   }
 }
@@ -39,6 +40,7 @@ html.has-product-sticky-buy-bar #site-footer {
   /* Space-separated RGB for Tailwind opacity modifiers (primary/secondary, green-*) */
   --primary-rgb: 0 0 0;
   --secondary-rgb: 0 0 0;
+  --body-bg-color: #ffffff;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

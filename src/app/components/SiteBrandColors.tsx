@@ -19,7 +19,8 @@ export default function SiteBrandColors() {
 
         const t = resolveSiteTheme(
           String(json.data.primaryColor ?? ""),
-          String(json.data.secondaryColor ?? "")
+          String(json.data.secondaryColor ?? ""),
+          String(json.data.bodyBgColor ?? "")
         );
 
         const root = document.documentElement;
@@ -27,6 +28,8 @@ export default function SiteBrandColors() {
         root.style.setProperty("--secondary", t.secondaryColor);
         root.style.setProperty("--primary-rgb", t.primaryRgb);
         root.style.setProperty("--secondary-rgb", t.secondaryRgb);
+        root.style.setProperty("--body-bg-color", t.bodyBgColor);
+        document.body.style.backgroundColor = t.bodyBgColor;
       } catch {
         /* defaults from globals.css + layout inline theme */
       }

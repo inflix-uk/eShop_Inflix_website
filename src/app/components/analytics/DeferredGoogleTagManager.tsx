@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  COOKIE_CONSENT_UPDATED_EVENT,
+  hasAnalyticsConsent,
+} from "@/app/lib/cookieConsent";
 
 const GTM_ID = "GTM-P938DWL3";
-const AHREFS_KEY = "uvqeroCgZqjugCBgl++DGQ";
 const CLARITY_ID = "ok17wd71hr";
 
-/** After GTM loads, stagger other pixels so parse/eval stays off one long task. */
-const AHREFS_DELAY_MS = 3500;
+/** After GTM loads, stagger Clarity so parse/eval stays off one long task. */
 const CLARITY_DELAY_MS = 6500;
 
 /** Minimum quiet period after `load` before we schedule idle work (lets React/embla hydrate). */
@@ -38,14 +40,6 @@ function injectGtm() {
   document.head.appendChild(s);
 }
 
-function injectAhrefs() {
-  const s = document.createElement("script");
-  s.async = true;
-  s.src = "https://analytics.ahrefs.com/analytics.js";
-  s.dataset.key = AHREFS_KEY;
-  document.head.appendChild(s);
-}
-
 function injectClarity() {
   const s = document.createElement("script");
   s.defer = true;
@@ -54,27 +48,20 @@ function injectClarity() {
 }
 
 /**
- * Loads GTM, Ahrefs, and Clarity off the critical path:
- * - waits for `load` + a short quiet window, then `requestIdleCallback` (long timeout),
- * - optional early path on first pointer / key (still via idle; scroll is omitted so
- *   passive reading and Lighthouse scroll do not pull GTM onto the critical path),
- * - staggers Ahrefs/Clarity after GTM to split main-thread parse cost,
- * - defers injection until `document.visibilityState === "visible"` when possible.
- * Improves Lighthouse JS execution / TBT vs firing all tags in one idle slice.
+ * Loads GTM and Clarity off the critical path when performance/analytics
+ * consent is granted. Ahrefs is loaded via GTM only (avoid duplicate inject).
  */
 export default function DeferredGoogleTagManager() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.__storeIdlePixels) return;
-    window.__storeIdlePixels = true;
 
     let cancelled = false;
     let fired = false;
+    let booted = false;
     let idleHandle: number | undefined;
     let idleFallbackHandle: number | undefined;
     let postLoadQuietHandle: number | undefined;
     let fallbackHandle: number | undefined;
-    let ahrefsHandle: number | undefined;
     let clarityHandle: number | undefined;
     let engagementConsumed = false;
     let waitingForVisible = false;
@@ -84,15 +71,13 @@ export default function DeferredGoogleTagManager() {
     const keyOpts = { capture: true } as const;
 
     const injectAllTags = () => {
-      if (cancelled || fired) return;
+      if (cancelled || fired || !hasAnalyticsConsent()) return;
       fired = true;
+      window.__storeIdlePixels = true;
       try {
         injectGtm();
-        ahrefsHandle = window.setTimeout(() => {
-          if (!cancelled) injectAhrefs();
-        }, AHREFS_DELAY_MS) as unknown as number;
         clarityHandle = window.setTimeout(() => {
-          if (!cancelled) injectClarity();
+          if (!cancelled && hasAnalyticsConsent()) injectClarity();
         }, CLARITY_DELAY_MS) as unknown as number;
       } catch {
         /* non-fatal */
@@ -100,7 +85,7 @@ export default function DeferredGoogleTagManager() {
     };
 
     const runPixels = () => {
-      if (cancelled || fired) return;
+      if (cancelled || fired || !hasAnalyticsConsent()) return;
       if (typeof document !== "undefined" && document.visibilityState !== "visible") {
         if (waitingForVisible) return;
         waitingForVisible = true;
@@ -129,8 +114,24 @@ export default function DeferredGoogleTagManager() {
       }
     };
 
+    const cancelBootTimers = () => {
+      cancelScheduledIdle();
+      if (postLoadQuietHandle != null) {
+        window.clearTimeout(postLoadQuietHandle);
+        postLoadQuietHandle = undefined;
+      }
+      if (fallbackHandle != null) {
+        window.clearTimeout(fallbackHandle);
+        fallbackHandle = undefined;
+      }
+      window.removeEventListener("pointerdown", onEngagement, captureOpts);
+      window.removeEventListener("keydown", onEngagement, keyOpts);
+      engagementConsumed = false;
+      booted = false;
+    };
+
     const scheduleViaIdle = (timeout: number) => {
-      if (cancelled || fired) return;
+      if (cancelled || fired || !hasAnalyticsConsent()) return;
       cancelScheduledIdle();
       if (typeof window.requestIdleCallback === "function") {
         idleHandle = window.requestIdleCallback(
@@ -149,7 +150,7 @@ export default function DeferredGoogleTagManager() {
     };
 
     const onEngagement = () => {
-      if (cancelled || fired || engagementConsumed) return;
+      if (cancelled || fired || engagementConsumed || !hasAnalyticsConsent()) return;
       engagementConsumed = true;
       window.removeEventListener("pointerdown", onEngagement, captureOpts);
       window.removeEventListener("keydown", onEngagement, keyOpts);
@@ -162,7 +163,10 @@ export default function DeferredGoogleTagManager() {
     };
 
     const boot = () => {
-      if (cancelled) return;
+      if (cancelled || booted || fired || !hasAnalyticsConsent()) return;
+      if (window.__storeIdlePixels) return;
+      booted = true;
+
       postLoadQuietHandle = window.setTimeout(() => {
         postLoadQuietHandle = undefined;
         if (!cancelled && !fired) scheduleViaIdle(DEFAULT_IDLE_TIMEOUT_MS);
@@ -176,26 +180,40 @@ export default function DeferredGoogleTagManager() {
       window.addEventListener("keydown", onEngagement, keyOpts);
     };
 
-    if (document.readyState === "complete") {
-      boot();
-    } else {
-      window.addEventListener("load", boot, { once: true });
-    }
+    const tryStart = () => {
+      if (cancelled || fired) return;
+      if (!hasAnalyticsConsent()) {
+        cancelBootTimers();
+        return;
+      }
+      if (document.readyState === "complete") {
+        boot();
+      } else {
+        window.addEventListener("load", boot, { once: true });
+      }
+    };
+
+    const onConsentUpdated = () => {
+      if (!hasAnalyticsConsent()) {
+        cancelBootTimers();
+        return;
+      }
+      tryStart();
+    };
+
+    tryStart();
+    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, onConsentUpdated);
 
     return () => {
       cancelled = true;
-      cancelScheduledIdle();
-      if (postLoadQuietHandle != null) window.clearTimeout(postLoadQuietHandle);
-      if (fallbackHandle != null) window.clearTimeout(fallbackHandle);
-      if (ahrefsHandle != null) window.clearTimeout(ahrefsHandle);
+      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, onConsentUpdated);
+      cancelBootTimers();
       if (clarityHandle != null) window.clearTimeout(clarityHandle);
       if (onVisibleHandler != null) {
         document.removeEventListener("visibilitychange", onVisibleHandler);
         onVisibleHandler = undefined;
         waitingForVisible = false;
       }
-      window.removeEventListener("pointerdown", onEngagement, captureOpts);
-      window.removeEventListener("keydown", onEngagement, keyOpts);
     };
   }, []);
 

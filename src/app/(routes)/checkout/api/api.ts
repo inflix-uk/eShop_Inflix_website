@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { User, Coupon, ShippingInformation, ContactInfo, ProductItem } from '../../../../../types';
+import type { MarketingAttributionPayload } from '@/app/lib/marketingAttribution';
+import { withMarketingAttribution } from '@/app/lib/marketingAttribution';
 
 
 const API_URL: string = (process.env.NEXT_PUBLIC_API_URL || '').trim();
@@ -72,6 +74,7 @@ export interface CreateOrderRequest {
   orderNumber?: string | null;
   status: string;
   shippingMethod?: ShippingMethodData | null;
+  marketingAttribution?: MarketingAttributionPayload;
 }
 
 export interface CreateOrderResponse {
@@ -212,7 +215,7 @@ export interface UpdatePaymentIntentAmountResponse {
 
 export class CheckoutApi {
   private get baseUrl(): string {
-    return API_URL;
+    return API_URL.replace(/\/+$/, '');
   }
 
   // ============================================================================
@@ -450,8 +453,10 @@ export class CheckoutApi {
     paymentDetails: any;
     orderNumber: string;
     status: string;
+    marketingAttribution?: MarketingAttributionPayload;
   }): Promise<CreateOrderResponse> {
-    const response = await axios.post(`${this.baseUrl}/create/order`, orderData);
+    const payload = withMarketingAttribution(orderData);
+    const response = await axios.post(`${this.baseUrl}/create/order`, payload);
 
     if (!response ) {
       throw new Error(`Failed to update order`);

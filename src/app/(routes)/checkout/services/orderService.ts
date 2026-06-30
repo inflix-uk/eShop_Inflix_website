@@ -1,6 +1,7 @@
 import { ShippingInformation, ContactInfo, Coupon, ProductItem, Errors } from '../../../../../types';
 import { toast } from 'react-toastify';
 import { api, CreateOrderRequest, CreateCheckoutSessionRequest } from '../api';
+import { withMarketingAttribution } from '@/app/lib/marketingAttribution';
 
 export interface ShippingMethodData {
   name: string;
@@ -33,7 +34,7 @@ export class OrderService {
 
   async createOrder(orderData: OrderData): Promise<OrderResponse | false> {
     try {
-      const createOrderData: CreateOrderRequest = {
+      const createOrderData: CreateOrderRequest = withMarketingAttribution({
         cart: orderData.cart,
         shippingInformation: orderData.shippingInformation,
         contactInformation: orderData.contactInformation,
@@ -41,7 +42,7 @@ export class OrderService {
         orderNumber: orderData.orderNumber,
         status: orderData.status,
         shippingMethod: orderData.shippingMethod,
-      };
+      });
 
       console.log('📤 Sending order data:', {
         cartItemsCount: createOrderData.cart.length,
@@ -50,6 +51,14 @@ export class OrderService {
         hasCoupon: !!createOrderData.coupon,
         status: createOrderData.status,
         shippingMethod: createOrderData.shippingMethod?.name,
+        marketingAttribution: createOrderData.marketingAttribution
+          ? {
+              attributionConsent: createOrderData.marketingAttribution.consent,
+              gclid: createOrderData.marketingAttribution.clickIds?.gclid ?? null,
+              source: createOrderData.marketingAttribution.orderTouch?.source ?? null,
+              medium: createOrderData.marketingAttribution.orderTouch?.medium ?? null,
+            }
+          : null,
       });
 
       const response = await api.createOrder(createOrderData);

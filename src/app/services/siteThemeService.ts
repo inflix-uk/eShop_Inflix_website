@@ -61,13 +61,15 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
 
     const primary = String(json.data.primaryColor ?? "").trim();
     const secondary = String(json.data.secondaryColor ?? "").trim();
+    const bodyBg = String(json.data.bodyBgColor ?? "").trim();
     const colors =
       !primary || !secondary
         ? resolveSiteTheme(
             DEFAULT_SITE_THEME.primaryColor,
-            DEFAULT_SITE_THEME.secondaryColor
+            DEFAULT_SITE_THEME.secondaryColor,
+            bodyBg
           )
-        : resolveSiteTheme(primary, secondary);
+        : resolveSiteTheme(primary, secondary, bodyBg);
 
     const typography = resolveTypographyFromApi(json.data);
 
