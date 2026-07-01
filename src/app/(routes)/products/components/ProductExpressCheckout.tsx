@@ -174,8 +174,11 @@ function ExpressCheckoutInner({
             googlePay: "black",
           },
           layout: {
-            maxColumns: 2,
-            maxRows: 1,
+            // Single full-width column so each wallet button matches the
+            // Add-to-Cart button's size (stacked directly beneath it).
+            maxColumns: 1,
+            maxRows: 3,
+            overflow: "never",
           },
         }}
       />
