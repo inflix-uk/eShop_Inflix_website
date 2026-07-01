@@ -173,13 +173,9 @@ function ExpressCheckoutInner({
             applePay: "black",
             googlePay: "black",
           },
-          layout: {
-            // Single full-width column so each wallet button matches the
-            // Add-to-Cart button's size (stacked directly beneath it).
-            maxColumns: 1,
-            maxRows: 3,
-            overflow: "never",
-          },
+          // No custom `layout` — a restrictive layout (maxColumns/overflow:never)
+          // left the element stuck on "Loading payment options...". This matches
+          // the working checkout-page config so the wallet buttons actually render.
         }}
       />
       {!isReady && (
