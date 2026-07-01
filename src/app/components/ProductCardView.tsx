@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { StarIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
+import ProductCardLinkSpinner from "./ProductCardLinkSpinner";
 import type { ProductCardDisplay } from "./productCardUtils";
 import type { ProductCardDesign } from "@/app/services/productCardSettingsService";
 
@@ -81,6 +82,7 @@ export default function ProductCardView({
               <Link href={productHref} className="line-clamp-2 hover:text-gray-600">
                 {name}
                 <span className="absolute inset-0 z-[1]" aria-hidden="true" />
+                <ProductCardLinkSpinner />
               </Link>
             </h3>
             <p className="text-xs sm:text-sm font-normal text-gray-600">
@@ -111,6 +113,7 @@ export default function ProductCardView({
             <Link href={productHref} className="line-clamp-2 md:line-clamp-2">
               {name}
               <span className="absolute inset-0 z-[1]" aria-hidden="true" />
+              <ProductCardLinkSpinner />
             </Link>
           </h3>
 
@@ -174,6 +177,7 @@ export default function ProductCardView({
           <Link href={productHref} className="line-clamp-2 md:line-clamp-2">
             {name}
             <span className="absolute inset-0 z-[1]" aria-hidden="true" />
+            <ProductCardLinkSpinner />
           </Link>
         </h3>
 
