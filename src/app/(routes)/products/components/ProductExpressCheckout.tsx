@@ -173,13 +173,13 @@ function ExpressCheckoutInner({
             applePay: "black",
             googlePay: "black",
           },
-          // Single full-width column so each wallet button matches the Add-to-Cart
-          // button's width. `maxRows: 0` = no row limit (show every method, no
-          // overflow menu). We intentionally DO NOT set `overflow: "never"` — that
-          // was what previously left the element stuck on "Loading payment options...".
+          // Single full-width column (matches the Add-to-Cart button width).
+          // `maxRows: 6` gives room for every wallet method and `overflow: "never"`
+          // disables the "See more" collapse so they all show stacked directly.
           layout: {
             maxColumns: 1,
-            maxRows: 0,
+            maxRows: 6,
+            overflow: "never",
           },
         }}
       />
