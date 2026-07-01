@@ -14,17 +14,20 @@ interface NavbarVariantTestBarProps {
   config: NavbarVariantTestConfig | null;
   /** Same SSR logo as main `Nav` bootstrap when Product Central omits `logoUrl`. */
   serverBootstrapLogo?: { logoUrl: string | null; logoAlt?: string } | null;
+  /** Admin draft preview — always render even when `showOnStorefront` is off. */
+  forcePreview?: boolean;
 }
 
 export default function NavbarVariantTestBar({
   config,
   serverBootstrapLogo,
+  forcePreview = false,
 }: NavbarVariantTestBarProps) {
   const cfg = config;
   const [openCart, setOpenCart] = useState(false);
   const [, setCartItemCount] = useState(0);
 
-  if (!cfg || cfg.showOnStorefront === false) return null;
+  if (!cfg || (!forcePreview && cfg.showOnStorefront === false)) return null;
   const effectiveLogoUrl =
     String(cfg.logoUrl || "").trim() || String(serverBootstrapLogo?.logoUrl || "").trim();
   const effectiveLogoText =
@@ -49,7 +52,8 @@ export default function NavbarVariantTestBar({
     cfg.variant === "retail-two-row" ||
     cfg.variant === "wing-split" ||
     cfg.variant === "pill-black" ||
-    cfg.variant === "bold-left"
+    cfg.variant === "bold-left" ||
+    cfg.variant === "business"
       ? "w-full px-0 pt-0 pb-0"
       : cfg.id === "classic"
       ? "px-10 py-0"
@@ -60,7 +64,8 @@ export default function NavbarVariantTestBar({
     isRetailTwoRow ||
     cfg.variant === "wing-split" ||
     cfg.variant === "pill-black" ||
-    cfg.variant === "bold-left";
+    cfg.variant === "bold-left" ||
+    cfg.variant === "business";
   const widthShellClass = isFullBleedVariant ? "w-full" : "mx-auto w-full max-w-6xl";
 
   const sticky = parseStickyNavbarFlag(cfg.stickyNavbar);

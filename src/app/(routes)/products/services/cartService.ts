@@ -1,4 +1,5 @@
 import { CartItem, ProductData } from "../../../../../types";
+import { trackAddToCart } from "@/app/lib/analyticsEvents";
 
 /**
  * Add a product variant to cart
@@ -51,6 +52,21 @@ export const addToCart = (
 
   // Save the updated cart back to local storage
   saveCart(cart);
+
+  const lineItem = cart.find((item) => item._id === variant._id);
+  const cartValue = cart.reduce(
+    (sum, item) => sum + (Number(item.salePrice) || 0) * (Number(item.qty) || 1),
+    0
+  );
+  trackAddToCart(
+    {
+      productId: variant._id,
+      name: lineItem?.productName || lineItem?.name || product?.name,
+      price: updatedPrice,
+      quantity: lineItem?.qty || 1,
+    },
+    cartValue
+  );
 
   return cart;
 };

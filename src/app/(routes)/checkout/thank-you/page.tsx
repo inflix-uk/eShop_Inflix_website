@@ -20,6 +20,7 @@ export interface Order {
   orderNumber: string;
   cart: OrderItem[];
   customerEmail?: string;
+  customerPhone?: string;
   customerName?: string;
 }
 
@@ -69,7 +70,11 @@ export default function ThankYouPage() {
       orderService.trackPurchaseEvent(
         order.orderNumber,
         order.totalOrderValue,
-        order.cart
+        order.cart,
+        {
+          email: order.customerEmail,
+          phone: order.customerPhone,
+        }
       );
     }
   }, [order]);
