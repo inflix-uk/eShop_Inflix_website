@@ -1,6 +1,6 @@
 ﻿"use client";
 import dynamic from "next/dynamic";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { useAuth } from "@/app/context/Auth";
 import { useCheckout } from "./hooks/useCheckout";
@@ -49,6 +49,7 @@ const PaymentForm = dynamic(
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import CheckoutBenefits from "./components/checkout-benefits";
 import PaymentLogos from "@/app/components/PaymentLogos";
+import { trackBeginCheckout } from "@/app/lib/analyticsEvents";
 
 // Booking data loaded from localStorage when user arrives from booking flow
 const API_URL = (() => {
@@ -130,6 +131,33 @@ export default function CheckoutPage() {
 
   const isBookingOnly = hasBooking && products.length === 0;
   const activeClientSecret = isBookingOnly ? bookingClientSecret : clientSecret;
+  const beginCheckoutTracked = useRef(false);
+
+  useEffect(() => {
+    if (beginCheckoutTracked.current || isBookingOnly || products.length === 0) return;
+    beginCheckoutTracked.current = true;
+
+    trackBeginCheckout(
+      products.map((item) => ({
+        productId: item._id,
+        name: item.productName || item.name,
+        price: item.salePrice,
+        quantity: item.qty,
+      })),
+      discountedPrice ?? totalSalePrice,
+      {
+        email: email || undefined,
+        phone: shippingInformation?.phoneNumber || undefined,
+      }
+    );
+  }, [
+    products,
+    discountedPrice,
+    totalSalePrice,
+    email,
+    shippingInformation?.phoneNumber,
+    isBookingOnly,
+  ]);
 
   // Additional local state
   const [showForm, setShowForm] = useState<boolean>(false);
@@ -414,6 +442,7 @@ export default function CheckoutPage() {
                 salePrice: item.salePrice,
               })),
               customerEmail: contactInformation.email || '',
+              customerPhone: shippingInfo?.phoneNumber || '',
               customerName: shippingInfo
                 ? `${shippingInfo.firstName || ''} ${shippingInfo.lastName || ''}`.trim()
                 : '',

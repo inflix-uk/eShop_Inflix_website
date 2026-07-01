@@ -1,4 +1,9 @@
 import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
+import { normalizeApiOriginForFetch } from "@/app/lib/cmsApiBase";
+
+function previewApiBase(): string {
+  return normalizeApiOriginForFetch(process.env.NEXT_PUBLIC_API_URL || "");
+}
 
 export type NavbarVariantTestLink = {
   id?: string;
@@ -57,7 +62,7 @@ export type NavbarVariantTestConfig = {
 };
 
 export async function getNavbarVariantTestPublicServer(): Promise<NavbarVariantTestConfig | null> {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const base = previewApiBase();
   if (!base) return null;
   try {
     const json = await cmsServerFetchJson<{
@@ -68,5 +73,48 @@ export async function getNavbarVariantTestPublicServer(): Promise<NavbarVariantT
     return json.data?.config || null;
   } catch {
     return null;
+  }
+}
+
+export async function getNavbarPreviewDraftServer(
+  token: string
+): Promise<{ config: NavbarVariantTestConfig | null; error: string }> {
+  const trimmed = String(token || "").trim();
+  if (!trimmed) {
+    return {
+      config: null,
+      error: "Missing preview link. Use Preview from the admin navbar page.",
+    };
+  }
+
+  const base = previewApiBase();
+  if (!base) {
+    return { config: null, error: "API URL is not configured." };
+  }
+
+  try {
+    const json = await cmsServerFetchJson<{
+      success?: boolean;
+      message?: string;
+      data?: { config?: NavbarVariantTestConfig | null };
+    }>(
+      `${base}/navbar-variant-test/preview/${encodeURIComponent(trimmed)}`,
+      undefined,
+      { live: true }
+    );
+    if (!json?.success) {
+      return {
+        config: null,
+        error:
+          String(json?.message || "").trim() ||
+          "Preview expired or not found. Open preview again from admin.",
+      };
+    }
+    return { config: json.data?.config || null, error: "" };
+  } catch {
+    return {
+      config: null,
+      error: "Could not load preview. Is the API running?",
+    };
   }
 }

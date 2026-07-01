@@ -2,6 +2,7 @@ import { ShippingInformation, ContactInfo, Coupon, ProductItem, Errors } from '.
 import { toast } from 'react-toastify';
 import { api, CreateOrderRequest, CreateCheckoutSessionRequest } from '../api';
 import { withMarketingAttribution } from '@/app/lib/marketingAttribution';
+import { trackPurchase as trackPurchaseEventApi } from '@/app/lib/analyticsEvents';
 
 export interface ShippingMethodData {
   name: string;
@@ -70,6 +71,8 @@ export class OrderService {
         const orderForThankYou = {
           totalOrderValue: this.calculateDiscountedPrice(createOrderData.cart, createOrderData.coupon ?? null),
           orderNumber: response.orderNumber || Date.now().toString(),
+          customerEmail: createOrderData.contactInformation?.email,
+          customerPhone: createOrderData.shippingInformation?.phoneNumber,
           cart: createOrderData.cart.map((item: ProductItem) => ({
             productName: item.productName || item.name,
             productId: item._id,
@@ -255,28 +258,24 @@ export class OrderService {
     return Math.max(0, total);
   }
 
-  // Google Analytics tracking helper
-  trackPurchaseEvent(orderNumber: string, totalValue: number, cartItems: any[]): void {
-    try {
-      (window as any).dataLayer = (window as any).dataLayer || [];
-      (window as any).dataLayer.push({
-        event: 'purchase',
-        ecommerce: {
-          transaction_id: orderNumber,
-          value: totalValue,
-          currency: 'GBP',
-          items: cartItems.map((item: any) => ({
-            item_name: item.productName || item.name,
-            item_id: item.productId || item._id,
-            price: item.salePrice,
-            quantity: item.qty,
-          })),
-        },
-      });
-      console.log('Google Analytics purchase event tracked:', orderNumber);
-    } catch (error) {
-      console.error('Failed to track purchase event:', error);
-    }
+  // Google Analytics / GTM + first-party purchase event
+  trackPurchaseEvent(
+    orderNumber: string,
+    totalValue: number,
+    cartItems: any[],
+    contact?: { email?: string; phone?: string }
+  ): void {
+    void trackPurchaseEventApi(
+      orderNumber,
+      totalValue,
+      cartItems.map((item: any) => ({
+        productId: item.productId || item._id,
+        name: item.productName || item.name,
+        price: item.salePrice,
+        quantity: item.qty,
+      })),
+      contact
+    );
   }
 
   // Helper methods for localStorage management

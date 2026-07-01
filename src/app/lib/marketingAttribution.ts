@@ -385,6 +385,26 @@ function mergeClickIds(
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
+function detectDeviceType(): 'mobile' | 'desktop' | 'tablet' | 'unknown' {
+  const ua = navigator.userAgent;
+  if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/i.test(ua)) return 'tablet';
+  if (/mobile|iphone|ipod|android.*mobile|windows phone/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+
+function resolveTrafficSourceForSession(): string {
+  try {
+    const storedRaw = localStorage.getItem(STORAGE_KEY);
+    if (!storedRaw) return 'direct';
+    const parsed = JSON.parse(storedRaw) as StoredAttribution;
+    const touch = parsed.lastTouch ?? parsed.firstTouch;
+    const source = touch?.source?.trim();
+    return source || 'direct';
+  } catch {
+    return 'direct';
+  }
+}
+
 /** Persist consented browser session for admin data-quality visitor session counts. */
 function syncVisitorSessionRecord(): void {
   if (!isBrowser()) return;
@@ -404,6 +424,8 @@ function syncVisitorSessionRecord(): void {
         visitorId,
         startedAt: session.startedAt,
         landingPage: session.landingPage,
+        deviceType: detectDeviceType(),
+        trafficSource: resolveTrafficSourceForSession(),
       }),
       keepalive: true,
     }).catch(() => {

@@ -1,36 +1,9 @@
 "use client";
 import {
-  FiShoppingCart,
-  FiUser,
-  FiHome,
-  FiGrid,
-  FiTag,
-  FiStar,
-  FiDownload,
-  FiPhone,
-  FiSearch,
   FiMenu,
   FiX,
   FiChevronDown,
-  FiHeart,
-  FiMail,
-  FiMapPin,
-  FiClock,
-  FiCheck,
-  FiArrowRight,
-  FiArrowLeft,
-  FiSettings,
-  FiLogOut,
-  FiEdit,
-  FiTrash2,
-  FiPlus,
-  FiMinus,
-  FiEye,
-  FiInfo,
-  FiAlertCircle,
-  FiCheckCircle,
-  FiExternalLink,
-  FiShare2,
+  FiSearch,
 } from "react-icons/fi";
 import {
   FaFacebook,
@@ -43,6 +16,12 @@ import {
   FaPinterest,
 } from "react-icons/fa";
 import { GiFlame } from "react-icons/gi";
+import {
+  createNavbarIconSlot,
+  DEFAULT_NAVBAR_FLATICON,
+  NavbarIcon,
+  useFlaticonStylesheets,
+} from "@/app/lib/navbarFlaticonIcon";
 import {
   createContext,
   useCallback,
@@ -71,7 +50,7 @@ type NavbarLinkItem = {
   label?: string;
   url?: string;
   icon?: string;
-  /** `icon_label` shows react-icons code from `icon` plus visible `label` text. */
+  /** `icon_label` shows Flaticon code from `icon` plus visible `label` text. */
   linkType?: "label" | "icon" | "icon_label";
   children?: Array<{
     id?: string;
@@ -128,41 +107,8 @@ export type NavbarWidgetContent = {
   stickyNavbar?: boolean;
 };
 
-/** Curated icon map - only commonly used icons for fast bundle. */
-const NAVBAR_ICON_MAP: Record<string, IconType> = {
-  // Feather icons
-  FiHome,
-  FiGrid,
-  FiStar,
-  FiTag,
-  FiShoppingCart,
-  FiUser,
-  FiDownload,
-  FiPhone,
-  FiSearch,
-  FiMenu,
-  FiX,
-  FiChevronDown,
-  FiHeart,
-  FiMail,
-  FiMapPin,
-  FiClock,
-  FiCheck,
-  FiArrowRight,
-  FiArrowLeft,
-  FiSettings,
-  FiLogOut,
-  FiEdit,
-  FiTrash2,
-  FiPlus,
-  FiMinus,
-  FiEye,
-  FiInfo,
-  FiAlertCircle,
-  FiCheckCircle,
-  FiExternalLink,
-  FiShare2,
-  // Social icons
+/** Social / brand icons still resolved via react-icons when saved by code name. */
+const NAVBAR_REACT_ICON_MAP: Record<string, IconType> = {
   FaFacebook,
   FaTwitter,
   FaInstagram,
@@ -171,12 +117,8 @@ const NAVBAR_ICON_MAP: Record<string, IconType> = {
   FaTiktok,
   FaWhatsapp,
   FaPinterest,
+  GiFlame,
 };
-
-function resolveNavbarIconByName(iconName: string | undefined, fallback: IconType): IconType {
-  const normalized = String(iconName || "").trim();
-  return NAVBAR_ICON_MAP[normalized] || fallback;
-}
 
 function resolveHref(raw?: string): string {
   const value = String(raw || "").trim();
@@ -381,6 +323,10 @@ const NAVBAR_BUSINESS_STRIP_RIGHT_CLIP =
 const NAVBAR_BUSINESS_STRIP_RIGHT_W =
   "w-[calc(37%+1.35rem)] min-w-[calc(16rem+1.35rem)]";
 
+/** Business strip — slightly tighter row but still readable. */
+const NAVBAR_MENU_LINK_BUSINESS =
+  "text-xs font-medium leading-snug sm:text-sm";
+
 /** Developer dark pill: keep CTAs on one row with icon rail. */
 const NAVBAR_DEVELOPER_CTA_CLASS =
   "inline-flex h-8 min-w-0 max-w-[8.5rem] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight sm:max-w-[10rem] sm:gap-1.5 sm:px-2.5 sm:text-[11px] md:max-w-[11rem] md:text-xs";
@@ -556,17 +502,27 @@ function navLinkAriaLabel(link: NavbarLinkItem): string {
   return String(link?.label || link?.url || "Link").trim() || "Link";
 }
 
-function renderNavLinkContent(link: NavbarLinkItem, fallbackIcon: IconType = FiGrid) {
+function renderNavLinkContent(link: NavbarLinkItem, fallback = DEFAULT_NAVBAR_FLATICON) {
   if (isIconOnlyLink(link)) {
-    const Icon = resolveNavbarIconByName(link?.icon, fallbackIcon);
-    return <Icon className="h-4 w-4 text-current" aria-hidden />;
+    return (
+      <NavbarIcon
+        code={link?.icon}
+        className="h-4 w-4 text-current"
+        fallback={fallback}
+        reactIconMap={NAVBAR_REACT_ICON_MAP}
+      />
+    );
   }
   if (isIconLabelLink(link)) {
-    const Icon = resolveNavbarIconByName(link?.icon, fallbackIcon);
     const text = link?.label?.trim() || "";
     return (
       <span className="inline-flex max-w-full min-w-0 items-center gap-2.5 sm:gap-3">
-        <Icon className="h-5 w-5 shrink-0 text-current" aria-hidden />
+        <NavbarIcon
+          code={link?.icon}
+          className="h-5 w-5 shrink-0 text-current"
+          fallback={fallback}
+          reactIconMap={NAVBAR_REACT_ICON_MAP}
+        />
         {text ? <span className="min-w-0 font-medium">{text}</span> : null}
       </span>
     );
@@ -585,13 +541,13 @@ function NavLinkItemMobileAccordion({
   link,
   i,
   linkClassName,
-  fallbackIcon = FiGrid,
+  fallbackIcon = DEFAULT_NAVBAR_FLATICON,
   onNavigate,
 }: {
   link: NavbarLinkItem;
   i: number;
   linkClassName: string;
-  fallbackIcon?: IconType;
+  fallbackIcon?: string;
   onNavigate?: () => void;
 }) {
   const children = getDropdownChildren(link);
@@ -660,7 +616,7 @@ function NavLinkItemNode({
   link,
   i,
   linkClassName,
-  fallbackIcon = FiGrid,
+  fallbackIcon = DEFAULT_NAVBAR_FLATICON,
   onNavigate,
   touchExpandable = false,
   bodyPortalFlyout = false,
@@ -669,7 +625,7 @@ function NavLinkItemNode({
   link: NavbarLinkItem;
   i: number;
   linkClassName: string;
-  fallbackIcon?: IconType;
+  fallbackIcon?: string;
   onNavigate?: () => void;
   /** When true, links with children use tap-to-expand instead of hover flyout (required in mobile drawers). */
   touchExpandable?: boolean;
@@ -989,8 +945,8 @@ function NavbarModern({
   content: NavbarWidgetContent;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style: CSSProperties | undefined =
     content?.actionIcon1BgColor || content?.actionIcon1Color
       ? {
@@ -1017,8 +973,8 @@ function NavbarModern({
   const secondaryCtaLabel = content?.secondaryButtonLabel?.trim() || "";
   const hasRightEndContent =
     showSearch || showIcons || showPrimaryButton || showSecondaryButton;
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const navbarBgStyle = content?.navbarBgColor
     ? { backgroundColor: content.navbarBgColor }
     : undefined;
@@ -1073,8 +1029,8 @@ function NavbarModern({
                     key={link.id || i}
                     link={link}
                     i={i}
-                    fallbackIcon={FiGrid}
-                    linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                    fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                    linkClassName="shrink-0 whitespace-nowrap text-[15px] font-medium leading-snug sm:text-base text-slate-700 transition hover:text-slate-900"
                   />
                 ))}
               </nav>
@@ -1148,8 +1104,8 @@ function NavbarModern({
                   key={link.id || i}
                   link={link}
                   i={i}
-                  fallbackIcon={FiGrid}
-                  linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                  fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                  linkClassName="shrink-0 whitespace-nowrap text-[15px] font-medium leading-snug sm:text-base text-slate-700 transition hover:text-slate-900"
                 />
               ))}
             </nav>
@@ -1170,8 +1126,8 @@ function NavbarModern({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2 text-[15px] font-medium sm:text-base text-slate-700 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -1246,8 +1202,8 @@ function NavbarMinimalist({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton === true;
   const showSecondaryButton = content?.showSecondaryButton === true;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style: CSSProperties = {
     backgroundColor: content?.actionIcon1BgColor || "#000000",
     color: content?.actionIcon1Color || "#ffffff",
@@ -1256,8 +1212,8 @@ function NavbarMinimalist({
     backgroundColor: content?.actionIcon2BgColor || "#f97316",
     color: content?.actionIcon2Color || "#ffffff",
   };
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const navbarBgStyle = content?.navbarBgColor
@@ -1286,8 +1242,8 @@ function NavbarMinimalist({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="shrink-0 whitespace-nowrap text-[15px] font-medium leading-snug sm:text-base text-slate-600 transition hover:text-slate-900"
             />
           ))}
         </nav>
@@ -1377,8 +1333,8 @@ function NavbarMinimalist({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="rounded-lg px-3 py-2 text-[15px] font-medium sm:text-base text-slate-600 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -1457,12 +1413,12 @@ function NavbarDarkSidebar({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton !== false;
   const showSecondaryButton = content?.showSecondaryButton !== false;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
   const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const navbarBgStyle = content?.navbarBgColor
@@ -1513,8 +1469,8 @@ function NavbarDarkSidebar({
                 key={link.id || i}
                 link={link}
                 i={i}
-                fallbackIcon={FiGrid}
-                linkClassName="shrink-0 whitespace-nowrap text-xs font-medium text-slate-300 transition hover:text-white sm:text-sm"
+                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                linkClassName="shrink-0 whitespace-nowrap text-[15px] font-medium text-slate-300 transition hover:text-white sm:text-base"
               />
             ))}
           </nav>
@@ -1588,8 +1544,8 @@ function NavbarDarkSidebar({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="rounded-lg px-3 py-2 text-[15px] font-semibold text-slate-900 transition hover:text-slate-700 sm:text-base"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -1679,12 +1635,12 @@ function NavbarBusiness({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton !== false;
   const showSecondaryButton = content?.showSecondaryButton !== false;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
   const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const businessLeftStripColor = String(content?.navbarBgColor || "").trim();
@@ -1693,7 +1649,7 @@ function NavbarBusiness({
     : undefined;
   return (
     <>
-      <header className="relative mx-auto w-full max-w-full overflow-visible px-4 py-3 sm:px-3 lg:px-0 xl:px-0">
+      <header className="relative w-full overflow-visible px-10 py-3 sm:px-16 lg:px-20 xl:px-28 2xl:px-32">
       <div className="flex items-center justify-between md:hidden">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
@@ -1719,11 +1675,11 @@ function NavbarBusiness({
         </div>
 
         <div
-          className={`${NAVBAR_BUSINESS_ROW_H} relative flex items-stretch rounded-xl`}
+          className={`${NAVBAR_BUSINESS_ROW_H} relative flex min-w-0 flex-1 items-stretch rounded-xl`}
         >
-          {/* LEFT STRAP: Nav links on blue background */}
+          {/* LEFT STRAP: Nav links on admin bg color — grows to fill strip */}
           <nav
-            className="relative z-[1] flex min-h-0 flex-nowrap items-center justify-center gap-0.5 rounded-l-xl px-3 sm:px-4"
+            className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 rounded-l-xl px-3 sm:px-4"
             style={businessLeftStripBgStyle}
             aria-label="Primary"
           >
@@ -1732,10 +1688,10 @@ function NavbarBusiness({
                 key={link.id || i}
                 link={link}
                 i={i}
-                fallbackIcon={FiGrid}
+                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
                 bodyPortalFlyout
                 compact
-                linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 text-[10px] font-medium leading-none transition sm:text-[11px]`}
+                linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 ${NAVBAR_MENU_LINK_BUSINESS} transition`}
               />
             ))}
           </nav>
@@ -1825,8 +1781,8 @@ function NavbarBusiness({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="rounded-lg px-3 py-2 text-[15px] font-medium sm:text-base text-slate-700 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -1900,16 +1856,16 @@ function NavbarDeveloper({
   content: NavbarWidgetContent;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
   const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
   const showSearch = content?.showSearch !== false;
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton !== false;
   const showSecondaryButton = content?.showSecondaryButton !== false;
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const navbarBgStyle = content?.navbarBgColor
@@ -1920,11 +1876,15 @@ function NavbarDeveloper({
     : undefined;
   const getLinkIcon = (label?: string, iconCode?: string) => {
     const key = String(label || "").toLowerCase();
-    if (key.includes("home")) return resolveNavbarIconByName(iconCode, FiHome);
-    if (key.includes("product") || key.includes("shop")) return resolveNavbarIconByName(iconCode, FiGrid);
-    if (key.includes("feature")) return resolveNavbarIconByName(iconCode, FiStar);
-    if (key.includes("pricing") || key.includes("deal")) return resolveNavbarIconByName(iconCode, FiTag);
-    return resolveNavbarIconByName(iconCode, FiGrid);
+    if (key.includes("home")) return createNavbarIconSlot(iconCode, "fi-rr-home", NAVBAR_REACT_ICON_MAP);
+    if (key.includes("product") || key.includes("shop")) {
+      return createNavbarIconSlot(iconCode, DEFAULT_NAVBAR_FLATICON, NAVBAR_REACT_ICON_MAP);
+    }
+    if (key.includes("feature")) return createNavbarIconSlot(iconCode, "fi-rr-star", NAVBAR_REACT_ICON_MAP);
+    if (key.includes("pricing") || key.includes("deal")) {
+      return createNavbarIconSlot(iconCode, "fi-rr-tags", NAVBAR_REACT_ICON_MAP);
+    }
+    return createNavbarIconSlot(iconCode, DEFAULT_NAVBAR_FLATICON, NAVBAR_REACT_ICON_MAP);
   };
 
   return (
@@ -1970,7 +1930,7 @@ function NavbarDeveloper({
                       title={link.label || link.icon || "Link"}
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
-                      <span className="min-w-0 truncate text-[11px] font-medium sm:text-xs">
+                      <span className="min-w-0 truncate text-xs font-medium sm:text-sm">
                         {link.label?.trim() || link.icon || "Link"}
                       </span>
                       <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-white opacity-0 transition group-hover:opacity-100" />
@@ -2089,8 +2049,8 @@ function NavbarDeveloper({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[15px] font-medium sm:text-base text-slate-700 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -2170,12 +2130,12 @@ function NavbarBoldLeft({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton !== false;
   const showSecondaryButton = content?.showSecondaryButton !== false;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
   const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const navbarBgStyle = content?.navbarBgColor
@@ -2212,9 +2172,9 @@ function NavbarBoldLeft({
                         key={i}
                         href={resolveHref(link.url)}
                         data-nav-link="1"
-                        className="relative shrink-0 whitespace-nowrap text-sm font-medium text-slate-700 transition hover:text-orange-500"
+                        className="relative shrink-0 whitespace-nowrap text-[15px] font-medium leading-snug sm:text-base text-slate-700 transition hover:text-orange-500"
                       >
-                        {renderNavLinkContent(link, FiGrid)}
+                        {renderNavLinkContent(link, DEFAULT_NAVBAR_FLATICON)}
                         {isActive ? <span className="absolute -bottom-2 left-0 h-0.5 w-full rounded-full bg-orange-500" /> : null}
                       </a>
                     );
@@ -2299,8 +2259,8 @@ function NavbarBoldLeft({
                 key={link.id ?? i}
                 link={link}
                 i={i}
-                fallbackIcon={FiGrid}
-                linkClassName={`relative rounded-lg px-3 py-2 text-sm font-medium transition hover:text-slate-900 ${isActive ? "text-orange-600" : "text-slate-700"}`}
+                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                linkClassName={`relative rounded-lg px-3 py-2 text-[15px] font-medium transition hover:text-slate-900 sm:text-base ${isActive ? "text-orange-600" : "text-slate-700"}`}
                 touchExpandable
                 onNavigate={() => setMobileOpen(false)}
               />
@@ -2395,10 +2355,10 @@ function NavbarPillBlack({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton === true;
   const showSecondaryButton = content?.showSecondaryButton === true;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const hasRightEnd = showSearch || showIcons || showPrimaryButton || showSecondaryButton;
   const pillBarBgStyle: CSSProperties = {
     backgroundColor: String(content?.navbarBgColor || "").trim() || "#000000",
@@ -2455,9 +2415,9 @@ function NavbarPillBlack({
                       key={link.id || i}
                       link={link}
                       i={i}
-                      fallbackIcon={FiGrid}
+                      fallbackIcon={DEFAULT_NAVBAR_FLATICON}
                       bodyPortalFlyout
-                      linkClassName="shrink-0 whitespace-nowrap text-sm font-medium text-white transition hover:opacity-80 md:text-[15px]"
+                      linkClassName="shrink-0 whitespace-nowrap text-[15px] font-medium leading-snug text-white transition hover:opacity-80 sm:text-base"
                     />
                   ))}
                 </nav>
@@ -2552,8 +2512,8 @@ function NavbarPillBlack({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[15px] font-medium sm:text-base text-slate-700 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -2650,12 +2610,12 @@ function NavbarWingSplit({
   const showIcons = content?.showButtons !== false;
   const showPrimaryButton = content?.showPrimaryButton === true;
   const showSecondaryButton = content?.showSecondaryButton === true;
-  const ActionIcon1 = resolveNavbarIconByName(content?.actionIcon1, FiShoppingCart);
-  const ActionIcon2 = resolveNavbarIconByName(content?.actionIcon2, FiUser);
+  const ActionIcon1 = createNavbarIconSlot(content?.actionIcon1, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
+  const ActionIcon2 = createNavbarIconSlot(content?.actionIcon2, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
   const actionIcon1Style = resolveActionIconButtonStyle(content, 1);
   const actionIcon2Style = resolveActionIconButtonStyle(content, 2);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const pillBg =
@@ -2824,9 +2784,9 @@ function NavbarWingSplit({
                     key={link.id || i}
                     link={link}
                     i={i}
-                    fallbackIcon={FiGrid}
+                    fallbackIcon={DEFAULT_NAVBAR_FLATICON}
                     bodyPortalFlyout
-                    linkClassName="shrink-0 whitespace-nowrap text-sm font-semibold transition hover:opacity-90 md:text-[15px]"
+                    linkClassName="shrink-0 whitespace-nowrap text-[15px] font-semibold transition hover:opacity-90 sm:text-base"
                   />
                 ))}
               </nav>
@@ -2849,8 +2809,8 @@ function NavbarWingSplit({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[15px] font-medium sm:text-base text-slate-700 transition hover:text-slate-900"
               touchExpandable
               onNavigate={() => setMobileOpen(false)}
             />
@@ -2939,12 +2899,12 @@ function NavbarRetailTwoRow({
   const showSecondaryButton = content?.showSecondaryButton === true;
   const primaryCtaLabel = content?.primaryButtonLabel?.trim() || "";
   const secondaryCtaLabel = content?.secondaryButtonLabel?.trim() || "";
-  const UserIcon = resolveNavbarIconByName(content?.actionIcon1, FiUser);
-  const CartIcon = resolveNavbarIconByName(content?.actionIcon2, FiShoppingCart);
+  const UserIcon = createNavbarIconSlot(content?.actionIcon1, "fi-rr-user", NAVBAR_REACT_ICON_MAP);
+  const CartIcon = createNavbarIconSlot(content?.actionIcon2, "fi-rr-shopping-cart", NAVBAR_REACT_ICON_MAP);
   const userIconStyle = resolveActionIconButtonStyle(content, 1);
   const cartIconStyle = resolveActionIconButtonStyle(content, 2);
-  const PrimaryButtonIcon = resolveNavbarIconByName(content?.primaryButtonIcon, FiDownload);
-  const SecondaryButtonIcon = resolveNavbarIconByName(content?.secondaryButtonIcon, FiPhone);
+  const PrimaryButtonIcon = createNavbarIconSlot(content?.primaryButtonIcon, "fi-rr-download", NAVBAR_REACT_ICON_MAP);
+  const SecondaryButtonIcon = createNavbarIconSlot(content?.secondaryButtonIcon, "fi-rr-phone-call", NAVBAR_REACT_ICON_MAP);
   const primaryButtonStyle = resolvePrimaryButtonStyle(content);
   const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
   const navbarBgStyle = content?.navbarBgColor
@@ -2990,7 +2950,7 @@ function NavbarRetailTwoRow({
                   style={cartIconStyle}
                   title="Basket"
                 >
-                  <CartIcon className="h-5 w-5 shrink-0 text-slate-900" strokeWidth={1.35} />
+                  <CartIcon className="h-5 w-5 shrink-0 text-slate-900" />
                 </ActionIconLink>
                 <div className="shrink-0 text-right leading-tight">
                   <p className="text-[7px] font-medium uppercase leading-tight tracking-wide text-slate-500 sm:text-[8px]">
@@ -3008,7 +2968,7 @@ function NavbarRetailTwoRow({
                   style={userIconStyle}
                   title="Account"
                 >
-                  <UserIcon className="h-7 w-7 shrink-0 text-slate-900" strokeWidth={1.35} />
+                  <UserIcon className="h-7 w-7 shrink-0 text-slate-900" />
                   {cartItemCount === 0 ? (
                     <span className="text-[8px] font-semibold tabular-nums leading-none text-slate-800 sm:text-[9px]">
                       0
@@ -3120,8 +3080,8 @@ function NavbarRetailTwoRow({
               key={link.id || i}
               link={link}
               i={i}
-              fallbackIcon={FiGrid}
-              linkClassName="relative text-base text-white transition hover:text-white/90"
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              linkClassName="relative text-[15px] font-medium text-white transition hover:text-white/90 sm:text-base"
             />
           ))}
         </nav>
@@ -3177,7 +3137,7 @@ function NavbarRetailTwoRow({
                 key={link.id || i}
                 link={link}
                 i={i}
-                fallbackIcon={FiGrid}
+                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
                 linkClassName="flex w-full min-w-0 items-center px-4 py-3.5 text-lg font-medium leading-snug text-slate-800 transition hover:text-slate-600"
                 touchExpandable
                 onNavigate={() => setMobileOpen(false)}
@@ -3192,6 +3152,7 @@ function NavbarRetailTwoRow({
 
 
 export default function BlogNavbarWidget({ content }: { content: NavbarWidgetContent }) {
+  useFlaticonStylesheets();
   const auth = useAuth();
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartSubtotal, setCartSubtotal] = useState(0);

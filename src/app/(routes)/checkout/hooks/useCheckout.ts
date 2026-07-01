@@ -940,6 +940,7 @@ export const useCheckout = () => {
           salePrice: item.salePrice,
         })),
         customerEmail: contactInformation.email || '',
+        customerPhone: shippingInfo?.phoneNumber || '',
         customerName: shippingInfo
           ? `${shippingInfo.firstName || ''} ${shippingInfo.lastName || ''}`.trim()
           : '',

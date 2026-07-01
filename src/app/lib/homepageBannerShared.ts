@@ -386,13 +386,7 @@ export function buildHeroBannersFromApiPayload(
     transformApiBannerToBanner(banner, apiBase)
   );
 
-  return transformedBanners.filter(
-    (banner) =>
-      banner.srcLarge &&
-      banner.srcLarge !== "" &&
-      banner.srcSmall &&
-      banner.srcSmall !== ""
-  );
+  return transformedBanners.filter(bannerHasStorefrontMedia);
 }
 
 export function bannersFromInlinePayload(
