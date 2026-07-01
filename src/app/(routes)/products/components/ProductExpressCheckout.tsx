@@ -174,13 +174,13 @@ function ExpressCheckoutInner({
             googlePay: "black",
           },
           // Single full-width column (matches the Add-to-Cart button width).
-          // NOTE: `overflow: "never"` reproducibly breaks this element (it gets
-          // stuck on "Loading payment options..."), so we cannot disable Stripe's
-          // built-in "See more" overflow. maxColumns:1 gives the full-width size;
-          // the "See more" collapse for extra wallets is unavoidable here.
+          // A concrete large `maxRows` gives Stripe enough rows to stack every
+          // wallet, so its *auto* overflow has nothing to collapse into "See more".
+          // We must NOT use `overflow: "never"` here — it reproducibly breaks the
+          // element (stuck on "Loading payment options...").
           layout: {
             maxColumns: 1,
-            maxRows: 0,
+            maxRows: 10,
           },
         }}
       />
