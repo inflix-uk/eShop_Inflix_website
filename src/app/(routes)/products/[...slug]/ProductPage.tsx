@@ -1299,14 +1299,6 @@ export default function ProductPage({
                 ></klarna-placement>
               </div>
 
-              {/* Express Checkout - Apple Pay / Google Pay */}
-              <ProductExpressCheckout
-                product={product}
-                selectedVariant={checkoutLineItem}
-                updatedPrice={updatedPrice}
-                disabled={isBuyButtonDisabled || !checkoutLineItem}
-              />
-
               {/* summary/spec Button */}
               <DialogList
                 product={product}
@@ -1324,6 +1316,14 @@ export default function ProductPage({
                 addToCart={addToCart}
                 reviewsDiv={reviewsDiv}
                 setReviewsDiv={setReviewsDiv}
+              />
+
+              {/* Express Checkout - Apple Pay / Google Pay / Klarna (below Add to Cart) */}
+              <ProductExpressCheckout
+                product={product}
+                selectedVariant={checkoutLineItem}
+                updatedPrice={updatedPrice}
+                disabled={isBuyButtonDisabled || !checkoutLineItem}
               />
             </div>
           </div>
