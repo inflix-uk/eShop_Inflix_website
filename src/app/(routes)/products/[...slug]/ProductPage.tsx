@@ -1292,13 +1292,6 @@ export default function ProductPage({
                   setNotIncluded={setNotIncluded}
                 />
               </div>
-              <div className="flex justify-center my-6">
-                <klarna-placement
-                  data-key="top-strip-promotion-badge"
-                  data-locale="en-GB"
-                ></klarna-placement>
-              </div>
-
               {/* summary/spec Button */}
               <DialogList
                 product={product}
@@ -1318,7 +1311,7 @@ export default function ProductPage({
                 setReviewsDiv={setReviewsDiv}
               />
 
-              {/* Express Checkout - Apple Pay / Google Pay / Klarna (below Add to Cart) */}
+              {/* Express Checkout - Apple Pay / Google Pay / Link (below Add to Cart) */}
               <ProductExpressCheckout
                 product={product}
                 selectedVariant={checkoutLineItem}
