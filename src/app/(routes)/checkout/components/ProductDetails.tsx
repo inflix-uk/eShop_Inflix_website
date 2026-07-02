@@ -32,18 +32,39 @@ interface ShippingMethod {
   order: number;
 }
 
+export interface CheckoutBookingSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+  holdId?: string;
+}
+
+export interface CheckoutBookingExtra {
+  index: number;
+  title: string;
+  price: number;
+  image?: string;
+  description?: string;
+}
+
 export interface CheckoutBookingData {
-  holdId: string;
+  holdId?: string;
+  holdIds?: string[];
   packageId: string;
   packageName: string;
   packageType: string;
   packagePrice: number;
   packageDuration: number;
-  date: string;
-  startTime: string;
-  endTime: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  slots: CheckoutBookingSlot[];
   holdExpiresAt: string;
   sessionId: string;
+  totalPrice: number;
+  selectedExtras?: CheckoutBookingExtra[];
+  slotsSubtotal?: number;
+  extrasSubtotal?: number;
 }
 
 interface ProductDetailsProps {
@@ -137,7 +158,20 @@ const ProductDetails: FC<ProductDetailsProps> = ({
   onShippingMethodChange,
 }) => {
   const numericTotalSalePrice = Number(totalSalePrice) || 0;
-  const bookingAmount = bookingData?.packagePrice ?? 0;
+  const bookingSlots = bookingData?.slots?.length
+    ? bookingData.slots
+    : bookingData?.date && bookingData?.startTime
+    ? [{ date: bookingData.date, startTime: bookingData.startTime, endTime: bookingData.endTime || bookingData.startTime }]
+    : [];
+  const selectedExtras = bookingData?.selectedExtras || [];
+  const slotsSubtotal =
+    bookingData?.slotsSubtotal ??
+    (bookingData?.packagePrice ?? 0) * Math.max(bookingSlots.length, 1);
+  const extrasSubtotal =
+    bookingData?.extrasSubtotal ??
+    selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+  const bookingAmount =
+    bookingData?.totalPrice ?? slotsSubtotal + extrasSubtotal;
   const combinedSubtotal = numericTotalSalePrice + bookingAmount;
   const isBookingOnly = !!bookingData && products.length === 0;
 
@@ -251,12 +285,29 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                       {bookingData.packageName}
                     </p>
                   </h4>
-                  <p className="text-sm text-gray-700 mt-1">
-                    {formatBookingDate(bookingData.date)} • {formatBookingTime(bookingData.startTime)} - {formatBookingTime(bookingData.endTime)}
-                  </p>
                   <p className="text-xs text-gray-500 mt-1 capitalize">
-                    {bookingData.packageType} • {bookingData.packageDuration} mins
+                    {bookingData.packageType} • {bookingData.packageDuration} mins per slot
                   </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {bookingSlots.map((slot) => (
+                      <li key={`${slot.date}-${slot.startTime}`} className="text-sm text-gray-700">
+                        {formatBookingDate(slot.date)} • {formatBookingTime(slot.startTime)} - {formatBookingTime(slot.endTime)}
+                      </li>
+                    ))}
+                  </ul>
+                  {selectedExtras.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Extras</p>
+                      <ul className="space-y-1">
+                        {selectedExtras.map((extra) => (
+                          <li key={`${extra.index}-${extra.title}`} className="text-sm text-gray-700 flex justify-between gap-2">
+                            <span>{extra.title}</span>
+                            <span className="font-medium">£{extra.price.toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {onRemoveBooking && (
@@ -274,12 +325,16 @@ const ProductDetails: FC<ProductDetailsProps> = ({
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex gap-2 items-center">
-                  <p className="font-medium text-gray-900">
-                    £{bookingData.packagePrice.toFixed(2)}
-                  </p>
+                  <p className="font-medium text-gray-900">£{bookingAmount.toFixed(2)}</p>
+                  {bookingSlots.length > 1 && (
+                    <p className="text-xs text-gray-500">({bookingSlots.length} × £{bookingData.packagePrice.toFixed(2)})</p>
+                  )}
+                  {selectedExtras.length > 0 && (
+                    <p className="text-xs text-gray-500">+ {selectedExtras.length} extra(s)</p>
+                  )}
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm">Qty: 1</p>
+                  <p className="text-sm">Qty: {bookingSlots.length || 1}</p>
                 </div>
               </div>
             </div>

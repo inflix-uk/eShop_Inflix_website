@@ -165,12 +165,53 @@ export default function CheckoutPage() {
 
   const toggleFormVisibility = () => setShowForm(!showForm);
 
+  const normalizeCheckoutBooking = (parsed: CheckoutBookingData): CheckoutBookingData => {
+    const slots =
+      parsed.slots?.length > 0
+        ? parsed.slots
+        : parsed.date && parsed.startTime
+        ? [{ date: parsed.date, startTime: parsed.startTime, endTime: parsed.endTime || parsed.startTime, holdId: parsed.holdId }]
+        : [];
+    const holdIds =
+      parsed.holdIds ||
+      (parsed.holdId ? [parsed.holdId] : slots.map((s) => s.holdId).filter(Boolean) as string[]);
+    const selectedExtras = parsed.selectedExtras || [];
+    const slotsSubtotal =
+      parsed.slotsSubtotal ?? (parsed.packagePrice || 0) * Math.max(slots.length, 1);
+    const extrasSubtotal =
+      parsed.extrasSubtotal ??
+      selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+    return {
+      ...parsed,
+      slots,
+      holdIds,
+      selectedExtras,
+      slotsSubtotal,
+      extrasSubtotal,
+      totalPrice: parsed.totalPrice ?? slotsSubtotal + extrasSubtotal,
+    };
+  };
+
+  const getBookingHoldIds = (data: CheckoutBookingData) => {
+    if (data.holdIds?.length) return data.holdIds;
+    const fromSlots = data.slots?.map((s) => s.holdId).filter(Boolean) as string[];
+    if (fromSlots.length) return fromSlots;
+    return data.holdId ? [data.holdId] : [];
+  };
+
+  const getBookingTotal = (data: CheckoutBookingData) => {
+    if (data.totalPrice != null) return data.totalPrice;
+    const slotsSubtotal = data.packagePrice * Math.max(data.slots?.length || 1, 1);
+    const extrasSubtotal = (data.selectedExtras || []).reduce((sum, e) => sum + (e.price || 0), 0);
+    return slotsSubtotal + extrasSubtotal;
+  };
+
   // Load booking data from localStorage (unified checkout - no query param)
   useEffect(() => {
     const data = localStorage.getItem("bookingData");
     if (data) {
       try {
-        const parsed = JSON.parse(data) as CheckoutBookingData;
+        const parsed = normalizeCheckoutBooking(JSON.parse(data) as CheckoutBookingData);
         setBookingData(parsed);
         setBookingHoldExpiry(parsed.holdExpiresAt);
       } catch {
@@ -179,7 +220,19 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  const handleRemoveBooking = () => {
+  const handleRemoveBooking = async () => {
+    if (bookingData) {
+      const holdIds = getBookingHoldIds(bookingData);
+      try {
+        await fetch(`${API_URL}release/booking/hold`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(holdIds.length > 1 ? { holdIds } : { holdId: holdIds[0] }),
+        });
+      } catch {
+        // best effort
+      }
+    }
     localStorage.removeItem("bookingData");
     setBookingData(null);
     setBookingHoldExpiry(null);
@@ -241,15 +294,17 @@ export default function CheckoutPage() {
         phone: shippingInformation.phoneNumber,
       };
 
-      // Create booking
+      const holdIds = getBookingHoldIds(bookingData);
+      const totalAmount = getBookingTotal(bookingData);
+      const selectedExtras = bookingData.selectedExtras || [];
+      const bookingPayload = holdIds.length > 1
+        ? { holdIds, customer: customerInfo, notes: "", extras: selectedExtras }
+        : { holdId: holdIds[0], customer: customerInfo, notes: "", extras: selectedExtras };
+
       const bookingResponse = await fetch(`${API_URL}create/booking`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          holdId: bookingData.holdId,
-          customer: customerInfo,
-          notes: "",
-        }),
+        body: JSON.stringify(bookingPayload),
       });
 
       const bookingResult = await bookingResponse.json();
@@ -261,15 +316,14 @@ export default function CheckoutPage() {
         return;
       }
 
-      setBookingNumber(bookingResult.booking.bookingNumber);
+      setBookingNumber(bookingResult.groupBookingNumber || bookingResult.booking.bookingNumber);
 
-      // Create payment intent
       const paymentResponse = await fetch(`${API_URL}create/booking/payment-intent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingId: bookingResult.booking.bookingId,
-          amount: bookingData.packagePrice,
+          amount: bookingResult.totalAmount ?? totalAmount,
         }),
       });
 
@@ -715,7 +769,7 @@ export default function CheckoutPage() {
                                 ? handleBookingPaymentSuccess
                                 : handlePaymentSuccess
                             }
-                            totalAmount={isBookingOnly ? (bookingData?.packagePrice || 0) : discountedPrice}
+                            totalAmount={isBookingOnly && bookingData ? getBookingTotal(bookingData) : discountedPrice}
                             isProcessing={isBookingOnly ? bookingSubmitting : isProcessingPayment}
                             onBeforePayment={
                               isBookingOnly
@@ -762,7 +816,7 @@ export default function CheckoutPage() {
                             Processing...
                           </span>
                         ) : (
-                          `Continue to Payment - £${bookingData?.packagePrice.toFixed(2)}`
+                          `Continue to Payment - £${bookingData ? getBookingTotal(bookingData).toFixed(2) : "0.00"}`
                         )}
                       </button>
                     ) : paymentError ? (

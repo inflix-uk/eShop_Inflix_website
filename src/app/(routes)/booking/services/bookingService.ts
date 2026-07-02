@@ -1,13 +1,8 @@
 import axios from 'axios';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-// Ensure API_URL has trailing slash
 const rawApiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 const API_URL: string = rawApiUrl.endsWith('/') ? rawApiUrl : `${rawApiUrl}/`;
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
 
 export interface BookingSettings {
   isEnabled: boolean;
@@ -31,6 +26,22 @@ export interface BookingPackage {
   image: string | null;
   sortOrder: number;
   isActive: boolean;
+  extras?: BookingPackageExtra[];
+}
+
+export interface BookingPackageExtra {
+  image?: string;
+  title: string;
+  price: number;
+  description?: string;
+}
+
+export interface SelectedBookingExtra {
+  index: number;
+  title: string;
+  price: number;
+  image?: string;
+  description?: string;
 }
 
 export interface TimeSlot {
@@ -67,6 +78,33 @@ export interface SlotHold {
   expiresAt: string;
 }
 
+export interface SelectedBookingSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+  holdId?: string;
+}
+
+export interface StoredBookingData {
+  holdId?: string;
+  holdIds?: string[];
+  packageId: string;
+  packageName?: string;
+  packageType?: string;
+  packagePrice?: number;
+  packageDuration?: number;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  slots: SelectedBookingSlot[];
+  holdExpiresAt: string;
+  sessionId?: string;
+  totalPrice: number;
+  selectedExtras?: SelectedBookingExtra[];
+  slotsSubtotal?: number;
+  extrasSubtotal?: number;
+}
+
 export interface CustomerInfo {
   name: string;
   email: string;
@@ -84,11 +122,21 @@ export interface Booking {
   endTime: string;
   status: string;
   paymentStatus: string;
+  groupBookingNumber?: string;
   package?: {
     name: string;
     price: number;
     durationMinutes: number;
   };
+}
+
+export interface GroupBookingSlot {
+  bookingNumber: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  paymentStatus: string;
 }
 
 export interface PaymentIntentResponse {
@@ -98,10 +146,6 @@ export interface PaymentIntentResponse {
   currency: string;
 }
 
-// ============================================================================
-// BOOKING SERVICE CLASS
-// ============================================================================
-
 export class BookingService {
   private stripePromise: Promise<Stripe | null> | null = null;
 
@@ -109,7 +153,6 @@ export class BookingService {
     return new BookingService();
   }
 
-  // Get booking settings
   async getSettings(): Promise<BookingSettings | null> {
     try {
       const response = await axios.get(`${API_URL}booking/settings/public`);
@@ -120,7 +163,6 @@ export class BookingService {
     }
   }
 
-  // Get all active packages
   async getPackages(type?: string): Promise<BookingPackage[]> {
     try {
       const params = type ? { type } : {};
@@ -132,7 +174,6 @@ export class BookingService {
     }
   }
 
-  // Get single package by ID
   async getPackageById(packageId: string): Promise<BookingPackage | null> {
     try {
       const response = await axios.get(`${API_URL}get/booking/package/${packageId}`);
@@ -143,11 +184,10 @@ export class BookingService {
     }
   }
 
-  // Get available slots for a date
   async getAvailableSlots(packageId: string, date: string): Promise<AvailableSlotsResponse> {
     try {
       const response = await axios.get(`${API_URL}get/booking/slots`, {
-        params: { packageId, date }
+        params: { packageId, date },
       });
       return response.data;
     } catch (error) {
@@ -158,12 +198,11 @@ export class BookingService {
         slots: [],
         date,
         dayOfWeek: 0,
-        timezone: 'Europe/London'
+        timezone: 'Europe/London',
       };
     }
   }
 
-  // Create a slot hold
   async createSlotHold(
     packageId: string,
     date: string,
@@ -175,58 +214,92 @@ export class BookingService {
         packageId,
         date,
         startTime,
-        sessionId
+        sessionId,
       });
-      return {
-        success: true,
-        hold: response.data.hold
-      };
+      return { success: true, hold: response.data.hold };
     } catch (error: any) {
-      console.error('Error creating slot hold:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to hold slot'
-      };
+      return { success: false, error: error.response?.data?.error || 'Failed to hold slot' };
     }
   }
 
-  // Release a slot hold
+  async createMultiSlotHold(
+    packageId: string,
+    slots: Array<{ date: string; startTime: string }>,
+    sessionId?: string
+  ): Promise<{ success: boolean; holds?: SlotHold[]; expiresAt?: string; error?: string }> {
+    try {
+      const response = await axios.post(`${API_URL}create/booking/hold`, {
+        packageId,
+        slots,
+        sessionId,
+      });
+      return {
+        success: true,
+        holds: response.data.holds || (response.data.hold ? [response.data.hold] : []),
+        expiresAt: response.data.expiresAt || response.data.holds?.[0]?.expiresAt,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || 'Failed to hold slots' };
+    }
+  }
+
   async releaseSlotHold(holdId: string): Promise<boolean> {
     try {
       await axios.post(`${API_URL}release/booking/hold`, { holdId });
       return true;
-    } catch (error) {
-      console.error('Error releasing hold:', error);
+    } catch {
       return false;
     }
   }
 
-  // Create booking from hold
+  async releaseSlotHolds(holdIds: string[]): Promise<boolean> {
+    try {
+      await axios.post(`${API_URL}release/booking/hold`, { holdIds });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async createBooking(
     holdId: string,
     customer: CustomerInfo,
     notes?: string
   ): Promise<{ success: boolean; booking?: Booking; error?: string }> {
     try {
-      const response = await axios.post(`${API_URL}create/booking`, {
-        holdId,
-        customer,
-        notes
-      });
-      return {
-        success: true,
-        booking: response.data.booking
-      };
+      const response = await axios.post(`${API_URL}create/booking`, { holdId, customer, notes });
+      return { success: true, booking: response.data.booking };
     } catch (error: any) {
-      console.error('Error creating booking:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to create booking'
-      };
+      return { success: false, error: error.response?.data?.error || 'Failed to create booking' };
     }
   }
 
-  // Create payment intent for booking
+  async createMultiBooking(
+    holdIds: string[],
+    customer: CustomerInfo,
+    notes?: string
+  ): Promise<{
+    success: boolean;
+    booking?: Booking;
+    bookings?: Booking[];
+    groupBookingNumber?: string;
+    totalAmount?: number;
+    error?: string;
+  }> {
+    try {
+      const response = await axios.post(`${API_URL}create/booking`, { holdIds, customer, notes });
+      return {
+        success: true,
+        booking: response.data.booking,
+        bookings: response.data.bookings,
+        groupBookingNumber: response.data.groupBookingNumber,
+        totalAmount: response.data.totalAmount,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || 'Failed to create bookings' };
+    }
+  }
+
   async createPaymentIntent(
     bookingId: string,
     amount: number,
@@ -236,34 +309,32 @@ export class BookingService {
       const response = await axios.post(`${API_URL}create/booking/payment-intent`, {
         bookingId,
         amount,
-        currency
+        currency,
       });
-      return {
-        success: true,
-        data: response.data
-      };
+      return { success: true, data: response.data };
     } catch (error: any) {
-      console.error('Error creating payment intent:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to create payment'
-      };
+      return { success: false, error: error.response?.data?.error || 'Failed to create payment' };
     }
   }
 
-  // Get booking by number
-  async getBookingByNumber(bookingNumber: string): Promise<Booking | null> {
+  async getBookingByNumber(bookingNumber: string): Promise<{
+    booking: Booking | null;
+    groupSlots?: GroupBookingSlot[];
+    slotCount?: number;
+  }> {
     try {
       const normalized = bookingNumber.trim().charAt(0).toUpperCase() + bookingNumber.trim().slice(1);
       const response = await axios.get(`${API_URL}get/booking/${encodeURIComponent(normalized)}`);
-      return response.data.booking;
-    } catch (error) {
-      console.error('Error fetching booking:', error);
-      return null;
+      return {
+        booking: response.data.booking,
+        groupSlots: response.data.groupSlots,
+        slotCount: response.data.slotCount,
+      };
+    } catch {
+      return { booking: null };
     }
   }
 
-  // Initialize Stripe
   async initializeStripe(): Promise<Stripe | null> {
     if (!this.stripePromise) {
       this.stripePromise = this.fetchStripePromise();
@@ -275,52 +346,95 @@ export class BookingService {
     try {
       const response = await axios.get(`${API_URL}config`);
       return await loadStripe(response.data.publishableKey);
-    } catch (error) {
-      console.error('Failed to load Stripe:', error);
+    } catch {
       return null;
     }
   }
 
-  // Generate session ID for slot holding
   generateSessionId(): string {
     return `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  // Format time for display
   formatTime(time: string): string {
     const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
+    const hour = parseInt(hours, 10);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
   }
 
-  // Format date for display
   formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', {
+    return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
     });
   }
 
-  // Format price
   formatPrice(price: number): string {
     return `£${price.toFixed(2)}`;
   }
 
-  // Get package type label
   getTypeLabel(type: string): string {
     const labels: Record<string, string> = {
       service: 'Service',
       consultation: 'Consultation',
-      studio: 'Studio Session'
+      studio: 'Studio Session',
     };
     return labels[type] || type;
   }
+
+  getDateInTimezone(timezone = 'Europe/London'): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: timezone,
+    }).format(new Date());
+  }
+
+  addDaysToDateStr(dateStr: string, days: number): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.toISOString().split('T')[0];
+  }
+
+  slotsOverlap(
+    a: TimeSlot & { date: string },
+    b: TimeSlot & { date: string }
+  ): boolean {
+    if (a.date !== b.date) return false;
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    return toMin(a.startTime) < toMin(b.endTime) && toMin(a.endTime) > toMin(b.startTime);
+  }
+
+  resolveImageUrl(path?: string | null): string {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const origin = API_URL.replace(/\/$/, '');
+    if (path.startsWith('/uploads/')) return `${origin}${path}`;
+    if (path.startsWith('/')) return `${origin}/uploads${path}`;
+    return `${origin}/uploads/${path}`;
+  }
+
+  computeBookingTotal(
+    packagePrice: number,
+    slotCount: number,
+    selectedExtras: SelectedBookingExtra[] = []
+  ) {
+    const slotsSubtotal = packagePrice * slotCount;
+    const extrasSubtotal = selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+    return {
+      slotsSubtotal,
+      extrasSubtotal,
+      totalPrice: slotsSubtotal + extrasSubtotal,
+    };
+  }
 }
 
-// Export singleton instance
 export const bookingService = BookingService.init();

@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { bookingService, Booking } from "../../services/bookingService";
+import { bookingService, Booking, GroupBookingSlot } from "../../services/bookingService";
 
 const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
@@ -55,9 +55,9 @@ function DetailRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{label}</p>
-        <p className={`text-sm font-semibold break-words ${highlight ? "text-primary" : "text-gray-900"}`}>
+        <div className={`text-sm font-semibold break-words ${highlight ? "text-primary" : "text-gray-900"}`}>
           {value}
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -95,6 +95,8 @@ function BookingConfirmationContent() {
   const [hasMounted, setHasMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [groupSlots, setGroupSlots] = useState<GroupBookingSlot[] | null>(null);
+  const [slotCount, setSlotCount] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState<PaymentUiStatus>("pending");
 
   const paymentSuccessParam = searchParams.get("payment_success");
@@ -131,13 +133,15 @@ function BookingConfirmationContent() {
 
     setProgress(30);
     try {
-      const bookingData = await bookingService.getBookingByNumber(bookingNumber);
-      if (bookingData) {
-        setBooking(bookingData);
+      const result = await bookingService.getBookingByNumber(bookingNumber);
+      if (result.booking) {
+        setBooking(result.booking);
+        setGroupSlots(result.groupSlots || null);
+        setSlotCount(result.slotCount || 1);
 
-        if (bookingData.paymentStatus === "paid") {
+        if (result.booking.paymentStatus === "paid") {
           setPaymentStatus("success");
-        } else if (bookingData.paymentStatus === "failed") {
+        } else if (result.booking.paymentStatus === "failed") {
           setPaymentStatus("failed");
         } else if (isPaymentRedirectSuccess) {
           setPaymentStatus("success");
@@ -179,7 +183,13 @@ function BookingConfirmationContent() {
   const packageName = getPackageName(booking);
   const packagePrice = getPackagePrice(booking);
   const packageDuration = getPackageDuration(booking);
-  const displayNumber = booking?.bookingNumber || bookingNumber;
+  const displayNumber = booking?.groupBookingNumber || booking?.bookingNumber || bookingNumber;
+  const slotsToShow = groupSlots && groupSlots.length > 1
+    ? groupSlots
+    : booking
+    ? [{ bookingNumber: booking.bookingNumber, date: booking.date, startTime: booking.startTime, endTime: booking.endTime, status: booking.status, paymentStatus: booking.paymentStatus }]
+    : [];
+  const totalPaid = packagePrice != null ? packagePrice * slotCount : null;
 
   if (!hasMounted || loading) {
     return <PageLoadingShell progress={progress} />;
@@ -258,28 +268,39 @@ function BookingConfirmationContent() {
                     />
                   )}
 
-                  {booking?.date && (
-                    <DetailRow
-                      icon={
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      }
-                      label="Date"
-                      value={bookingService.formatDate(booking.date)}
-                    />
-                  )}
-
-                  {booking?.startTime && (
-                    <DetailRow
-                      icon={
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      }
-                      label="Time"
-                      value={`${bookingService.formatTime(booking.startTime)} – ${bookingService.formatTime(booking.endTime)}`}
-                    />
+                  {slotsToShow.length > 1 ? (
+                    <div className="sm:col-span-2">
+                      <DetailRow
+                        icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                        label={`Appointments (${slotsToShow.length})`}
+                        value={
+                          <ul className="space-y-1">
+                            {slotsToShow.map((slot) => (
+                              <li key={`${slot.date}-${slot.startTime}`}>
+                                {bookingService.formatDate(slot.date)} — {bookingService.formatTime(slot.startTime)} – {bookingService.formatTime(slot.endTime)}
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {booking?.date && (
+                        <DetailRow
+                          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+                          label="Date"
+                          value={bookingService.formatDate(booking.date)}
+                        />
+                      )}
+                      {booking?.startTime && (
+                        <DetailRow
+                          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                          label="Time"
+                          value={`${bookingService.formatTime(booking.startTime)} – ${bookingService.formatTime(booking.endTime)}`}
+                        />
+                      )}
+                    </>
                   )}
 
                   {packageDuration != null && (
@@ -294,15 +315,11 @@ function BookingConfirmationContent() {
                     />
                   )}
 
-                  {packagePrice != null && (
+                  {totalPaid != null && (
                     <DetailRow
-                      icon={
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      }
+                      icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                       label="Amount Paid"
-                      value={bookingService.formatPrice(packagePrice)}
+                      value={slotCount > 1 ? `${bookingService.formatPrice(totalPaid)} (${slotCount} slots)` : bookingService.formatPrice(totalPaid)}
                       highlight
                     />
                   )}
