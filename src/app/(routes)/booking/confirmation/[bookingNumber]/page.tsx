@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { bookingService, Booking, GroupBookingSlot } from "../../services/bookingService";
 
-const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
 type PaymentUiStatus = "success" | "pending" | "failed";
@@ -67,10 +66,7 @@ function PageLoadingShell({ progress = 0 }: { progress?: number }) {
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => {}} />
-      <header className="relative">
-        <Nav />
-      </header>
-      <main className="bg-gradient-to-b from-gray-50 via-white to-gray-50 py-10 px-4 flex items-center justify-center">
+      <main className="bg-bodyBg py-10 px-4 flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="relative w-20 h-20 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
@@ -199,11 +195,7 @@ function BookingConfirmationContent() {
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
 
-      <header className="relative">
-        <Nav />
-      </header>
-
-      <main className="bg-gradient-to-b from-gray-50 via-white to-gray-50 py-8 sm:py-10 px-4 sm:px-6">
+      <main className="bg-bodyBg py-8 sm:py-10 px-4 sm:px-6 pb-16">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden">
             {/* Header */}

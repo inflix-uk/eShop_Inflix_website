@@ -7,7 +7,6 @@ import { useParams, useRouter } from "next/navigation";
 import { bookingService, BookingPackage } from "../../services/bookingService";
 import { hasRichDescription } from "../../utils/description";
 
-const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
 function capitalizeWords(value: string): string {
@@ -52,8 +51,7 @@ export default function BookingPackageDetailPage() {
     return (
       <>
         <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-        <header className="relative"><Nav /></header>
-        <main className="min-h-[50vh] flex items-center justify-center">
+        <main className="min-h-[50vh] flex items-center justify-center bg-bodyBg">
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
@@ -66,8 +64,7 @@ export default function BookingPackageDetailPage() {
   if (!pkg) {
     return (
       <>
-        <header className="relative"><Nav /></header>
-        <main className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <main className="max-w-4xl mx-auto px-4 py-16 text-center bg-bodyBg">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Service Not Found</h1>
           <p className="text-gray-600 mb-6">This booking package is no longer available.</p>
           <Link href="/booking" className="text-primary font-medium hover:underline">
@@ -81,9 +78,8 @@ export default function BookingPackageDetailPage() {
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-      <header className="relative"><Nav /></header>
 
-      <main className="bg-gradient-to-b from-gray-50 via-white to-gray-50 py-8 sm:py-12">
+      <main className="bg-bodyBg py-8 sm:py-12 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <button
             type="button"
@@ -100,7 +96,7 @@ export default function BookingPackageDetailPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 lg:gap-10 items-start">
             {/* Main content */}
-            <article className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden min-w-0">
+            <article className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden min-w-0">
               <div className="px-6 sm:px-10 py-8 sm:py-10 border-b border-gray-100 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
                 <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-3">
                   {bookingService.getTypeLabel(pkg.type)}
@@ -126,7 +122,7 @@ export default function BookingPackageDetailPage() {
 
             {/* Sidebar */}
             <aside className="lg:sticky lg:top-24 space-y-4">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-6 sm:p-7">
+              <div className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-6 sm:p-7">
                 <p className="text-sm font-medium text-gray-500 mb-1">Price</p>
                 <p className="text-4xl font-bold text-gray-900 mb-4">
                   {bookingService.formatPrice(pkg.price)}

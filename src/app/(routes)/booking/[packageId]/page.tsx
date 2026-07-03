@@ -16,7 +16,6 @@ import {
   StoredBookingData,
 } from "../services/bookingService";
 
-const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -275,6 +274,7 @@ export default function BookingFlowPage() {
   const isExtraSelected = (index: number) => selectedExtras.some((e) => e.index === index);
 
   const toggleExtra = (extra: BookingPackageExtra, index: number) => {
+    if (submitting) return;
     if (isExtraSelected(index)) {
       setSelectedExtras((prev) => prev.filter((e) => e.index !== index));
       return;
@@ -313,17 +313,26 @@ export default function BookingFlowPage() {
   };
 
   const handleContinueToCheckout = () => {
-    if (!activeHolds.length || !holdExpiry) {
+    if (submitting) return;
+    setSubmitting(true);
+    setProgress(45);
+    try {
+      if (activeHolds.length && holdExpiry) {
+        saveBookingToStorage(activeHolds, displaySlots, holdExpiry.toISOString(), selectedExtras);
+      }
+      setProgress(90);
       router.push("/checkout");
-      return;
+    } catch {
+      toast.error("Failed to continue to checkout");
+      setSubmitting(false);
+      setProgress(0);
     }
-    saveBookingToStorage(activeHolds, displaySlots, holdExpiry.toISOString(), selectedExtras);
-    router.push("/checkout");
   };
 
   const handleConfirmSlots = async () => {
     if (!selectedSlots.length || submitting || hasActiveHold) return;
     setSubmitting(true);
+    setProgress(40);
     try {
       const result = await bookingService.createMultiSlotHold(
         packageId,
@@ -338,15 +347,18 @@ export default function BookingFlowPage() {
         setHoldExpiry(new Date(expiresAt));
         saveBookingToStorage(result.holds, withHolds, expiresAt, selectedExtras);
         toast.success(`${result.holds.length} slot(s) reserved!`);
+        setProgress(90);
         router.push("/checkout");
       } else {
         toast.error(result.error || "Failed to hold slots");
         setSubmitting(false);
+        setProgress(0);
         if (selectedDate) loadSlots(selectedDate);
       }
     } catch {
       toast.error("Failed to hold slots");
       setSubmitting(false);
+      setProgress(0);
     }
   };
 
@@ -367,13 +379,26 @@ export default function BookingFlowPage() {
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })
     : "";
 
-  if (loading) {
+  const busyMessage = loading
+    ? "Loading booking details..."
+    : submitting
+      ? hasActiveHold
+        ? "Continuing to checkout..."
+        : "Reserving your slots..."
+      : "";
+
+  if (loading || submitting) {
     return (
       <>
         <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-        <header className="relative"><Nav /></header>
-        <main className="min-h-screen flex items-center justify-center">
-          <p className="text-gray-500">Loading booking details...</p>
+        <main className="bg-bodyBg flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="relative w-20 h-20 mx-auto mb-4">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            </div>
+            <p className="text-gray-500 animate-pulse">{busyMessage}</p>
+          </div>
         </main>
       </>
     );
@@ -382,16 +407,20 @@ export default function BookingFlowPage() {
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-      <header className="relative"><Nav /></header>
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 py-8 sm:py-12">
+      <main className="bg-bodyBg py-8 sm:py-12 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button onClick={() => router.push("/booking")} className="mb-8 text-sm text-gray-500 hover:text-gray-900">
+          <button
+            type="button"
+            onClick={() => router.push("/booking")}
+            disabled={submitting}
+            className="mb-8 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-50 disabled:pointer-events-none"
+          >
             ← Back to Services
           </button>
 
           <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
             <div className="lg:col-span-8">
-              <div className="bg-white rounded-xl border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
+              <div className="bg-bookingCardBg rounded-xl border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
                 <div className="p-5">
                   <h2 className="text-sm font-semibold text-center mb-4">{monthLabel}</h2>
                   <div className="grid grid-cols-7 gap-1 mb-1">
@@ -451,54 +480,59 @@ export default function BookingFlowPage() {
               </div>
 
               {packageExtras.length > 0 && (
-                <div className="mt-6 bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
+                <div className="mt-6">
                   <div className="mb-5">
                     <h2 className="text-lg font-bold text-gray-900">Extras</h2>
                     <p className="text-sm text-gray-500 mt-1">Optional add-ons for your booking</p>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4">
                     {packageExtras.map((extra, index) => {
                       const selected = isExtraSelected(index);
                       const imageUrl = bookingService.resolveImageUrl(extra.image);
                       return (
                         <div
                           key={`${extra.title}-${index}`}
-                          className={`rounded-xl border overflow-hidden flex flex-col ${selected ? "border-primary ring-1 ring-primary/20" : "border-gray-200"}`}
+                          className={`bg-bookingCardBg rounded-xl border overflow-hidden flex flex-row shadow-[0_4px_24px_rgba(0,0,0,0.06)] ${selected ? "border-primary ring-1 ring-primary/20" : "border-gray-200"}`}
                         >
-                          <div className="aspect-[16/10] bg-gray-100 relative overflow-hidden">
+                          <div className="w-32 sm:w-40 md:w-48 shrink-0 bg-white relative overflow-hidden flex items-center justify-center p-2 border-r border-gray-100">
                             {imageUrl ? (
                               <img
                                 src={imageUrl}
                                 alt={extra.title}
-                                className="w-full h-full object-cover"
+                                className="max-w-full max-h-full w-auto h-auto object-contain"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                              <div className="w-full h-full min-h-[120px] flex items-center justify-center text-gray-400 text-xs">
                                 No image
                               </div>
                             )}
                           </div>
-                          <div className="p-4 flex flex-col flex-1">
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <h3 className="font-semibold text-gray-900">{extra.title}</h3>
-                              <span className="text-sm font-bold text-primary whitespace-nowrap">
+                          <div className="p-4 sm:p-5 flex flex-col flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
+                              {extra.title}
+                            </h3>
+                            {extra.description && (
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-3">
+                                {extra.description}
+                              </p>
+                            )}
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                              <span className="text-base font-bold text-primary whitespace-nowrap">
                                 {bookingService.formatPrice(extra.price || 0)}
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleExtra(extra, index)}
+                                disabled={submitting}
+                                className={`px-5 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+                                  selected
+                                    ? "bg-primary text-white border-primary"
+                                    : "border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
+                                }`}
+                              >
+                                {selected ? "Unselect" : "Select"}
+                              </button>
                             </div>
-                            {extra.description && (
-                              <p className="text-sm text-gray-600 mb-4 line-clamp-3">{extra.description}</p>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => toggleExtra(extra, index)}
-                              className={`mt-auto w-full py-2.5 text-sm font-semibold rounded-lg border transition-colors ${
-                                selected
-                                  ? "bg-primary text-white border-primary"
-                                  : "border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
-                              }`}
-                            >
-                              {selected ? "Unselect" : "Select"}
-                            </button>
                           </div>
                         </div>
                       );
@@ -509,7 +543,7 @@ export default function BookingFlowPage() {
             </div>
 
             <div className="lg:col-span-4">
-              <div className="sticky top-24 bg-white rounded-xl border border-gray-100 p-5">
+              <div className="sticky top-24 bg-bookingCardBg rounded-xl border border-gray-100 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
                 <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                   {bookingService.getTypeLabel(pkg?.type || "")}
                 </span>
@@ -578,8 +612,22 @@ export default function BookingFlowPage() {
 
                 {hasActiveHold ? (
                   <div className="mt-5 space-y-2">
-                    <button onClick={handleContinueToCheckout} className="w-full py-3 bg-primary text-white font-semibold rounded-xl">Continue to Checkout</button>
-                    <button onClick={async () => { await releaseCurrentHolds(); setSelectedSlots([]); if (selectedDate) loadSlots(selectedDate, []); }} className="w-full py-2 text-sm text-gray-600">Cancel reservation</button>
+                    <button
+                      type="button"
+                      onClick={handleContinueToCheckout}
+                      disabled={submitting}
+                      className="w-full py-3 bg-primary text-white font-semibold rounded-xl disabled:opacity-60"
+                    >
+                      {submitting ? "Continuing..." : "Continue to Checkout"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={async () => { await releaseCurrentHolds(); setSelectedSlots([]); if (selectedDate) loadSlots(selectedDate, []); }}
+                      className="w-full py-2 text-sm text-gray-600 disabled:opacity-50"
+                    >
+                      Cancel reservation
+                    </button>
                   </div>
                 ) : selectedSlots.length > 0 ? (
                   <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 bg-primary text-white font-semibold rounded-xl disabled:opacity-60">

@@ -36,6 +36,120 @@ export interface BookingPackageExtra {
   description?: string;
 }
 
+export interface BookingPageHero {
+  badgeText: string;
+  title: string;
+  subtitle: string;
+  statsEnabled: boolean;
+  stat1Label: string;
+  stat2Value: string;
+  stat2Label: string;
+  stat3Value: string;
+  stat3Label: string;
+}
+
+export interface BookingPageServicesSection {
+  heading: string;
+  subheading: string;
+}
+
+export interface BookingTrustBlock {
+  title: string;
+  description: string;
+}
+
+export interface BookingPageContent {
+  hero: BookingPageHero;
+  services: BookingPageServicesSection;
+  trust: BookingTrustBlock[];
+}
+
+export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
+  hero: {
+    badgeText: 'Online Booking Available',
+    title: 'Book Your Perfect Appointment',
+    subtitle:
+      'Choose from our range of premium services and book your preferred time slot. Quick, easy, and secure online booking.',
+    statsEnabled: true,
+    stat1Label: 'Services',
+    stat2Value: '24/7',
+    stat2Label: 'Online Booking',
+    stat3Value: '100%',
+    stat3Label: 'Secure Payment',
+  },
+  services: {
+    heading: 'Our Services',
+    subheading: 'Select a service to begin booking',
+  },
+  trust: [
+    { title: 'Secure Booking', description: 'Your data is protected with industry-leading encryption' },
+    { title: 'Instant Confirmation', description: 'Receive immediate booking confirmation via email' },
+    { title: 'Flexible Payment', description: 'Pay securely with card, Apple Pay, or Google Pay' },
+  ],
+};
+
+function pickBookingString(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+export function mergeBookingPageContent(raw: unknown): BookingPageContent {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const heroSrc =
+    src.hero && typeof src.hero === 'object'
+      ? (src.hero as Record<string, unknown>)
+      : {};
+  const servicesSrc =
+    src.services && typeof src.services === 'object'
+      ? (src.services as Record<string, unknown>)
+      : {};
+  const trustSrc = Array.isArray(src.trust) ? src.trust : [];
+
+  const heroDefaults = DEFAULT_BOOKING_PAGE_CONTENT.hero;
+  let title = pickBookingString(heroSrc.title, '');
+  if (!title) {
+    const legacy = [heroSrc.titleBefore, heroSrc.titleHighlight, heroSrc.titleAfter]
+      .map((p) => pickBookingString(p, ''))
+      .filter(Boolean)
+      .join(' ');
+    title = legacy || heroDefaults.title;
+  }
+  const hero: BookingPageHero = {
+    badgeText: pickBookingString(heroSrc.badgeText, heroDefaults.badgeText),
+    title,
+    subtitle: pickBookingString(heroSrc.subtitle, heroDefaults.subtitle),
+    statsEnabled:
+      typeof heroSrc.statsEnabled === 'boolean'
+        ? heroSrc.statsEnabled
+        : heroDefaults.statsEnabled,
+    stat1Label: pickBookingString(heroSrc.stat1Label, heroDefaults.stat1Label),
+    stat2Value: pickBookingString(heroSrc.stat2Value, heroDefaults.stat2Value),
+    stat2Label: pickBookingString(heroSrc.stat2Label, heroDefaults.stat2Label),
+    stat3Value: pickBookingString(heroSrc.stat3Value, heroDefaults.stat3Value),
+    stat3Label: pickBookingString(heroSrc.stat3Label, heroDefaults.stat3Label),
+  };
+
+  const servicesDefaults = DEFAULT_BOOKING_PAGE_CONTENT.services;
+  const services: BookingPageServicesSection = {
+    heading: pickBookingString(servicesSrc.heading, servicesDefaults.heading),
+    subheading: pickBookingString(servicesSrc.subheading, servicesDefaults.subheading),
+  };
+
+  const trust: BookingTrustBlock[] = DEFAULT_BOOKING_PAGE_CONTENT.trust.map(
+    (defaults, index) => {
+      const entry =
+        trustSrc[index] && typeof trustSrc[index] === 'object'
+          ? (trustSrc[index] as Record<string, unknown>)
+          : {};
+      return {
+        title: pickBookingString(entry.title, defaults.title),
+        description: pickBookingString(entry.description, defaults.description),
+      };
+    }
+  );
+
+  return { hero, services, trust };
+}
+
 export interface SelectedBookingExtra {
   index: number;
   title: string;
@@ -161,6 +275,18 @@ export class BookingService {
       console.error('Error fetching booking settings:', error);
       return null;
     }
+  }
+
+  async getPageContent(): Promise<BookingPageContent> {
+    try {
+      const response = await axios.get(`${API_URL}booking/settings/public/content`);
+      if (response.data?.success && response.data?.data?.content) {
+        return mergeBookingPageContent(response.data.data.content);
+      }
+    } catch (error) {
+      console.error('Error fetching booking page content:', error);
+    }
+    return DEFAULT_BOOKING_PAGE_CONTENT;
   }
 
   async getPackages(type?: string): Promise<BookingPackage[]> {

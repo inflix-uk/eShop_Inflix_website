@@ -8,12 +8,18 @@ import {
   resolveTypographyFromApi,
   type TypographyConfig,
 } from "@/app/lib/typographyThemeUtils";
+import {
+  cloneTagColorDefaults,
+  resolveTagColorsFromApi,
+  type TagColorsConfig,
+} from "@/app/lib/tagColorsThemeUtils";
 import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch, isCmsFetchAbortError } from "@/app/lib/cmsTimedFetch";
 
 export type SiteThemeLayoutBundle = {
   colors: SiteThemeResolved;
   typography: TypographyConfig;
+  tagColors: TagColorsConfig;
 };
 
 /**
@@ -29,6 +35,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         DEFAULT_SITE_THEME.secondaryColor
       ),
       typography: cloneTypographyDefaults(),
+      tagColors: cloneTagColorDefaults(),
     };
   }
 
@@ -45,6 +52,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
           DEFAULT_SITE_THEME.secondaryColor
         ),
         typography: cloneTypographyDefaults(),
+        tagColors: cloneTagColorDefaults(),
       };
     }
 
@@ -56,24 +64,30 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
           DEFAULT_SITE_THEME.secondaryColor
         ),
         typography: cloneTypographyDefaults(),
+        tagColors: cloneTagColorDefaults(),
       };
     }
 
     const primary = String(json.data.primaryColor ?? "").trim();
     const secondary = String(json.data.secondaryColor ?? "").trim();
     const bodyBg = String(json.data.bodyBgColor ?? "").trim();
+    const bookingCardBg = String(
+      json.data.uiCustom?.booking?.serviceCardBgColor ?? ""
+    ).trim();
     const colors =
       !primary || !secondary
         ? resolveSiteTheme(
             DEFAULT_SITE_THEME.primaryColor,
             DEFAULT_SITE_THEME.secondaryColor,
-            bodyBg
+            bodyBg,
+            bookingCardBg
           )
-        : resolveSiteTheme(primary, secondary, bodyBg);
+        : resolveSiteTheme(primary, secondary, bodyBg, bookingCardBg);
 
     const typography = resolveTypographyFromApi(json.data);
+    const tagColors = resolveTagColorsFromApi(json.data);
 
-    return { colors, typography };
+    return { colors, typography, tagColors };
   } catch (e) {
     if (!isCmsFetchAbortError(e)) {
       console.error("[siteThemeService] public fetch:", e);
@@ -84,6 +98,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         DEFAULT_SITE_THEME.secondaryColor
       ),
       typography: cloneTypographyDefaults(),
+      tagColors: cloneTagColorDefaults(),
     };
   }
 }

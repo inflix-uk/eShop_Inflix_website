@@ -41,6 +41,7 @@ html.has-product-sticky-buy-bar #site-footer {
   --primary-rgb: 0 0 0;
   --secondary-rgb: 0 0 0;
   --body-bg-color: #ffffff;
+  --booking-service-card-bg: #ffffff;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

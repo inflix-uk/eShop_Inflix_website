@@ -30,6 +30,8 @@ export default {
       colors: {
         primary: "rgb(var(--primary-rgb) / <alpha-value>)",
         secondary: "rgb(var(--secondary-rgb) / <alpha-value>)",
+        bodyBg: "var(--body-bg-color)",
+        bookingCardBg: "var(--booking-service-card-bg, #ffffff)",
         green: brandGreenScale,
         emerald: brandGreenScale,
       },

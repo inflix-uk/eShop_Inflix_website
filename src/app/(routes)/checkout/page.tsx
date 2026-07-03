@@ -49,6 +49,7 @@ const PaymentForm = dynamic(
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import CheckoutBenefits from "./components/checkout-benefits";
 import PaymentLogos from "@/app/components/PaymentLogos";
+import PaymentVendorScripts from "@/app/components/PaymentVendorScripts";
 import { trackBeginCheckout } from "@/app/lib/analyticsEvents";
 
 // Booking data loaded from localStorage when user arrives from booking flow
@@ -132,6 +133,9 @@ export default function CheckoutPage() {
   const isBookingOnly = hasBooking && products.length === 0;
   const activeClientSecret = isBookingOnly ? bookingClientSecret : clientSecret;
   const beginCheckoutTracked = useRef(false);
+  const bnplAmountPence =
+    !isBookingOnly && totalSalePrice > 0 ? Math.round(totalSalePrice * 100) : 0;
+  const showBnplMessaging = bnplAmountPence >= 100;
 
   useEffect(() => {
     if (beginCheckoutTracked.current || isBookingOnly || products.length === 0) return;
@@ -634,6 +638,10 @@ export default function CheckoutPage() {
 
   return (
     <>
+      <PaymentVendorScripts
+        enablePayPal={showBnplMessaging}
+        enableKlarna={showBnplMessaging}
+      />
       <NewsletterModal mode="checkout" />
       <LoadingBar
         color="#046d38"
@@ -722,20 +730,20 @@ export default function CheckoutPage() {
                   />
 
                   <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                    {!isBookingOnly && (
-                      <div className="mb-4">
+                    {showBnplMessaging && (
+                      <div className="mb-4" key={`bnpl-${bnplAmountPence}`}>
                         <div
                           data-pp-message
                           data-pp-style-layout="text"
                           data-pp-style-logo-type="inline"
                           data-pp-style-text-color="black"
-                          data-pp-amount={totalSalePrice ? (totalSalePrice * 100).toString() : ""}
-                        ></div>
+                          data-pp-amount={String(bnplAmountPence)}
+                        />
                         <klarna-placement
                           data-key="credit-promotion-badge"
                           data-locale="en-GB"
-                          data-purchase-amount={totalSalePrice ? (totalSalePrice * 100).toString() : ""}
-                        ></klarna-placement>
+                          data-purchase-amount={String(bnplAmountPence)}
+                        />
                       </div>
                     )}
 
