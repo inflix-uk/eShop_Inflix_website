@@ -7,12 +7,52 @@ const ChatWidget = dynamic(() => import("@/app/components/ChatWidget"), {
   ssr: false,
 });
 
+const CHAT_ENABLED_POLL_MS = 60_000;
+
+function apiBase(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+  return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+}
+
 /**
  * Chat (socket.io + UI) is heavy on the main thread. Load after first interaction
  * or idle so initial Lighthouse / mobile parse-eval stays focused on above-the-fold UI.
+ * Also respects admin "Live chat" enable/disable toggle from Visitor Messages.
  */
 export default function DeferredChatWidget() {
   const [show, setShow] = useState(false);
+  // `null` = still checking (don't render yet); `true` / `false` from API
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchEnabled = async () => {
+      const base = apiBase();
+      if (!base) {
+        if (!cancelled) setEnabled(true);
+        return;
+      }
+      try {
+        const res = await fetch(`${base}/visitor-messages/chat-enabled/public`, {
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        const value = json?.data?.isEnabled;
+        setEnabled(typeof value === "boolean" ? value : true);
+      } catch {
+        if (!cancelled) setEnabled(true);
+      }
+    };
+
+    fetchEnabled();
+    const interval = window.setInterval(fetchEnabled, CHAT_ENABLED_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (show) return undefined;
@@ -66,6 +106,7 @@ export default function DeferredChatWidget() {
     };
   }, [show]);
 
+  if (enabled === false) return null;
   if (!show) return null;
   return <ChatWidget />;
 }

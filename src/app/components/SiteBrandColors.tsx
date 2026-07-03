@@ -2,10 +2,14 @@
 
 import { useEffect } from "react";
 import { resolveSiteTheme } from "@/app/lib/siteThemeUtils";
+import {
+  applyTagColorsStyleDocument,
+  resolveTagColorsFromApi,
+} from "@/app/lib/tagColorsThemeUtils";
 
 /**
  * Re-applies theme after client navigation / when API may have updated.
- * First paint is handled by `SiteThemeInlineStyles` in root layout.
+ * First paint is handled by `SiteThemeInlineStyles` + `TagColorsThemeStyles` in root layout.
  */
 export default function SiteBrandColors() {
   useEffect(() => {
@@ -20,7 +24,8 @@ export default function SiteBrandColors() {
         const t = resolveSiteTheme(
           String(json.data.primaryColor ?? ""),
           String(json.data.secondaryColor ?? ""),
-          String(json.data.bodyBgColor ?? "")
+          String(json.data.bodyBgColor ?? ""),
+          String(json.data.uiCustom?.booking?.serviceCardBgColor ?? "")
         );
 
         const root = document.documentElement;
@@ -29,7 +34,10 @@ export default function SiteBrandColors() {
         root.style.setProperty("--primary-rgb", t.primaryRgb);
         root.style.setProperty("--secondary-rgb", t.secondaryRgb);
         root.style.setProperty("--body-bg-color", t.bodyBgColor);
+        root.style.setProperty("--booking-service-card-bg", t.bookingServiceCardBgColor);
         document.body.style.backgroundColor = t.bodyBgColor;
+
+        applyTagColorsStyleDocument(document, resolveTagColorsFromApi(json.data));
       } catch {
         /* defaults from globals.css + layout inline theme */
       }

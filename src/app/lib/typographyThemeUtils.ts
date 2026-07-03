@@ -99,7 +99,7 @@ function familyCssValue(font: AllowedFontKey): string {
  * Selectors that must match / beat `@tailwindcss/typography` (e.g. `.prose h3`), which
  * otherwise wins over bare `h3` and makes headings inherit `body.font-sans` → `--p-font`.
  */
-const CMS_TYPO_CONTEXTS = [
+export const CMS_TYPO_CONTEXTS = [
   "",
   ".prose ",
   ".blog-content ",

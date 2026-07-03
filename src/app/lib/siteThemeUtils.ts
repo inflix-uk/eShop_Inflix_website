@@ -5,6 +5,7 @@ export const DEFAULT_SITE_THEME = {
   primaryRgb: "0 0 0",
   secondaryRgb: "0 0 0",
   bodyBgColor: "#ffffff",
+  bookingServiceCardBgColor: "#ffffff",
 } as const;
 
 export function hexToRgbSpaceSeparated(hex: string): string | null {
@@ -23,6 +24,7 @@ export type SiteThemeResolved = {
   primaryRgb: string;
   secondaryRgb: string;
   bodyBgColor: string;
+  bookingServiceCardBgColor: string;
 };
 
 export function resolveBodyBgColor(raw: string): string {
@@ -33,10 +35,19 @@ export function resolveBodyBgColor(raw: string): string {
     : DEFAULT_SITE_THEME.bodyBgColor;
 }
 
+export function resolveBookingServiceCardBgColor(raw: string): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return DEFAULT_SITE_THEME.bookingServiceCardBgColor;
+  return hexToRgbSpaceSeparated(trimmed) != null
+    ? trimmed
+    : DEFAULT_SITE_THEME.bookingServiceCardBgColor;
+}
+
 export function resolveSiteTheme(
   primaryColor: string,
   secondaryColor: string,
-  bodyBgColor?: string
+  bodyBgColor?: string,
+  bookingServiceCardBgColor?: string
 ): SiteThemeResolved {
   const pr = hexToRgbSpaceSeparated(primaryColor);
   const sr = hexToRgbSpaceSeparated(secondaryColor);
@@ -52,10 +63,13 @@ export function resolveSiteTheme(
     primaryRgb,
     secondaryRgb,
     bodyBgColor: resolveBodyBgColor(bodyBgColor ?? ""),
+    bookingServiceCardBgColor: resolveBookingServiceCardBgColor(
+      bookingServiceCardBgColor ?? ""
+    ),
   };
 }
 
 /** Single `:root` block for `<style>` in document head (overrides `globals.css`). */
 export function siteThemeRootStyleCss(theme: SiteThemeResolved): string {
-  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};}body{background-color:var(--body-bg-color);}`;
+  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};--booking-service-card-bg:${theme.bookingServiceCardBgColor};}body{background-color:var(--body-bg-color);}`;
 }

@@ -11,6 +11,7 @@ import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
 import TypographyThemeStyles from "@/app/components/TypographyThemeStyles";
+import TagColorsThemeStyles from "@/app/components/TagColorsThemeStyles";
 import { HTML_FONT_VARIABLE_CLASSES } from "@/app/lib/fonts";
 import SiteScriptsRaw from "@/app/components/SiteScriptsRaw";
 import FooterShell from "@/app/components/footer/FooterShell";
@@ -37,6 +38,7 @@ import { ProductCardDesignProvider } from "@/app/context/ProductCardDesignContex
 import { getProductCardSettingsPublic } from "@/app/services/productCardSettingsService";
 import { DEFAULT_SITE_THEME, resolveSiteTheme } from "@/app/lib/siteThemeUtils";
 import { cloneTypographyDefaults } from "@/app/lib/typographyThemeUtils";
+import { cloneTagColorDefaults } from "@/app/lib/tagColorsThemeUtils";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -156,6 +158,7 @@ export default async function RootLayout({
           DEFAULT_SITE_THEME.secondaryColor
         ),
         typography: cloneTypographyDefaults(),
+        tagColors: cloneTagColorDefaults(),
       })),
       getAnnouncementBannerPublic(),
       getSiteWideSchemaPublic(),
@@ -200,6 +203,7 @@ export default async function RootLayout({
         <SiteScriptsRaw html={combinedHeadScripts} forHead />
         <SiteThemeInlineStyles theme={siteThemeBundle.colors} />
         <TypographyThemeStyles typography={siteThemeBundle.typography} />
+        <TagColorsThemeStyles tagColors={siteThemeBundle.tagColors} />
       </head>
 
       <body
