@@ -42,6 +42,51 @@ html.has-product-sticky-buy-bar #site-footer {
   --secondary-rgb: 0 0 0;
   --body-bg-color: #ffffff;
   --booking-service-card-bg: #ffffff;
+  --booking-card-fg: #111827;
+  --booking-card-fg-muted: #6b7280;
+  --booking-card-surface: #f3f4f6;
+  --booking-card-surface-border: #e5e7eb;
+  --booking-card-divider: #e5e7eb;
+}
+
+/* Nested rows inside admin-colored booking cards — always derived from card bg */
+.booking-card-themed {
+  color: var(--booking-card-fg);
+}
+
+.booking-card-surface {
+  background-color: var(--booking-card-surface);
+  border: 1px solid var(--booking-card-surface-border);
+}
+
+/* Hold timer — fixed contrast; must not inherit booking-card-themed foreground */
+.booking-hold-banner {
+  background-color: #fffbeb !important;
+  border: 1px solid #fcd34d !important;
+  color: #92400e !important;
+}
+
+.booking-hold-banner * {
+  color: inherit !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Checkout order summary + booking confirmation — block CMS tag colors */
+.checkout-order-summary,
+.booking-confirmation-module {
+  color: #111827;
+}
+
+.checkout-order-summary :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, li, b, ul),
+.booking-confirmation-module :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, li, b, ul) {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+.checkout-order-summary :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, b),
+.booking-confirmation-module :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, b) {
+  color: unset !important;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

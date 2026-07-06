@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
@@ -8,7 +8,18 @@ import { bookingService, Booking, GroupBookingSlot } from "../../services/bookin
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
-type PaymentUiStatus = "success" | "pending" | "failed";
+type PaymentUiStatus = "success" | "pending" | "failed" | "not_found" | "verify_email";
+
+function resolvePaymentStatus(
+  booking: Booking | null,
+  redirectFailed: boolean
+): PaymentUiStatus {
+  if (!booking) return "not_found";
+  if (redirectFailed) return "failed";
+  if (booking.paymentStatus === "paid" || booking.status === "confirmed") return "success";
+  if (booking.paymentStatus === "failed" || booking.status === "cancelled") return "failed";
+  return "pending";
+}
 
 function getPackageName(booking: Booking | null): string | null {
   if (!booking?.packageId) return booking?.package?.name || null;
@@ -87,6 +98,11 @@ function BookingConfirmationContent() {
     ? rawBookingNumber.trim().charAt(0).toUpperCase() + rawBookingNumber.trim().slice(1)
     : "";
 
+  const emailFromUrl = searchParams.get("email")?.trim() || "";
+  const redirectStatusParam = searchParams.get("redirect_status");
+  const isPaymentRedirect = searchParams.get("payment_success") === "true" || redirectStatusParam === "succeeded";
+  const redirectFailed = redirectStatusParam === "failed";
+
   const [progress, setProgress] = useState(0);
   const [hasMounted, setHasMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -94,62 +110,69 @@ function BookingConfirmationContent() {
   const [groupSlots, setGroupSlots] = useState<GroupBookingSlot[] | null>(null);
   const [slotCount, setSlotCount] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState<PaymentUiStatus>("pending");
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const paymentSuccessParam = searchParams.get("payment_success");
-  const redirectStatusParam = searchParams.get("redirect_status");
-  const isPaymentRedirectSuccess =
-    paymentSuccessParam === "true" || redirectStatusParam === "succeeded";
+  const effectiveEmail = emailFromUrl || verifyEmail.trim();
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!hasMounted || !bookingNumber) return;
-
-    if (isPaymentRedirectSuccess) {
-      setPaymentStatus("success");
-    } else if (redirectStatusParam === "failed") {
-      setPaymentStatus("failed");
-    }
-
-    loadBooking();
-
-    if (isPaymentRedirectSuccess) {
-      const timer = setTimeout(() => loadBooking(), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [hasMounted, bookingNumber, paymentSuccessParam, redirectStatusParam]);
-
-  const loadBooking = async () => {
-    if (!bookingNumber || bookingNumber === "undefined" || bookingNumber === "null") {
-      setLoading(false);
-      return;
-    }
-
-    setProgress(30);
-    try {
-      const result = await bookingService.getBookingByNumber(bookingNumber);
-      if (result.booking) {
-        setBooking(result.booking);
-        setGroupSlots(result.groupSlots || null);
-        setSlotCount(result.slotCount || 1);
-
-        if (result.booking.paymentStatus === "paid") {
-          setPaymentStatus("success");
-        } else if (result.booking.paymentStatus === "failed") {
-          setPaymentStatus("failed");
-        } else if (isPaymentRedirectSuccess) {
-          setPaymentStatus("success");
-        }
+  const loadBooking = useCallback(
+    async (customerEmail: string) => {
+      if (!bookingNumber || bookingNumber === "undefined" || bookingNumber === "null") {
+        setPaymentStatus("not_found");
+        setLoading(false);
+        return;
       }
-    } catch (error: unknown) {
-      console.error("Error loading booking:", error);
-    } finally {
-      setLoading(false);
-      setProgress(100);
-    }
-  };
+
+      if (!customerEmail) {
+        setPaymentStatus("verify_email");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError(null);
+      setProgress(30);
+
+      try {
+        const result = await bookingService.getBookingByNumber(bookingNumber, customerEmail);
+        if (result.booking) {
+          setBooking(result.booking);
+          setGroupSlots(result.groupSlots || null);
+          setSlotCount(result.slotCount || 1);
+          setPaymentStatus(resolvePaymentStatus(result.booking, redirectFailed));
+        } else {
+          setBooking(null);
+          setPaymentStatus("not_found");
+          setLoadError(result.error || "Booking not found. Please check your reference and email.");
+        }
+      } catch (error: unknown) {
+        console.error("Error loading booking:", error);
+        setBooking(null);
+        setPaymentStatus("not_found");
+        setLoadError("Failed to load booking details.");
+      } finally {
+        setLoading(false);
+        setProgress(100);
+      }
+    },
+    [bookingNumber, redirectFailed]
+  );
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    loadBooking(effectiveEmail);
+  }, [hasMounted, effectiveEmail, loadBooking]);
+
+  useEffect(() => {
+    if (!hasMounted || !effectiveEmail || !isPaymentRedirect) return;
+
+    const timer = setTimeout(() => loadBooking(effectiveEmail), 2000);
+    return () => clearTimeout(timer);
+  }, [hasMounted, effectiveEmail, isPaymentRedirect, loadBooking]);
 
   const statusContent: Record<
     PaymentUiStatus,
@@ -169,9 +192,23 @@ function BookingConfirmationContent() {
     },
     pending: {
       title: "Almost There",
-      subtitle: "Your booking is saved. We're waiting for payment confirmation.",
+      subtitle: isPaymentRedirect
+        ? "Your payment is being confirmed. This page will update shortly."
+        : "Your booking is saved. We're waiting for payment confirmation.",
       badge: "Pending",
       badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
+    },
+    not_found: {
+      title: "Booking Not Found",
+      subtitle: loadError || "We couldn't find a booking with this reference and email.",
+      badge: "Not Found",
+      badgeClass: "bg-gray-100 text-gray-700 border-gray-200",
+    },
+    verify_email: {
+      title: "Verify Your Email",
+      subtitle: "Enter the email address used when booking to view your confirmation.",
+      badge: "Verification Required",
+      badgeClass: "bg-blue-100 text-blue-700 border-blue-200",
     },
   };
 
@@ -197,8 +234,7 @@ function BookingConfirmationContent() {
 
       <main className="bg-bodyBg py-8 sm:py-10 px-4 sm:px-6 pb-16">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden">
-            {/* Header */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden booking-confirmation-module">
             <div className="px-5 sm:px-6 pt-6 pb-5 text-center border-b border-gray-100 bg-gradient-to-b from-primary/5 to-transparent">
               {paymentStatus === "success" ? (
                 <div className="mx-auto w-14 h-14 rounded-xl flex items-center justify-center mb-3 bg-green-100 text-green-600">
@@ -209,10 +245,10 @@ function BookingConfirmationContent() {
               ) : (
                 <div
                   className={`mx-auto w-14 h-14 rounded-xl flex items-center justify-center mb-3 ${
-                    paymentStatus === "failed" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+                    paymentStatus === "failed" ? "bg-red-100 text-red-600" : paymentStatus === "not_found" ? "bg-gray-100 text-gray-600" : "bg-amber-100 text-amber-600"
                   }`}
                 >
-                  {paymentStatus === "failed" ? (
+                  {paymentStatus === "failed" || paymentStatus === "not_found" ? (
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -236,7 +272,32 @@ function BookingConfirmationContent() {
               <h1 className="text-2xl font-bold text-gray-900 mb-1">{ui.title}</h1>
               <p className="text-sm text-gray-600 max-w-md mx-auto">{ui.subtitle}</p>
 
-              {displayNumber && (
+              {paymentStatus === "verify_email" && (
+                <form
+                  className="mt-4 flex flex-col sm:flex-row gap-2 max-w-sm mx-auto"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (verifyEmail.trim()) loadBooking(verifyEmail.trim());
+                  }}
+                >
+                  <input
+                    type="email"
+                    required
+                    value={verifyEmail}
+                    onChange={(e) => setVerifyEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-primary text-white px-4 py-2 text-sm font-semibold hover:bg-secondary"
+                  >
+                    View Booking
+                  </button>
+                </form>
+              )}
+
+              {displayNumber && paymentStatus !== "verify_email" && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2">
                   <span className="text-xs text-gray-400 uppercase tracking-wide">Ref</span>
                   <span className="text-base font-bold font-mono text-gray-900">{displayNumber}</span>
@@ -244,7 +305,7 @@ function BookingConfirmationContent() {
               )}
             </div>
 
-            {(booking || displayNumber) && (
+            {booking && (
               <div className="px-5 sm:px-6 py-5 border-b border-gray-100">
                 <h2 className="text-sm font-bold text-gray-900 mb-3">Appointment Details</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

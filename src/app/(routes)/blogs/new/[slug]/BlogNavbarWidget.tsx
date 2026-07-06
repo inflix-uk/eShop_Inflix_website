@@ -22,6 +22,8 @@ import {
   NavbarIcon,
   useFlaticonStylesheets,
 } from "@/app/lib/navbarFlaticonIcon";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
+import { getLogoUrl } from "@/app/services/logoService";
 import {
   createContext,
   useCallback,
@@ -184,7 +186,7 @@ const NAV_LOGO_LINK_CIRCLE_CLASS =
 const NAV_LOGO_IMG_CIRCLE_CLASS =
   "mx-auto block h-auto w-auto max-h-full max-w-full object-contain object-center";
 const NAV_LOGO_PLACEHOLDER_CIRCLE_CLASS =
-  "mx-auto aspect-square h-full max-h-full w-auto max-w-full shrink-0 rounded-full bg-slate-100 animate-pulse";
+  "mx-auto aspect-square h-full max-h-full w-auto max-w-full shrink-0 rounded-full bg-transparent";
 
 const NAVBAR_WIDGET_PUBLIC_LOGO_SESSION_KEY = "navbarWidgetPublicLogoUrl";
 
@@ -207,21 +209,7 @@ function extractPublicLogoPathFromJson(json: unknown): string {
 }
 
 function getNavbarLogoApiBase(): string {
-  const fromEnv = String(
-    process.env.NEXT_PUBLIC_LOGO_API_URL ||
-      process.env.NEXT_PUBLIC_CMS_API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      ""
-  )
-    .trim()
-    .replace(/\/+$/, "");
-  if (fromEnv) {
-    return fromEnv.replace(/^http:\/\/localhost(?=[:/]|$)/i, "http://127.0.0.1");
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return "http://127.0.0.1:3001";
-  }
-  return "";
+  return resolveCmsApiBase();
 }
 
 function buildNavbarPublicLogoFetchUrls(apiBase: string): string[] {
@@ -256,22 +244,41 @@ function buildNavbarPublicLogoFetchUrls(apiBase: string): string[] {
 
 function NavbarWidgetLogo({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const url = String(src || "").trim();
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useLayoutEffect(() => {
+    const img = imgRef.current;
+    if (!url) {
+      setVisible(false);
+      return;
+    }
+    if (img?.complete && img.naturalWidth > 0) {
+      setVisible(true);
+      return;
+    }
+    setVisible(false);
+  }, [url]);
+
   if (!url) return null;
   return (
     <img
+      ref={imgRef}
       src={url}
       alt={alt}
-      className={className}
+      className={`${className ?? ""} ${visible ? "opacity-100" : "opacity-0"}`}
+      style={{ transition: "opacity 120ms ease-out" }}
       loading="eager"
       decoding="async"
       fetchPriority="high"
+      onLoad={() => setVisible(true)}
     />
   );
 }
 
-/** Same footprint as NAV_LOGO_IMG_CLASS while URL loads — no initials/text flash. */
+/** Reserved logo slot — static (no pulse) to avoid visible flash before image paints. */
 const NAV_LOGO_PLACEHOLDER_CLASS =
-  "block h-12 w-[min(100%,10rem)] max-w-[160px] shrink-0 rounded-md bg-slate-100 animate-pulse sm:h-14 md:h-16 md:max-h-[4.5rem] lg:max-h-[5rem]";
+  "block h-12 w-[min(100%,10rem)] max-w-[160px] shrink-0 rounded-md bg-transparent sm:h-14 md:h-16 md:max-h-[4.5rem] lg:max-h-[5rem]";
 
 function NavbarLogoHomeSlot({
   logoUrl,
@@ -471,19 +478,7 @@ function resolveActionIconButtonStyle(
 }
 
 function resolveAssetSrc(raw?: string): string {
-  const value = String(raw || "").trim();
-  if (!value) return "";
-  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:")) {
-    return value;
-  }
-  const api = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
-  if (!api) return value;
-
-  // Mirror backend upload path conventions used by logo uploads.
-  if (value.startsWith("/uploads/")) return `${api}${value}`;
-  if (value.startsWith("/logo/") || value.startsWith("/favicon/")) return `${api}/uploads${value}`;
-  if (value.startsWith("/")) return `${api}/uploads${value}`;
-  return `${api}/uploads/${value}`;
+  return getLogoUrl(raw) || "";
 }
 
 function linkTypeNormalized(link: NavbarLinkItem | undefined): string {

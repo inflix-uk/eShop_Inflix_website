@@ -71,8 +71,11 @@ function getStoredBookingForPackage(packageId: string): StoredBookingData | null
     if (new Date(parsed.holdExpiresAt) <= new Date()) {
       localStorage.removeItem("bookingData");
       const holdIds = parsed.holdIds || parsed.slots.map((s) => s.holdId).filter(Boolean) as string[];
-      if (holdIds.length > 1) bookingService.releaseSlotHolds(holdIds);
-      else if (holdIds[0]) bookingService.releaseSlotHold(holdIds[0]);
+      const sid = parsed.sessionId;
+      if (sid) {
+        if (holdIds.length > 1) bookingService.releaseSlotHolds(holdIds, sid);
+        else if (holdIds[0]) bookingService.releaseSlotHold(holdIds[0], sid);
+      }
       return null;
     }
 
@@ -225,7 +228,14 @@ export default function BookingFlowPage() {
       if (merged.length > 0) setAvailableSlots(merged);
       else if (response.blocked) setSlotsMessage(response.reason || "This date is not available");
       else if (response.noAvailability) setSlotsMessage("No availability on this day");
-      else setSlotsMessage("No slots available for this date");
+      else if (
+        date === getMinDate() &&
+        (settings?.minAdvanceBookingHours ?? 0) > 0
+      ) {
+        setSlotsMessage(
+          `No slots available — bookings require at least ${settings?.minAdvanceBookingHours} hour(s) notice`
+        );
+      } else setSlotsMessage("No slots available for this date");
     } catch {
       setSlotsMessage("Failed to load available slots");
     } finally {
@@ -237,12 +247,39 @@ export default function BookingFlowPage() {
 
   const releaseCurrentHolds = async () => {
     const ids = activeHolds.map((h) => h.holdId);
-    if (ids.length > 1) await bookingService.releaseSlotHolds(ids);
-    else if (ids[0]) await bookingService.releaseSlotHold(ids[0]);
+    if (ids.length > 1) await bookingService.releaseSlotHolds(ids, sessionId);
+    else if (ids[0]) await bookingService.releaseSlotHold(ids[0], sessionId);
     localStorage.removeItem("bookingData");
     setActiveHolds([]);
     setHoldExpiry(null);
     setRemainingTime(null);
+  };
+
+  const minMonth = useMemo(() => parseDateStr(getMinDate()), [timezone, settings?.maxAdvanceBookingDays]);
+  const maxMonth = useMemo(() => parseDateStr(getMaxDate()), [timezone, settings?.maxAdvanceBookingDays]);
+
+  const canGoPrevMonth =
+    viewMonth.year > minMonth.year ||
+    (viewMonth.year === minMonth.year && viewMonth.month > minMonth.month);
+
+  const canGoNextMonth =
+    viewMonth.year < maxMonth.year ||
+    (viewMonth.year === maxMonth.year && viewMonth.month < maxMonth.month);
+
+  const goPrevMonth = () => {
+    if (!canGoPrevMonth || submitting) return;
+    setViewMonth((prev) => {
+      if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+      return { year: prev.year, month: prev.month - 1 };
+    });
+  };
+
+  const goNextMonth = () => {
+    if (!canGoNextMonth || submitting) return;
+    setViewMonth((prev) => {
+      if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+      return { year: prev.year, month: prev.month + 1 };
+    });
   };
 
   const selectDate = (dateStr: string) => {
@@ -422,7 +459,27 @@ export default function BookingFlowPage() {
             <div className="lg:col-span-8">
               <div className="bg-bookingCardBg rounded-xl border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
                 <div className="p-5">
-                  <h2 className="text-sm font-semibold text-center mb-4">{monthLabel}</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      type="button"
+                      onClick={goPrevMonth}
+                      disabled={!canGoPrevMonth || submitting}
+                      className="h-8 w-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                      aria-label="Previous month"
+                    >
+                      ‹
+                    </button>
+                    <h2 className="text-sm font-semibold text-center">{monthLabel}</h2>
+                    <button
+                      type="button"
+                      onClick={goNextMonth}
+                      disabled={!canGoNextMonth || submitting}
+                      className="h-8 w-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                      aria-label="Next month"
+                    >
+                      ›
+                    </button>
+                  </div>
                   <div className="grid grid-cols-7 gap-1 mb-1">
                     {WEEKDAYS.map((d, i) => <div key={i} className="h-8 flex items-center justify-center text-xs text-gray-400">{d}</div>)}
                   </div>
@@ -543,25 +600,25 @@ export default function BookingFlowPage() {
             </div>
 
             <div className="lg:col-span-4">
-              <div className="sticky top-24 bg-bookingCardBg rounded-xl border border-gray-100 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
+              <div className="sticky top-24 bg-bookingCardBg booking-card-themed rounded-xl border border-bookingCardDivider p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
                 <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                   {bookingService.getTypeLabel(pkg?.type || "")}
                 </span>
                 <h3 className="text-lg font-bold mt-2">{pkg?.name}</h3>
-                <p className="text-sm text-gray-500">{pkg?.durationMinutes} min per slot</p>
+                <p className="text-sm text-bookingCardMuted">{pkg?.durationMinutes} min per slot</p>
 
                 {displaySlots.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Selected ({displaySlots.length})</p>
+                  <div className="mt-4 pt-4 border-t border-bookingCardDivider">
+                    <p className="text-xs font-semibold text-bookingCardMuted uppercase mb-2">Selected ({displaySlots.length})</p>
                     <ul className="space-y-2 max-h-40 overflow-y-auto">
                       {displaySlots.map((slot) => (
-                        <li key={slotKey(slot.date, slot.startTime)} className="flex justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+                        <li key={slotKey(slot.date, slot.startTime)} className="flex justify-between text-sm booking-card-surface rounded-lg px-3 py-2">
                           <div>
                             <p className="font-medium">{bookingService.formatDate(slot.date)}</p>
-                            <p className="text-xs text-gray-600">{bookingService.formatTime(slot.startTime)} – {bookingService.formatTime(slot.endTime)}</p>
+                            <p className="text-xs text-bookingCardMuted">{bookingService.formatTime(slot.startTime)} – {bookingService.formatTime(slot.endTime)}</p>
                           </div>
                           {!hasActiveHold && (
-                            <button type="button" onClick={() => removeSelectedSlot(slot.date, slot.startTime)} className="text-gray-400 hover:text-red-500">×</button>
+                            <button type="button" onClick={() => removeSelectedSlot(slot.date, slot.startTime)} className="text-bookingCardMuted hover:text-red-500">×</button>
                           )}
                         </li>
                       ))}
@@ -570,12 +627,12 @@ export default function BookingFlowPage() {
                 )}
 
                 {selectedExtras.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Extras ({selectedExtras.length})</p>
+                  <div className="mt-4 pt-4 border-t border-bookingCardDivider">
+                    <p className="text-xs font-semibold text-bookingCardMuted uppercase mb-2">Extras ({selectedExtras.length})</p>
                     <ul className="space-y-2">
                       {selectedExtras.map((extra) => (
                         <li key={`${extra.index}-${extra.title}`} className="flex justify-between text-sm">
-                          <span className="text-gray-700">{extra.title}</span>
+                          <span>{extra.title}</span>
                           <span className="font-medium">{bookingService.formatPrice(extra.price)}</span>
                         </li>
                       ))}
@@ -583,9 +640,9 @@ export default function BookingFlowPage() {
                   </div>
                 )}
 
-                <div className="mt-4 pt-4 border-t space-y-2">
+                <div className="mt-4 pt-4 border-t border-bookingCardDivider space-y-2">
                   {displaySlots.length > 0 && (
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-sm text-bookingCardMuted">
                       <span>
                         Slots ({displaySlots.length} × {bookingService.formatPrice(pkg?.price || 0)})
                       </span>
@@ -593,20 +650,26 @@ export default function BookingFlowPage() {
                     </div>
                   )}
                   {pricing.extrasSubtotal > 0 && (
-                    <div className="flex justify-between text-sm text-gray-600">
+                    <div className="flex justify-between text-sm text-bookingCardMuted">
                       <span>Extras</span>
                       <span>{bookingService.formatPrice(pricing.extrasSubtotal)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                  <div className="flex justify-between items-center pt-2 border-t border-bookingCardDivider">
                     <span className="font-medium">Total</span>
                     <span className="text-2xl font-bold">{bookingService.formatPrice(pricing.totalPrice)}</span>
                   </div>
                 </div>
 
                 {remainingTime && (
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm">
-                    <p className="text-amber-700 font-medium">Reserved — {remainingTime} left</p>
+                  <div
+                    className="mt-4 p-3 rounded-xl text-sm booking-hold-banner"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span className="font-medium">
+                      Reserved — {remainingTime} left
+                    </span>
                   </div>
                 )}
 
@@ -624,7 +687,7 @@ export default function BookingFlowPage() {
                       type="button"
                       disabled={submitting}
                       onClick={async () => { await releaseCurrentHolds(); setSelectedSlots([]); if (selectedDate) loadSlots(selectedDate, []); }}
-                      className="w-full py-2 text-sm text-gray-600 disabled:opacity-50"
+                      className="w-full py-2 text-sm text-bookingCardMuted disabled:opacity-50"
                     >
                       Cancel reservation
                     </button>
