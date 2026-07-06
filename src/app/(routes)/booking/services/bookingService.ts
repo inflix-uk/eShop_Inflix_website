@@ -369,18 +369,40 @@ export class BookingService {
     }
   }
 
-  async releaseSlotHold(holdId: string): Promise<boolean> {
+  async verifySlotHolds(
+    holdIds: string[],
+    sessionId: string
+  ): Promise<{ valid: boolean; expiresAt?: string; error?: string }> {
     try {
-      await axios.post(`${API_URL}release/booking/hold`, { holdId });
+      const response = await axios.post(`${API_URL}verify/booking/holds`, {
+        holdIds,
+        sessionId,
+      });
+      return {
+        valid: true,
+        expiresAt: response.data.expiresAt,
+      };
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      return {
+        valid: false,
+        error: err.response?.data?.error || 'Hold verification failed',
+      };
+    }
+  }
+
+  async releaseSlotHold(holdId: string, sessionId: string): Promise<boolean> {
+    try {
+      await axios.post(`${API_URL}release/booking/hold`, { holdId, sessionId });
       return true;
     } catch {
       return false;
     }
   }
 
-  async releaseSlotHolds(holdIds: string[]): Promise<boolean> {
+  async releaseSlotHolds(holdIds: string[], sessionId: string): Promise<boolean> {
     try {
-      await axios.post(`${API_URL}release/booking/hold`, { holdIds });
+      await axios.post(`${API_URL}release/booking/hold`, { holdIds, sessionId });
       return true;
     } catch {
       return false;
@@ -443,21 +465,32 @@ export class BookingService {
     }
   }
 
-  async getBookingByNumber(bookingNumber: string): Promise<{
+  async getBookingByNumber(
+    bookingNumber: string,
+    email: string
+  ): Promise<{
     booking: Booking | null;
     groupSlots?: GroupBookingSlot[];
     slotCount?: number;
+    error?: string;
   }> {
     try {
       const normalized = bookingNumber.trim().charAt(0).toUpperCase() + bookingNumber.trim().slice(1);
-      const response = await axios.get(`${API_URL}get/booking/${encodeURIComponent(normalized)}`);
+      const params = new URLSearchParams({ email: email.trim() });
+      const response = await axios.get(
+        `${API_URL}get/booking/${encodeURIComponent(normalized)}?${params.toString()}`
+      );
       return {
         booking: response.data.booking,
         groupSlots: response.data.groupSlots,
         slotCount: response.data.slotCount,
       };
-    } catch {
-      return { booking: null };
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string }; status?: number } };
+      return {
+        booking: null,
+        error: err.response?.data?.error || 'Failed to load booking',
+      };
     }
   }
 

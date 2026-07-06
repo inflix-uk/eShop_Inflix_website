@@ -17,7 +17,6 @@ import ProductFAQS from "@/app/(routes)/products/components/ProductFAQS";
 import ProductTopSection, { TopSectionItem } from "@/app/(routes)/products/components/ProductTopSection";
 import ProductWarranty from "@/app/(routes)/products/components/ProductWarranty";
 import ProductSpecs from "@/app/(routes)/products/components/ProductSpecs";
-import ProductVerifiedRefurbished from "@/app/(routes)/products/components/ProductVerifiedRefurbished";
 import ProductSimOptions from "@/app/(routes)/products/components/ProductSimOptions";
 import ProductNotIncluded from "@/app/(routes)/products/components/ProductNotIncluded";
 import BuyNow from "@/app/(routes)/products/components/BuyNow";
@@ -53,11 +52,6 @@ import Loading from "@/app/components/Loading";
 import ProductExpressCheckout from "../components/ProductExpressCheckout";
 
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
-import ReliablePowerSection from "../components/product-detail/reliable-power-section";
-import ProductShowcase from "../components/product-detail/whats-in-the-box-section";
-import WarrantySection from "../components/product-detail/warranty-section";
-import SustainabilitySection from "../components/product-detail/sustainability-section";
-import CertificationSection from "../components/product-detail/certification-section";
 import ReviewsSection from "../components/product-detail/reviews-section";
 import { useProductReviews } from "../hooks/useProductReviews";
 import {
@@ -171,8 +165,6 @@ export default function ProductPage({
   const [selectedComesWithItem, setSelectedComesWithItem] = useState<ComesWithItem | null>(null);
   const [openSpecs, setOpenSpecs] = useState<boolean>(false);
   const [openWarranty, setOpenWarranty] = useState<boolean>(false);
-  const [verifiedRefurbished, setVerifiedRefurbished] =
-    useState<boolean>(false);
   const [simOptions, setSimOptions] = useState<boolean>(false);
   const [notIncluded, setNotIncluded] = useState<boolean>(false);
   const [reviewsDiv, setReviewsDiv] = useState<boolean>(false);
@@ -1352,15 +1344,6 @@ export default function ProductPage({
           </div>
         </div>
       </main>
-      {product.condition === "Refurbished" && (
-        <>
-          <ReliablePowerSection productName={product.name} />
-          <ProductShowcase productName={product.name} />
-          <WarrantySection productName={product.name} />
-          <SustainabilitySection productName={product.name} />
-          <CertificationSection productName={product.name} />
-        </>
-      )}
       <div id="reviews">
         <ReviewsSection
           productName={product.name}
@@ -1440,10 +1423,6 @@ export default function ProductPage({
       <ProductWarranty
         openWarranty={openWarranty}
         setOpenWarranty={setOpenWarranty}
-      />
-      <ProductVerifiedRefurbished
-        verifiedRefurbished={verifiedRefurbished}
-        setVerifiedRefurbished={setVerifiedRefurbished}
       />
       <ProductSimOptions
         simOptions={simOptions}

@@ -69,7 +69,99 @@ export function resolveSiteTheme(
   };
 }
 
+export type BookingCardThemeVars = {
+  bookingCardFg: string;
+  bookingCardFgMuted: string;
+  bookingCardSurface: string;
+  bookingCardSurfaceBorder: string;
+  bookingCardDivider: string;
+};
+
+function parseHex6(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b]
+    .map((c) =>
+      Math.min(255, Math.max(0, Math.round(c)))
+        .toString(16)
+        .padStart(2, "0")
+    )
+    .join("")}`;
+}
+
+/** Blend card bg toward black/white so nested surfaces stay readable on any admin color. */
+function mixHex(bg: string, mix: string, bgPercent: number): string {
+  const a = parseHex6(bg);
+  const b = parseHex6(mix);
+  if (!a || !b) return bg;
+  const w = bgPercent / 100;
+  const rw = 1 - w;
+  return toHex(
+    a.r * w + b.r * rw,
+    a.g * w + b.g * rw,
+    a.b * w + b.b * rw
+  );
+}
+
+function relativeLuminanceHex(hex: string): number {
+  const rgb = parseHex6(hex);
+  if (!rgb) return 1;
+  const lin = [rgb.r, rgb.g, rgb.b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+/** Contrast tokens for text, dividers, and inset rows inside booking cards. */
+export function resolveBookingCardThemeVars(
+  cardBgHex: string
+): BookingCardThemeVars {
+  const cardBg = resolveBookingServiceCardBgColor(cardBgHex);
+  const isLight = relativeLuminanceHex(cardBg) > 0.45;
+  const mixTarget = isLight ? "#000000" : "#ffffff";
+  return {
+    bookingCardFg: isLight ? "#111827" : "#f9fafb",
+    bookingCardFgMuted: isLight ? "#6b7280" : "#d1d5db",
+    bookingCardSurface: mixHex(cardBg, mixTarget, isLight ? 90 : 85),
+    bookingCardSurfaceBorder: mixHex(cardBg, mixTarget, isLight ? 78 : 72),
+    bookingCardDivider: mixHex(cardBg, mixTarget, isLight ? 82 : 76),
+  };
+}
+
+export function bookingCardThemeVarsCss(cardBgHex: string): string {
+  const v = resolveBookingCardThemeVars(cardBgHex);
+  return [
+    `--booking-card-fg:${v.bookingCardFg}`,
+    `--booking-card-fg-muted:${v.bookingCardFgMuted}`,
+    `--booking-card-surface:${v.bookingCardSurface}`,
+    `--booking-card-surface-border:${v.bookingCardSurfaceBorder}`,
+    `--booking-card-divider:${v.bookingCardDivider}`,
+  ].join(";");
+}
+
+export function applyBookingCardThemeToRoot(
+  root: HTMLElement,
+  cardBgHex: string
+): void {
+  const v = resolveBookingCardThemeVars(cardBgHex);
+  root.style.setProperty("--booking-card-fg", v.bookingCardFg);
+  root.style.setProperty("--booking-card-fg-muted", v.bookingCardFgMuted);
+  root.style.setProperty("--booking-card-surface", v.bookingCardSurface);
+  root.style.setProperty(
+    "--booking-card-surface-border",
+    v.bookingCardSurfaceBorder
+  );
+  root.style.setProperty("--booking-card-divider", v.bookingCardDivider);
+}
+
 /** Single `:root` block for `<style>` in document head (overrides `globals.css`). */
 export function siteThemeRootStyleCss(theme: SiteThemeResolved): string {
-  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};--booking-service-card-bg:${theme.bookingServiceCardBgColor};}body{background-color:var(--body-bg-color);}`;
+  const bookingVars = bookingCardThemeVarsCss(theme.bookingServiceCardBgColor);
+  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};--booking-service-card-bg:${theme.bookingServiceCardBgColor};${bookingVars};}body{background-color:var(--body-bg-color);}`;
 }

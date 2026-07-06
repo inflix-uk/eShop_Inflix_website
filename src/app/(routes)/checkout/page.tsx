@@ -210,31 +210,113 @@ export default function CheckoutPage() {
     return slotsSubtotal + extrasSubtotal;
   };
 
-  // Load booking data from localStorage (unified checkout - no query param)
-  useEffect(() => {
-    const data = localStorage.getItem("bookingData");
-    if (data) {
-      try {
-        const parsed = normalizeCheckoutBooking(JSON.parse(data) as CheckoutBookingData);
-        setBookingData(parsed);
-        setBookingHoldExpiry(parsed.holdExpiresAt);
-      } catch {
-        localStorage.removeItem("bookingData");
-      }
-    }
-  }, []);
-
-  const handleRemoveBooking = async () => {
-    if (bookingData) {
-      const holdIds = getBookingHoldIds(bookingData);
+  const clearExpiredBooking = async (
+    data: CheckoutBookingData,
+    message = "Your slot reservation has expired. Please select a new time."
+  ) => {
+    const holdIds = getBookingHoldIds(data);
+    const sessionId = data.sessionId;
+    if (sessionId && holdIds.length) {
       try {
         await fetch(`${API_URL}release/booking/hold`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(holdIds.length > 1 ? { holdIds } : { holdId: holdIds[0] }),
+          body: JSON.stringify(
+            holdIds.length > 1 ? { holdIds, sessionId } : { holdId: holdIds[0], sessionId }
+          ),
         });
       } catch {
         // best effort
+      }
+    }
+    localStorage.removeItem("bookingData");
+    setBookingData(null);
+    setBookingHoldExpiry(null);
+    setBookingClientSecret(null);
+    setBookingNumber(null);
+    toast.error(message);
+    router.push(`/booking/${data.packageId}`);
+  };
+
+  const isBookingHoldExpired = (holdExpiresAt: string) =>
+    new Date(holdExpiresAt).getTime() <= Date.now();
+
+  // Load booking data from localStorage — validate expiry + server holds immediately
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBookingFromStorage = async () => {
+      const raw = localStorage.getItem("bookingData");
+      if (!raw) return;
+
+      try {
+        const parsed = normalizeCheckoutBooking(JSON.parse(raw) as CheckoutBookingData);
+
+        if (isBookingHoldExpired(parsed.holdExpiresAt)) {
+          if (!cancelled) {
+            await clearExpiredBooking(parsed);
+          }
+          return;
+        }
+
+        const holdIds = getBookingHoldIds(parsed);
+        if (holdIds.length && parsed.sessionId) {
+          const verifyRes = await fetch(`${API_URL}verify/booking/holds`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ holdIds, sessionId: parsed.sessionId }),
+          });
+          const verifyJson = await verifyRes.json().catch(() => ({}));
+
+          if (!verifyRes.ok || !verifyJson.valid) {
+            if (!cancelled) {
+              await clearExpiredBooking(
+                parsed,
+                verifyJson.error || "Your slot reservation is no longer valid. Please select a new time."
+              );
+            }
+            return;
+          }
+
+          if (verifyJson.expiresAt && !cancelled) {
+            parsed.holdExpiresAt = verifyJson.expiresAt;
+            localStorage.setItem("bookingData", JSON.stringify(parsed));
+          }
+        }
+
+        if (!cancelled) {
+          setBookingData(parsed);
+          setBookingHoldExpiry(parsed.holdExpiresAt);
+        }
+      } catch {
+        localStorage.removeItem("bookingData");
+      }
+    };
+
+    loadBookingFromStorage();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  const handleRemoveBooking = async () => {
+    if (bookingData) {
+      const holdIds = getBookingHoldIds(bookingData);
+      const sessionId = bookingData.sessionId;
+      if (sessionId && holdIds.length) {
+        try {
+          await fetch(`${API_URL}release/booking/hold`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              holdIds.length > 1
+                ? { holdIds, sessionId }
+                : { holdId: holdIds[0], sessionId }
+            ),
+          });
+        } catch {
+          // best effort
+        }
       }
     }
     localStorage.removeItem("bookingData");
@@ -247,20 +329,16 @@ export default function CheckoutPage() {
     }
   };
 
-  // Booking hold expiry check
+  // Booking hold expiry check (while user stays on checkout)
   useEffect(() => {
     if (!bookingHoldExpiry || !bookingData) return;
-    
+
     const checkExpiry = () => {
-      const now = new Date();
-      const expiry = new Date(bookingHoldExpiry);
-      if (now >= expiry) {
-        toast.error("Your slot reservation has expired. Please select a new time.");
-        localStorage.removeItem("bookingData");
-        router.push(`/booking/${bookingData.packageId}`);
+      if (isBookingHoldExpired(bookingHoldExpiry)) {
+        clearExpiredBooking(bookingData);
       }
     };
-    
+
     checkExpiry();
     const interval = setInterval(checkExpiry, 5000);
     return () => clearInterval(interval);
@@ -269,6 +347,28 @@ export default function CheckoutPage() {
   // Handle booking checkout - creates booking + payment intent
   const handleBookingCheckout = async () => {
     if (!bookingData) return;
+
+    if (isBookingHoldExpired(bookingData.holdExpiresAt)) {
+      await clearExpiredBooking(bookingData);
+      return;
+    }
+
+    const holdIds = getBookingHoldIds(bookingData);
+    if (holdIds.length && bookingData.sessionId) {
+      const verifyRes = await fetch(`${API_URL}verify/booking/holds`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdIds, sessionId: bookingData.sessionId }),
+      });
+      const verifyJson = await verifyRes.json().catch(() => ({}));
+      if (!verifyRes.ok || !verifyJson.valid) {
+        await clearExpiredBooking(
+          bookingData,
+          verifyJson.error || "Your slot reservation is no longer valid. Please select a new time."
+        );
+        return;
+      }
+    }
     
     // Validate shipping info
     if (!shippingInformation.firstName || !shippingInformation.lastName) {
@@ -629,11 +729,16 @@ export default function CheckoutPage() {
 
   const loader = "auto";
 
+  const getBookingConfirmationPath = () => {
+    if (!bookingNumber) return null;
+    const customerEmail = encodeURIComponent(email || auth.user?.email || "");
+    return `/booking/confirmation/${bookingNumber}?payment_success=true&email=${customerEmail}`;
+  };
+
   const handleBookingPaymentSuccess = () => {
     localStorage.removeItem("bookingData");
-    if (bookingNumber) {
-      router.push(`/booking/confirmation/${bookingNumber}?payment_success=true`);
-    }
+    const path = getBookingConfirmationPath();
+    if (path) router.push(path);
   };
 
   return (
@@ -688,7 +793,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Order summary */}
-            <div className="mt-10 lg:mt-0">
+            <div className="mt-10 lg:mt-0 checkout-order-summary">
               <div className="bg-gray-200 py-6 px-4 rounded-md xl:flex-row xl:sticky top-[100px]">
                 <h2 className="text-lg font-medium text-gray-900 pb-5">
                   Order summary
@@ -793,7 +898,7 @@ export default function CheckoutPage() {
                             }
                             returnUrl={
                               isBookingOnly && bookingNumber
-                                ? `${typeof window !== "undefined" ? window.location.origin : ""}/booking/confirmation/${bookingNumber}?payment_success=true`
+                                ? `${typeof window !== "undefined" ? window.location.origin : ""}${getBookingConfirmationPath()}`
                                 : undefined
                             }
                           />

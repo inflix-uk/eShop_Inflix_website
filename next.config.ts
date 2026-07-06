@@ -9,10 +9,21 @@ function normalizePublicApiUrl(raw: string | undefined): string | undefined {
 
 const normalizedApiUrl = normalizePublicApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
-function buildImageRemotePatterns(): NonNullable<
-  NextConfig["images"]
->["remotePatterns"] {
-  const patterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
+/** Comma-separated extra hostnames (CMS may store absolute media URLs from other API origins). */
+function parseExtraImageHostnames(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return [...new Set(raw.split(",").map((h) => h.trim()).filter(Boolean))];
+}
+
+type ImageRemotePattern = {
+  protocol: "http" | "https";
+  hostname: string;
+  port?: string;
+  pathname: string;
+};
+
+function buildImageRemotePatterns(): ImageRemotePattern[] {
+  const patterns: ImageRemotePattern[] = [
     {
       protocol: "http",
       hostname: "localhost",
@@ -45,27 +56,40 @@ function buildImageRemotePatterns(): NonNullable<
       hostname: "api.refurb.market",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "api.spectrotech.co.uk",
+      pathname: "/**",
+    },
   ];
+
+  const addHostname = (hostname: string, protocol: "http" | "https" = "https", port?: string) => {
+    const alreadyListed = patterns.some(
+      (p) => p.hostname === hostname && p.protocol === protocol
+    );
+    if (alreadyListed) return;
+    patterns.push({
+      protocol,
+      hostname,
+      ...(port ? { port } : {}),
+      pathname: "/**",
+    });
+  };
 
   if (normalizedApiUrl) {
     try {
       const api = new URL(normalizedApiUrl);
       const protocol = api.protocol.replace(":", "") as "http" | "https";
-      const port = api.port || undefined;
-      const alreadyListed = patterns.some(
-        (p) => p.hostname === api.hostname && p.protocol === protocol
-      );
-      if (!alreadyListed) {
-        patterns.push({
-          protocol,
-          hostname: api.hostname,
-          ...(port ? { port } : {}),
-          pathname: "/**",
-        });
-      }
+      addHostname(api.hostname, protocol, api.port || undefined);
     } catch {
       // ignore invalid NEXT_PUBLIC_API_URL at build time
     }
+  }
+
+  for (const hostname of parseExtraImageHostnames(
+    process.env.NEXT_PUBLIC_EXTRA_IMAGE_HOSTS
+  )) {
+    addHostname(hostname);
   }
 
   return patterns;

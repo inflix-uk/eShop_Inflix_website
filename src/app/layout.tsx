@@ -167,6 +167,7 @@ export default async function RootLayout({
     ]);
 
   const effectiveBranding = backendAvailable ? siteBranding : null;
+  const ssrLogoHref = effectiveBranding?.logoUrl?.trim() || null;
   const ssrFaviconHref = buildStaticFaviconHref(effectiveBranding);
   const faviconHeadScriptLiteral = JSON.stringify(ssrFaviconHref);
   const combinedHeadScripts = combineHeadScripts(siteScripts);
@@ -190,6 +191,9 @@ export default async function RootLayout({
           name="ahrefs-site-verification"
           content="e104a647a256b0215a2711b55f63420f2e8a84bf449ced9c3e942a98bccef408"
         />
+        {ssrLogoHref ? (
+          <link rel="preload" as="image" href={ssrLogoHref} fetchPriority="high" />
+        ) : null}
         <FacebookPixelBlock />
         <DeferredGoogleTagManagerGate />
         {/* Dynamic site-wide schemas from admin panel */}
