@@ -317,6 +317,7 @@ export interface WidgetNavbarContent {
     | "developer"
     | "bold-left"
     | "business"
+    | "business-2"
     | "retail-two-row"
     | "wing-split"
     | "pill-black";
