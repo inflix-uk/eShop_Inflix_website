@@ -13,6 +13,10 @@ import {
   resolveTagColorsFromApi,
   type TagColorsConfig,
 } from "@/app/lib/tagColorsThemeUtils";
+import {
+  resolveBookingModuleUi,
+  type BookingModuleUi,
+} from "@/app/lib/bookingModuleThemeUtils";
 import { cmsPublicFetchInit } from "@/app/lib/cmsPublicFetchInit";
 import { cmsTimedFetch, isCmsFetchAbortError } from "@/app/lib/cmsTimedFetch";
 
@@ -20,6 +24,7 @@ export type SiteThemeLayoutBundle = {
   colors: SiteThemeResolved;
   typography: TypographyConfig;
   tagColors: TagColorsConfig;
+  bookingModuleUi: BookingModuleUi;
 };
 
 /**
@@ -36,6 +41,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
       ),
       typography: cloneTypographyDefaults(),
       tagColors: cloneTagColorDefaults(),
+      bookingModuleUi: resolveBookingModuleUi(null),
     };
   }
 
@@ -53,6 +59,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        bookingModuleUi: resolveBookingModuleUi(null),
       };
     }
 
@@ -65,6 +72,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        bookingModuleUi: resolveBookingModuleUi(null),
       };
     }
 
@@ -86,8 +94,9 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
 
     const typography = resolveTypographyFromApi(json.data);
     const tagColors = resolveTagColorsFromApi(json.data);
+    const bookingModuleUi = resolveBookingModuleUi(json.data.uiCustom?.booking);
 
-    return { colors, typography, tagColors };
+    return { colors, typography, tagColors, bookingModuleUi };
   } catch (e) {
     if (!isCmsFetchAbortError(e)) {
       console.error("[siteThemeService] public fetch:", e);
@@ -99,6 +108,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
       ),
       typography: cloneTypographyDefaults(),
       tagColors: cloneTagColorDefaults(),
+      bookingModuleUi: resolveBookingModuleUi(null),
     };
   }
 }

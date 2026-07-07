@@ -39,6 +39,7 @@ import { getProductCardSettingsPublic } from "@/app/services/productCardSettings
 import { DEFAULT_SITE_THEME, resolveSiteTheme } from "@/app/lib/siteThemeUtils";
 import { cloneTypographyDefaults } from "@/app/lib/typographyThemeUtils";
 import { cloneTagColorDefaults } from "@/app/lib/tagColorsThemeUtils";
+import { resolveBookingModuleUi } from "@/app/lib/bookingModuleThemeUtils";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -159,6 +160,7 @@ export default async function RootLayout({
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        bookingModuleUi: resolveBookingModuleUi(null),
       })),
       getAnnouncementBannerPublic(),
       getSiteWideSchemaPublic(),

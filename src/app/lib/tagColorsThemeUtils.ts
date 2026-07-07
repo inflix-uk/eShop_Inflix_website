@@ -1,6 +1,6 @@
 import { CMS_TYPO_CONTEXTS } from "@/app/lib/typographyThemeUtils";
 
-export type TagColorKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span";
+export type TagColorKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "label";
 
 export type TagColorsConfig = Record<TagColorKey, string>;
 
@@ -13,9 +13,10 @@ export const DEFAULT_TAG_COLORS: TagColorsConfig = {
   h6: "#374151",
   p: "#374151",
   span: "#374151",
+  label: "#374151",
 };
 
-const TAG_KEYS: TagColorKey[] = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span"];
+const TAG_KEYS: TagColorKey[] = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "label"];
 
 function normalizeHex(value: string): string | null {
   const v = (value || "").trim();

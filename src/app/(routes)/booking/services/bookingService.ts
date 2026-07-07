@@ -26,6 +26,9 @@ export interface BookingPackage {
   image: string | null;
   sortOrder: number;
   isActive: boolean;
+  highlightBadgeEnabled?: boolean;
+  highlightBadgeText?: string;
+  highlightBadgeUrl?: string;
   extras?: BookingPackageExtra[];
 }
 

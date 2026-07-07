@@ -8,32 +8,25 @@ import {
   BookingSettings,
   BookingPageContent,
 } from "./services/bookingService";
-import { getDescriptionPreview } from "./utils/description";
-
-function capitalizeWords(value: string): string {
-  if (!value) return value;
-  return value
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function capitalizeFirst(value: string): string {
-  if (!value) return value;
-  const trimmed = value.trim();
-  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-}
+import BookingPackageCard from "./components/BookingPackageCard";
+import "./components/booking-package-cards.css";
+import {
+  bookingModuleRootStyle,
+  type BookingModuleUi,
+} from "@/app/lib/bookingModuleThemeUtils";
 
 interface BookingPageClientProps {
   settings: BookingSettings | null;
   packages: BookingPackage[];
   content: BookingPageContent;
+  bookingModuleUi: BookingModuleUi;
 }
 
 export default function BookingPageClient({
   settings,
   packages,
   content,
+  bookingModuleUi,
 }: BookingPageClientProps) {
   const [selectedType, setSelectedType] = useState<string>("all");
 
@@ -149,131 +142,68 @@ export default function BookingPageClient({
           </div>
         </section>
 
-        {/* Services Section */}
-        <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16" aria-labelledby="booking-services-heading">
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-12">
-            <div>
-              <h2 id="booking-services-heading" className="text-2xl sm:text-3xl font-bold text-gray-900">{content.services.heading}</h2>
-              {content.services.subheading ? (
-                <p className="text-gray-500 mt-2">{content.services.subheading}</p>
-              ) : null}
+        {/* Packages Section — dark studio pricing grid */}
+        <section
+          className="booking-module-root psm-booking-packages bg-[#050505] border-t border-white/10 py-16 lg:py-20"
+          style={bookingModuleRootStyle(bookingModuleUi)}
+          aria-labelledby="booking-services-heading"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12">
+              <div>
+                <h2
+                  id="booking-services-heading"
+                  className="booking-module-section-heading text-2xl sm:text-3xl font-light tracking-tight"
+                >
+                  {content.services.heading}
+                </h2>
+                {content.services.subheading ? (
+                  <p className="booking-module-section-subheading mt-2 text-sm sm:text-base">
+                    {content.services.subheading}
+                  </p>
+                ) : null}
+              </div>
+
+              {packageTypes.length > 2 && (
+                <div className="flex gap-2 flex-wrap">
+                  {packageTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedType(type)}
+                      className={`booking-module-filter px-5 py-2.5 rounded-full text-xs font-medium uppercase tracking-wider transition-all duration-300 ${
+                        selectedType === type
+                          ? "booking-module-filter--active"
+                          : "booking-module-filter--idle"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {type !== "all" && getTypeIcon(type)}
+                        {type === "all" ? "All Services" : bookingService.getTypeLabel(type)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Type Filter */}
-            {packageTypes.length > 2 && (
-              <div className="flex gap-2 flex-wrap">
-                {packageTypes.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`group relative px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
-                      selectedType === type
-                        ? "bg-primary text-white shadow-lg shadow-primary/25"
-                        : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 hover:border-primary/30 hover:text-primary"
-                    }`}
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                      {type !== "all" && getTypeIcon(type)}
-                      {type === "all" ? "All Services" : bookingService.getTypeLabel(type)}
-                    </span>
-                  </button>
+            {filteredPackages.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="w-20 h-20 border border-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-10 h-10 booking-module-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold booking-module-section-heading mb-2">No Services Available</h3>
+                <p className="booking-module-description">Check back later for new services.</p>
+              </div>
+            ) : (
+              <div className="psm-booking-packages__grid">
+                {filteredPackages.map((pkg) => (
+                  <BookingPackageCard key={pkg._id} pkg={pkg} />
                 ))}
               </div>
             )}
           </div>
-
-          {/* Packages Grid */}
-          {filteredPackages.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Services Available</h3>
-              <p className="text-gray-500">Check back later for new services.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {filteredPackages.map((pkg, index) => {
-                const features = Array.isArray(pkg.features)
-                  ? pkg.features.filter((item) => item.trim().length > 0)
-                  : [];
-
-                return (
-                  <article
-                    key={pkg._id}
-                    className="flex flex-col bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-shadow duration-300 p-6 sm:p-7"
-                    style={{
-                      animationDelay: `${index * 80}ms`,
-                      animation: "fadeInUp 0.6s ease-out forwards",
-                    }}
-                  >
-                    <Link
-                      href={`/booking/details/${pkg._id}`}
-                      className="flex flex-col flex-1 group cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3 className="text-xl font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors">
-                          {capitalizeWords(pkg.name)}
-                        </h3>
-                        <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 shrink-0 pt-0.5">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {pkg.durationMinutes}m
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-gray-500 leading-relaxed mb-6 min-h-[2.5rem] line-clamp-3">
-                        {capitalizeWords(
-                          getDescriptionPreview(
-                            pkg.description,
-                            `Perfect for ${bookingService.getTypeLabel(pkg.type).toLowerCase()} bookings with instant confirmation.`
-                          )
-                        )}
-                      </p>
-
-                      <div className="border-t border-gray-200 pt-6 mb-6">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-bold text-gray-900 tracking-tight">
-                            {bookingService.formatPrice(pkg.price)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {features.length > 0 && (
-                        <ul className="space-y-3.5 flex-1 mb-6">
-                          {features.map((feature, featureIndex) => (
-                            <li key={`${pkg._id}-feature-${featureIndex}`} className="flex items-center gap-3 text-sm text-gray-600">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                                <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </span>
-                              {capitalizeFirst(feature)}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-
-                      <p className="text-sm text-gray-400 group-hover:text-gray-600 transition-colors text-center">
-                        View details &gt;
-                      </p>
-                    </Link>
-
-                    <Link
-                      href={`/booking/${pkg._id}`}
-                      className="flex w-full items-center justify-center bg-primary text-white py-3.5 px-6 rounded-xl text-sm font-semibold hover:bg-secondary transition-colors mt-6"
-                    >
-                      Book Now
-                    </Link>
-                  </article>
-                );
-              })}
-            </div>
-          )}
         </section>
 
         {/* Trust Section — h2 section + h3 per benefit (proper outline under page h1) */}
