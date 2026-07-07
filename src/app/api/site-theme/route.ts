@@ -25,6 +25,7 @@ const NO_CMS_THEME_COLORS = {
     h6: "",
     p: "",
     span: "",
+    label: "",
   },
 } as const;
 
