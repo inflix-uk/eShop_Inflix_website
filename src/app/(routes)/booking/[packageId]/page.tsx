@@ -172,14 +172,18 @@ export default function BookingFlowPage() {
   const loadInitialData = async () => {
     setProgress(30);
     try {
-      const [settingsData, packageData] = await Promise.all([
-        bookingService.getSettings(),
-        bookingService.getPackageById(packageId),
-      ]);
+      const settingsData = await bookingService.getSettings();
       setSettings(settingsData);
+
+      if (!settingsData?.isEnabled) {
+        toast.error("Booking is currently unavailable");
+        router.push("/booking");
+        return;
+      }
+
+      const packageData = await bookingService.getPackageById(packageId);
       setPkg(packageData);
 
-      if (!settingsData?.isEnabled) { toast.error("Booking is currently unavailable"); router.push("/booking"); return; }
       if (!packageData) { toast.error("Package not found"); router.push("/booking"); return; }
 
       const todayStr = getMinDate();

@@ -62,6 +62,7 @@ export default function LoginPageClient({
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ email, password }),
         });
 
@@ -95,6 +96,7 @@ export default function LoginPageClient({
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ email, password, enteredOtp: otp }),
         });
 

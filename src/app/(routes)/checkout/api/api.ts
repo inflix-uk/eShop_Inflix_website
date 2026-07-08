@@ -3,6 +3,8 @@ import { User, Coupon, ShippingInformation, ContactInfo, ProductItem } from '../
 import type { MarketingAttributionPayload } from '@/app/lib/marketingAttribution';
 import { withMarketingAttribution } from '@/app/lib/marketingAttribution';
 
+axios.defaults.withCredentials = true;
+
 
 const API_URL: string = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 

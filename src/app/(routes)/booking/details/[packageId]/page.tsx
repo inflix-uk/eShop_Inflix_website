@@ -33,6 +33,12 @@ export default function BookingPackageDetailPage() {
   const loadPackage = async () => {
     setProgress(30);
     try {
+      const settings = await bookingService.getSettings();
+      if (!settings?.isEnabled) {
+        router.push("/booking");
+        return;
+      }
+
       const data = await bookingService.getPackageById(packageId);
       setPkg(data);
     } catch (error) {

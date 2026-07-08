@@ -308,7 +308,9 @@ export class BookingService {
       const response = await axios.get(`${API_URL}get/booking/package/${packageId}`);
       return response.data.package;
     } catch (error) {
-      console.error('Error fetching package:', error);
+      if (!axios.isAxiosError(error) || error.response?.status !== 404) {
+        console.error('Error fetching package:', error);
+      }
       return null;
     }
   }
@@ -600,3 +602,20 @@ export class BookingService {
 }
 
 export const bookingService = BookingService.init();
+
+/** Lightweight check for storefronts where booking is disabled or not configured. */
+export async function fetchBookingEnabled(
+  apiUrl: string = API_URL
+): Promise<boolean> {
+  try {
+    const base = apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`;
+    const response = await fetch(`${base}booking/settings/public`, {
+      cache: 'no-store',
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return Boolean(data?.settings?.isEnabled);
+  } catch {
+    return false;
+  }
+}
