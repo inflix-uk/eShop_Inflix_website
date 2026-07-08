@@ -3296,11 +3296,11 @@ function NavbarRetailTwoRow({
 
   const retailLinksSection = (
     <div
-      className="relative left-1/2 w-screen sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df] mt-6"
+      className="relative left-1/2 z-[20] w-screen overflow-visible sm:max-w-[96vw] 2xl:max-w-[98.5vw] rounded-xl -translate-x-1/2 bg-[#fdf4df] mt-6"
       style={retailLinksBarBgStyle}
     >
-      <div className="mx-auto w-full px-4 py-2 sm:px-6 md:px-8 lg:px-10">
-        <nav className="hidden h-12 w-full flex-nowrap items-center justify-center gap-4 overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-5 lg:flex xl:gap-7 [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto w-full overflow-visible px-4 py-2 sm:px-6 md:px-8 lg:px-10">
+        <nav className="relative z-[20] hidden h-12 w-full flex-nowrap items-center justify-center gap-4 overflow-x-auto overflow-y-visible [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-5 lg:flex xl:gap-7 [&::-webkit-scrollbar]:hidden">
           {links.map((link, i) => (
             <NavLinkItemNode
               key={link.id || i}
@@ -3308,6 +3308,7 @@ function NavbarRetailTwoRow({
               i={i}
               fallbackIcon={DEFAULT_NAVBAR_FLATICON}
               nowrap
+              bodyPortalFlyout
               linkClassName="relative shrink-0 whitespace-nowrap text-[14px] font-medium text-white transition hover:text-white/90 xl:text-[15px]"
             />
           ))}
@@ -3664,7 +3665,7 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
     case "retail-two-row":
       variantNode = (
         <>
-          <div className="navbar-widget-link-colors relative z-[1]" style={linkColorVars}>
+          <div className="navbar-widget-link-colors relative z-[70]" style={linkColorVars}>
             <NavbarRetailTwoRow {...commonProps} />
           </div>
           {linkColorStyle}

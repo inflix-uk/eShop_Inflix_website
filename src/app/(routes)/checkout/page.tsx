@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { api } from "./api";
 import type { CheckoutBookingData } from "@/app/(routes)/checkout/components/ProductDetails";
+import { fetchBookingEnabled } from "@/app/(routes)/booking/services/bookingService";
 
 // Dynamic imports (booking checkout is handled inline on this page)
 const NewsletterModal = dynamic(
@@ -235,7 +236,12 @@ export default function CheckoutPage() {
     setBookingClientSecret(null);
     setBookingNumber(null);
     toast.error(message);
-    router.push(`/booking/${data.packageId}`);
+    const bookingEnabled = await fetchBookingEnabled(API_URL);
+    if (bookingEnabled) {
+      router.push(`/booking/${data.packageId}`);
+    } else if (products.length === 0) {
+      router.push("/");
+    }
   };
 
   const isBookingHoldExpired = (holdExpiresAt: string) =>
@@ -248,6 +254,12 @@ export default function CheckoutPage() {
     const loadBookingFromStorage = async () => {
       const raw = localStorage.getItem("bookingData");
       if (!raw) return;
+
+      const bookingEnabled = await fetchBookingEnabled(API_URL);
+      if (!bookingEnabled) {
+        localStorage.removeItem("bookingData");
+        return;
+      }
 
       try {
         const parsed = normalizeCheckoutBooking(JSON.parse(raw) as CheckoutBookingData);
@@ -325,7 +337,8 @@ export default function CheckoutPage() {
     setBookingClientSecret(null);
     setBookingNumber(null);
     if (products.length === 0) {
-      router.push("/booking");
+      const bookingEnabled = await fetchBookingEnabled(API_URL);
+      router.push(bookingEnabled ? "/booking" : "/");
     }
   };
 
