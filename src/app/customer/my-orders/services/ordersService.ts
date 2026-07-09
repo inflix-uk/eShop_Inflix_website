@@ -7,14 +7,14 @@ import type { GetOrdersResponse, ReturnItemResponse, ImageFile } from '../types'
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
 
+const authConfig = { withCredentials: true as const };
+
 /**
- * Fetch all orders for a specific user
+ * Fetch all orders for the authenticated customer (JWT cookie).
  */
-export const getUserOrders = async (userId: string): Promise<GetOrdersResponse> => {
+export const getUserOrders = async (_userId?: string): Promise<GetOrdersResponse> => {
   try {
-    const response = await axios.post(`${baseUrl}/get/order/user`, {
-      userId,
-    });
+    const response = await axios.get(`${baseUrl}/my/orders`, authConfig);
     return response.data;
   } catch (error) {
     console.error('Error fetching user orders:', error);
@@ -47,6 +47,7 @@ export const submitReturnRequest = async (
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      withCredentials: true,
     });
 
     return response.data;
@@ -61,7 +62,7 @@ export const submitReturnRequest = async (
  */
 export const getOrderTracking = async (orderId: string): Promise<{ trackingUrl: string }> => {
   try {
-    const response = await axios.get(`${baseUrl}/get/order/tracking/${orderId}`);
+    const response = await axios.get(`${baseUrl}/get/order/tracking/${orderId}`, authConfig);
     return response.data;
   } catch (error) {
     console.error('Error fetching order tracking:', error);

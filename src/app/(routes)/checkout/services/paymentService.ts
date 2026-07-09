@@ -31,9 +31,11 @@ export class PaymentService {
     }
   }
 
-  async retrievePaymentDetails(sessionId: string): Promise<PaymentDetails | null> {
+  async retrievePaymentDetails(sessionId: string, email?: string): Promise<PaymentDetails | null> {
     try {
-      const requestData: RetrievePaymentDetailsRequest = { sessionId };
+      const userForOrder = JSON.parse(localStorage.getItem('userForOrder') || '{}');
+      const resolvedEmail = email || userForOrder?.email || 'pending@checkout.local';
+      const requestData: RetrievePaymentDetailsRequest = { sessionId, email: resolvedEmail };
       const response = await api.retrievePaymentDetails(requestData);
 
       return {
