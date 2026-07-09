@@ -518,7 +518,17 @@ export default function CheckoutPage() {
           console.log('ðŸ’³ Retrieving payment details from Stripe...');
           let paymentDetails;
           try {
-            paymentDetails = await api.retrievePaymentDetailsFromSession(sessionId);
+            const userForOrder = JSON.parse(
+              localStorage.getItem("userForOrder") || "{}"
+            );
+            const retrieveEmail =
+              userForOrder?.email ||
+              auth.user?.email ||
+              'pending@checkout.local';
+            paymentDetails = await api.retrievePaymentDetailsFromSession(
+              sessionId,
+              retrieveEmail
+            );
             console.log('âœ… Payment details retrieved:', paymentDetails);
           } catch (error) {
             console.error("âŒ Failed to retrieve payment details:", error);

@@ -56,6 +56,10 @@ export const useCheckout = () => {
     userId: auth?.user?._id || '',
   });
 
+  const getPaymentIntentAccessEmail = useCallback(() => {
+    return auth?.user?.email || userState?.email || 'pending@checkout.local';
+  }, [auth?.user?.email, userState?.email]);
+
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [enteredCoupon, setEnteredCoupon] = useState<string>('');
@@ -208,6 +212,7 @@ export const useCheckout = () => {
       try {
         const response = await api.updatePaymentIntentAmount({
           paymentIntentId: storedPaymentIntentId,
+          email: getPaymentIntentAccessEmail(),
           cartproducts: cartData,
           coupondata: storedCoupon,
           shippingMethod: {
@@ -236,7 +241,7 @@ export const useCheckout = () => {
         return { success: false };
       }
     },
-    [shippingMethods, clientSecret]
+    [shippingMethods, clientSecret, getPaymentIntentAccessEmail]
   );
 
   // Update PaymentIntent amount when shipping method changes
@@ -278,6 +283,7 @@ export const useCheckout = () => {
         console.log('📦 Updating PaymentIntent amount with shipping:', shippingCost);
         const response = await api.updatePaymentIntentAmount({
           paymentIntentId: storedPaymentIntentId,
+          email: getPaymentIntentAccessEmail(),
           cartproducts: cartData,
           coupondata: storedCoupon,
           shippingMethod: shippingMethodData,
@@ -299,7 +305,7 @@ export const useCheckout = () => {
     };
 
     updatePaymentAmount();
-  }, [shippingCost, selectedShippingMethod, paymentIntentId, clientSecret]);
+  }, [shippingCost, selectedShippingMethod, paymentIntentId, clientSecret, getPaymentIntentAccessEmail]);
 
   // Create PaymentIntent when cart data is available
   useEffect(() => {
@@ -527,7 +533,10 @@ export const useCheckout = () => {
 
       if (isSuccess && sessionId) {
         if (!paymentDetails.paymentIntentId) {
-          const paymentData = await paymentService.retrievePaymentDetails(sessionId);
+          const paymentData = await paymentService.retrievePaymentDetails(
+            sessionId,
+            getPaymentIntentAccessEmail()
+          );
           if (paymentData) {
             dispatch(setPaymentDetails({
               paymentIntentId: paymentData.paymentIntentId,
@@ -543,7 +552,7 @@ export const useCheckout = () => {
     };
 
     handlePaymentSuccess();
-  }, [paymentDetails, paymentService, dispatch]);
+  }, [paymentDetails, paymentService, dispatch, getPaymentIntentAccessEmail]);
 
   const handleLogin = async () => {
     setProgress(50);

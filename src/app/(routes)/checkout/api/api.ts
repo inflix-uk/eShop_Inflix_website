@@ -108,6 +108,7 @@ export interface StripeConfigResponse {
 
 export interface RetrievePaymentDetailsRequest {
   sessionId: string;
+  email?: string;
 }
 
 export interface RetrievePaymentDetailsResponse {
@@ -198,6 +199,7 @@ export interface UpdatePaymentIntentMetadataResponse {
 
 export interface UpdatePaymentIntentAmountRequest {
   paymentIntentId: string;
+  email?: string;
   cartproducts: ProductItem[];
   coupondata?: Coupon | null;
   shippingMethod?: ShippingMethodData | null;
@@ -284,6 +286,7 @@ export class CheckoutApi {
     const response = await fetch(`${this.baseUrl}/retrieve-payment-details-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -328,6 +331,7 @@ export class CheckoutApi {
     const response = await fetch(`${this.baseUrl}/create-payment-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -358,6 +362,7 @@ export class CheckoutApi {
     const response = await fetch(`${this.baseUrl}/update-payment-intent-metadata`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -382,6 +387,7 @@ export class CheckoutApi {
     const response = await fetch(`${this.baseUrl}/update-payment-intent-amount`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
@@ -400,11 +406,15 @@ export class CheckoutApi {
    * Retrieve payment details from a PaymentIntent after successful payment
    * @param paymentIntentId - The Stripe PaymentIntent ID
    */
-  async retrievePaymentDetailsFromPaymentIntent(paymentIntentId: string): Promise<RetrievePaymentIntentDetailsResponse> {
+  async retrievePaymentDetailsFromPaymentIntent(
+    paymentIntentId: string,
+    email?: string
+  ): Promise<RetrievePaymentIntentDetailsResponse> {
     const response = await fetch(`${this.baseUrl}/retrieve-payment-details`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentIntentId }),
+      credentials: 'include',
+      body: JSON.stringify({ paymentIntentId, email }),
     });
 
     if (!response.ok) {
@@ -423,11 +433,15 @@ export class CheckoutApi {
    * Retrieve payment details from Stripe session after successful payment
    * @param sessionId - The Stripe session ID
    */
-  async retrievePaymentDetailsFromSession(sessionId: string): Promise<RetrievePaymentDetailsResponse> {
+  async retrievePaymentDetailsFromSession(
+    sessionId: string,
+    email?: string
+  ): Promise<RetrievePaymentDetailsResponse> {
     const response = await fetch(`${this.baseUrl}/retrieve-payment-details-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
+      credentials: 'include',
+      body: JSON.stringify({ sessionId, email }),
     });
 
     if (!response.ok) {
