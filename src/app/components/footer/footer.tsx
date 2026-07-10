@@ -12,6 +12,9 @@ import type {
   SocialMediaItem,
 } from "./footerTypes";
 import { DEFAULT_FOOTER } from "./footerDefaults";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
+
+const FOOTER_PUBLIC_PATH = "/footer/settings/public";
 
 // Social media SVG components for fallback
 const SocialMediaIcons: Record<string, JSX.Element> = {
@@ -141,10 +144,8 @@ const isExternalUrl = (url: string): boolean => {
   return url.startsWith("http://") || url.startsWith("https://");
 };
 
-// Get backend URL from environment variable only
 const getBackendUrl = (): string => {
-  // Only use environment variable from .env file
-  return process.env.NEXT_PUBLIC_API_URL || "";
+  return resolveCmsApiBase();
 };
 
 const getImageUrl = (path: string | undefined, backendUrl: string): string => {
@@ -249,7 +250,7 @@ const Footer: React.FC<FooterProps> = ({
       const cleanBackendUrl = backendUrl.endsWith("/")
         ? backendUrl.slice(0, -1)
         : backendUrl;
-      const apiUrl = `${cleanBackendUrl}/footer/settings`;
+      const apiUrl = `${cleanBackendUrl}${FOOTER_PUBLIC_PATH}`;
       const response = await fetch(apiUrl, {
         method: "GET",
         headers: {

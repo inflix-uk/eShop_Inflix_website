@@ -128,7 +128,8 @@ export function NavbarIcon({
   const html = normalizeNavbarIconHtml(code, fallback);
   return (
     <span
-      className={`inline-flex items-center justify-center [&>i]:text-[1em] ${className || ""}`}
+      data-nav-link-icon=""
+      className={`inline-flex items-center justify-center [&>i]:text-[1em] [&>i]:text-inherit ${className || ""}`}
       dangerouslySetInnerHTML={{ __html: html }}
       aria-hidden
     />

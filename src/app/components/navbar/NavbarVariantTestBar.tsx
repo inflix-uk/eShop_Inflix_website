@@ -259,6 +259,40 @@ export default function NavbarVariantTestBar({
 
             }
 
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] span) {
+
+              color: inherit !important;
+
+            }
+
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover span) {
+
+              color: inherit !important;
+
+            }
+
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] svg),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] i),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] [data-nav-link-icon]),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] [data-nav-link-icon] i),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] [data-nav-flyout-label]),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"] span[data-nav-flyout-label]) {
+
+              color: ${linkTextColor} !important;
+
+            }
+
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover svg),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover i),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover [data-nav-link-icon]),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover [data-nav-link-icon] i),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover [data-nav-flyout-label]),
+            .navbar-variant-test-scope :global(nav a[data-nav-link="1"]:hover span[data-nav-flyout-label]) {
+
+              color: ${linkHoverColor} !important;
+
+            }
+
           }
 
           `}</style>

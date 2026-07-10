@@ -524,7 +524,11 @@ function renderNavLinkContent(link: NavbarLinkItem, fallback = DEFAULT_NAVBAR_FL
           fallback={fallback}
           reactIconMap={NAVBAR_REACT_ICON_MAP}
         />
-        {text ? <span className="min-w-0 font-medium">{text}</span> : null}
+        {text ? (
+          <span className="min-w-0 font-medium" data-nav-flyout-label="">
+            {text}
+          </span>
+        ) : null}
       </span>
     );
   }
@@ -815,7 +819,9 @@ function NavLinkItemNode({
           onBlur={onTriggerBlur}
         >
           <span className={flyoutRowClass}>
-            <span className={flyoutLabelClass}>{renderNavLinkContent(link, fallbackIcon)}</span>
+            <span className={flyoutLabelClass} data-nav-flyout-label="">
+              {renderNavLinkContent(link, fallbackIcon)}
+            </span>
             <FiChevronDown
               className={`${flyoutChevronClass} transition-transform duration-200 ${
                 flyoutOpen ? "rotate-180" : ""
@@ -859,8 +865,14 @@ function NavLinkItemNode({
         aria-label={showAria ? aria : undefined}
       >
         <span className={flyoutRowClass}>
-          <span className={flyoutLabelClass}>{renderNavLinkContent(link, fallbackIcon)}</span>
-          <FiChevronDown className="h-5 w-5 shrink-0 text-slate-400" aria-hidden strokeWidth={2} />
+          <span className={flyoutLabelClass} data-nav-flyout-label="">
+            {renderNavLinkContent(link, fallbackIcon)}
+          </span>
+          <FiChevronDown
+            className={`${flyoutChevronClass}`}
+            aria-hidden
+            strokeWidth={2}
+          />
         </span>
       </a>
       <div className="absolute left-0 top-full z-[150] hidden pt-1 group-hover:block group-focus-within:block">
@@ -3528,8 +3540,27 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
         .navbar-widget-link-colors nav a[data-nav-link="1"]:hover {
           color: var(--nav-link-hover) !important;
         }
-        .navbar-widget-link-colors nav a[data-nav-link="1"] svg {
+        .navbar-widget-link-colors nav a[data-nav-link="1"] span {
           color: inherit !important;
+        }
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover span {
+          color: inherit !important;
+        }
+        .navbar-widget-link-colors nav a[data-nav-link="1"] svg,
+        .navbar-widget-link-colors nav a[data-nav-link="1"] i,
+        .navbar-widget-link-colors nav a[data-nav-link="1"] [data-nav-link-icon],
+        .navbar-widget-link-colors nav a[data-nav-link="1"] [data-nav-link-icon] i,
+        .navbar-widget-link-colors nav a[data-nav-link="1"] [data-nav-flyout-label],
+        .navbar-widget-link-colors nav a[data-nav-link="1"] span[data-nav-flyout-label] {
+          color: var(--nav-link-text) !important;
+        }
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover svg,
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover i,
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover [data-nav-link-icon],
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover [data-nav-link-icon] i,
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover [data-nav-flyout-label],
+        .navbar-widget-link-colors nav a[data-nav-link="1"]:hover span[data-nav-flyout-label] {
+          color: var(--nav-link-hover) !important;
         }
         .navbar-widget-link-colors[data-navbar-variant="wing-split-pill"] nav a[data-nav-link="1"] {
           font-weight: 600 !important;

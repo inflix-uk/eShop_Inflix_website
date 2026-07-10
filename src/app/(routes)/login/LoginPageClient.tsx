@@ -8,6 +8,10 @@ import { useAuth } from "@/app/context/Auth";
 import { CountdownCircleTimer } from "react-countdown-circle-timer";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  getFetchLoginErrorMessage,
+  isFetchLoginSuccess,
+} from "@/app/utils/loginResponse";
 
 type LoginPageClientProps = {
   logoSrc: string | null;
@@ -68,14 +72,14 @@ export default function LoginPageClient({
 
         const data = await res.json();
 
-        if (data.status === 201) {
+        if (isFetchLoginSuccess(res, data)) {
           toast.success(data.message);
 
           const user = data.user;
           auth.login(user);
           router.replace("/customer/dashboard");
         } else {
-          toast.error(data.message);
+          toast.error(getFetchLoginErrorMessage(res, data));
         }
       } catch (error) {
         console.error("Login error:", error);
@@ -102,13 +106,13 @@ export default function LoginPageClient({
 
         const data = await res.json();
 
-        if (data.status === 201) {
+        if (isFetchLoginSuccess(res, data)) {
           toast.success(data.message);
           const user = data.user;
           auth.login(user);
           router.replace("/customer/dashboard");
         } else {
-          toast.error(data.message);
+          toast.error(getFetchLoginErrorMessage(res, data, "OTP verification failed. Please try again."));
         }
       } catch (error) {
         console.error("OTP verification error:", error);
