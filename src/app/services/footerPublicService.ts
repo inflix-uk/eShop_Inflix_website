@@ -1,12 +1,15 @@
 import { cmsServerFetchJson } from "@/app/lib/cmsServerFetch";
+import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import { DEFAULT_FOOTER } from "@/app/components/footer/footerDefaults";
 import type {
   FooterSection2,
   FooterSettings,
 } from "@/app/components/footer/footerTypes";
 
+const FOOTER_PUBLIC_PATH = "/footer/settings/public";
+
 function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  return resolveCmsApiBase();
 }
 
 /** Last successful footer (per Node / lambda). Used when CMS fetch fails or returns empty. */
@@ -138,7 +141,7 @@ export async function getFooterSettingsCached(): Promise<FooterSettings> {
     const responseJson = await cmsServerFetchJson<{
       data?: FooterSettings;
       success?: boolean;
-    }>(`${base}/footer/settings`);
+    }>(`${base}${FOOTER_PUBLIC_PATH}`);
 
     const apiData = responseJson.data;
     if (!apiData || typeof apiData !== "object") {

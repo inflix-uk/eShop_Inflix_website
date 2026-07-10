@@ -59,20 +59,13 @@ export const registerUser = createAsyncThunk<
     } catch (error: any) {
       dispatch(setProgress(100)); // Set progress to 100%
 
-      // Log error details for debugging
-      console.error("Error during registration:", error.message);
-      if (error.response) {
-        console.error("Error response data:", error.response.data);
-        console.error("Error response status:", error.response.status);
-        console.error("Error response headers:", error.response.headers);
-      } else if (error.request) {
-        console.error("Error request:", error.request);
-      } else {
-        console.error("General error message:", error.message);
-      }
+      const apiMessage = error.response?.data?.message;
+      const displayMessage = apiMessage || error.message || "Registration failed";
 
-      toast.error(`Registration failed: ${error.message}`);
-      return rejectWithValue(error.message); // Return the error message
+      console.error("Error during registration:", displayMessage);
+
+      toast.error(displayMessage);
+      return rejectWithValue(displayMessage);
     }
   }
 );
