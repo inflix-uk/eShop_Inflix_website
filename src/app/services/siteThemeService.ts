@@ -11,6 +11,7 @@ import {
 import {
   cloneTagColorDefaults,
   resolveTagColorsFromApi,
+  resolveTagColorsEnabled,
   type TagColorsConfig,
 } from "@/app/lib/tagColorsThemeUtils";
 import {
@@ -24,6 +25,7 @@ export type SiteThemeLayoutBundle = {
   colors: SiteThemeResolved;
   typography: TypographyConfig;
   tagColors: TagColorsConfig;
+  tagColorsEnabled: boolean;
   bookingModuleUi: BookingModuleUi;
 };
 
@@ -41,6 +43,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
       ),
       typography: cloneTypographyDefaults(),
       tagColors: cloneTagColorDefaults(),
+      tagColorsEnabled: true,
       bookingModuleUi: resolveBookingModuleUi(null),
     };
   }
@@ -59,6 +62,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        tagColorsEnabled: true,
         bookingModuleUi: resolveBookingModuleUi(null),
       };
     }
@@ -72,6 +76,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        tagColorsEnabled: true,
         bookingModuleUi: resolveBookingModuleUi(null),
       };
     }
@@ -94,9 +99,10 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
 
     const typography = resolveTypographyFromApi(json.data);
     const tagColors = resolveTagColorsFromApi(json.data);
+    const tagColorsEnabled = resolveTagColorsEnabled(json.data);
     const bookingModuleUi = resolveBookingModuleUi(json.data.uiCustom?.booking);
 
-    return { colors, typography, tagColors, bookingModuleUi };
+    return { colors, typography, tagColors, tagColorsEnabled, bookingModuleUi };
   } catch (e) {
     if (!isCmsFetchAbortError(e)) {
       console.error("[siteThemeService] public fetch:", e);
@@ -108,6 +114,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
       ),
       typography: cloneTypographyDefaults(),
       tagColors: cloneTagColorDefaults(),
+      tagColorsEnabled: true,
       bookingModuleUi: resolveBookingModuleUi(null),
     };
   }

@@ -4,7 +4,9 @@ import { useEffect } from "react";
 import { resolveSiteTheme, applyBookingCardThemeToRoot } from "@/app/lib/siteThemeUtils";
 import {
   applyTagColorsStyleDocument,
+  removeTagColorsStyleDocument,
   resolveTagColorsFromApi,
+  resolveTagColorsEnabled,
 } from "@/app/lib/tagColorsThemeUtils";
 
 /**
@@ -38,7 +40,11 @@ export default function SiteBrandColors() {
         applyBookingCardThemeToRoot(root, t.bookingServiceCardBgColor);
         document.body.style.backgroundColor = t.bodyBgColor;
 
-        applyTagColorsStyleDocument(document, resolveTagColorsFromApi(json.data));
+        if (resolveTagColorsEnabled(json.data)) {
+          applyTagColorsStyleDocument(document, resolveTagColorsFromApi(json.data));
+        } else {
+          removeTagColorsStyleDocument(document);
+        }
       } catch {
         /* defaults from globals.css + layout inline theme */
       }

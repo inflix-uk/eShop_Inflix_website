@@ -46,22 +46,30 @@
 }
 
 .psm-booking-packages__grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 12px;
   width: 100%;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .psm-booking-packages__grid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 14px;
   }
 }
 
 @media (min-width: 1024px) {
   .psm-booking-packages__grid {
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .psm-booking-packages__grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
   }
 }
 
@@ -69,14 +77,11 @@
   position: relative;
   background: var(--psm-coal);
   border: 1px solid var(--psm-line-soft);
-  padding: clamp(28px, 3vw, 44px);
+  padding: clamp(24px, 2.5vw, 36px);
   display: flex;
   flex-direction: column;
   min-height: 100%;
   width: 100%;
-  max-width: 300px;
-  flex: 0 0 min(100%, 300px);
-  margin-inline: 0;
   transition:
     transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.5s,
@@ -98,7 +103,7 @@
 .psm-booking-card__badge {
   position: absolute;
   top: -13px;
-  left: clamp(28px, 3vw, 44px);
+  left: clamp(24px, 2.5vw, 36px);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10px;
   letter-spacing: 0.22em;

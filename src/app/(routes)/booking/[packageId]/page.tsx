@@ -15,6 +15,11 @@ import {
   SelectedBookingExtra,
   StoredBookingData,
 } from "../services/bookingService";
+import {
+  DEFAULT_BOOKING_MODULE_UI,
+  resolveBookingModuleUi,
+  type BookingModuleUi,
+} from "@/app/lib/bookingModuleThemeUtils";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
@@ -131,6 +136,7 @@ export default function BookingFlowPage() {
   const timezone = settings?.timezone || "Europe/London";
   const today = useMemo(() => new Date(), []);
   const [viewMonth, setViewMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [bookingUi, setBookingUi] = useState<BookingModuleUi>(resolveBookingModuleUi(null));
 
   const displaySlots = hasActiveHold
     ? activeHolds.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime, holdId: h.holdId }))
@@ -147,6 +153,22 @@ export default function BookingFlowPage() {
   const getMaxDate = () => bookingService.addDaysToDateStr(getMinDate(), settings?.maxAdvanceBookingDays || 60);
 
   useEffect(() => { loadInitialData(); }, [packageId]);
+
+  useEffect(() => {
+    const fetchBookingUi = async () => {
+      try {
+        const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+        if (!base) return;
+        const res = await fetch(`${base}/site-theme/public`, { headers: { Accept: "application/json" } });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.success && json?.data?.uiCustom?.booking) {
+          setBookingUi(resolveBookingModuleUi(json.data.uiCustom.booking));
+        }
+      } catch { /* ignore */ }
+    };
+    fetchBookingUi();
+  }, []);
 
   useEffect(() => {
     if (!holdExpiry) { setRemainingTime(null); return; }
@@ -497,12 +519,14 @@ export default function BookingFlowPage() {
                         <button
                           key={cell.dateStr}
                           type="button"
+                          data-booking-calendar-date=""
+                          data-selected={isSelected ? "true" : undefined}
                           onClick={() => selectDate(cell.dateStr)}
                           disabled={!selectable || submitting}
-                          className={`relative h-9 rounded-full text-sm ${isSelected ? "bg-primary text-white font-semibold" : selectable ? "hover:bg-gray-100" : "text-gray-300"}`}
+                          className={`relative h-9 rounded-full text-sm ${isSelected ? "text-white font-semibold" : selectable ? "hover:bg-gray-100" : "text-gray-300"}`}
                         >
                           {cell.day}
-                          {hasDot && !isSelected && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />}
+                          {hasDot && !isSelected && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full" style={{ backgroundColor: bookingUi.buttonBgColor }} />}
                         </button>
                       );
                     })}
@@ -525,9 +549,11 @@ export default function BookingFlowPage() {
                                 <button
                                   key={slot.startTime}
                                   type="button"
+                                  data-booking-slot=""
+                                  data-selected={selected ? "true" : undefined}
                                   onClick={() => handleSlotSelect(slot)}
                                   disabled={submitting || hasActiveHold}
-                                  className={`py-2.5 text-sm font-medium rounded-lg border ${selected ? "bg-primary text-white border-primary" : "border-gray-300 hover:border-primary"} ${hasActiveHold ? "opacity-50" : ""}`}
+                                  className={`py-2.5 text-sm font-medium rounded-lg border ${selected ? "text-white" : "border-gray-300"} ${hasActiveHold ? "opacity-50" : ""}`}
                                 >
                                   {bookingService.formatTime(slot.startTime)}
                                 </button>
@@ -587,9 +613,10 @@ export default function BookingFlowPage() {
                                 disabled={submitting}
                                 className={`px-5 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${
                                   selected
-                                    ? "bg-primary text-white border-primary"
+                                    ? "text-white"
                                     : "border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
                                 }`}
+                                style={selected ? { backgroundColor: bookingUi.buttonBgColor, borderColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor } : undefined}
                               >
                                 {selected ? "Unselect" : "Select"}
                               </button>
@@ -683,7 +710,8 @@ export default function BookingFlowPage() {
                       type="button"
                       onClick={handleContinueToCheckout}
                       disabled={submitting}
-                      className="w-full py-3 bg-primary text-white font-semibold rounded-xl disabled:opacity-60"
+                      className="w-full py-3 text-white font-semibold rounded-xl disabled:opacity-60"
+                      style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}
                     >
                       {submitting ? "Continuing..." : "Continue to Checkout"}
                     </button>
@@ -697,7 +725,7 @@ export default function BookingFlowPage() {
                     </button>
                   </div>
                 ) : selectedSlots.length > 0 ? (
-                  <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 bg-primary text-white font-semibold rounded-xl disabled:opacity-60">
+                  <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 font-semibold rounded-xl disabled:opacity-60" style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}>
                     {submitting ? "Reserving..." : `Reserve ${selectedSlots.length} Slot${selectedSlots.length > 1 ? "s" : ""} & Continue`}
                   </button>
                 ) : null}

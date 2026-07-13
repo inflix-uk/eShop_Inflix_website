@@ -49,6 +49,9 @@ export interface BookingPageHero {
   stat2Label: string;
   stat3Value: string;
   stat3Label: string;
+  statsValueColor: string;
+  statsLabelColor: string;
+  statsBgColor: string;
 }
 
 export interface BookingPageServicesSection {
@@ -61,10 +64,17 @@ export interface BookingTrustBlock {
   description: string;
 }
 
+export interface BookingCustomWidget {
+  enabled: boolean;
+  html: string;
+  css: string;
+}
+
 export interface BookingPageContent {
   hero: BookingPageHero;
   services: BookingPageServicesSection;
   trust: BookingTrustBlock[];
+  customWidget: BookingCustomWidget;
 }
 
 export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
@@ -79,6 +89,9 @@ export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
     stat2Label: 'Online Booking',
     stat3Value: '100%',
     stat3Label: 'Secure Payment',
+    statsValueColor: '#111827',
+    statsLabelColor: '#6b7280',
+    statsBgColor: '',
   },
   services: {
     heading: 'Our Services',
@@ -89,6 +102,11 @@ export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
     { title: 'Instant Confirmation', description: 'Receive immediate booking confirmation via email' },
     { title: 'Flexible Payment', description: 'Pay securely with card, Apple Pay, or Google Pay' },
   ],
+  customWidget: {
+    enabled: false,
+    html: '',
+    css: '',
+  },
 };
 
 function pickBookingString(value: unknown, fallback: string): string {
@@ -129,6 +147,9 @@ export function mergeBookingPageContent(raw: unknown): BookingPageContent {
     stat2Label: pickBookingString(heroSrc.stat2Label, heroDefaults.stat2Label),
     stat3Value: pickBookingString(heroSrc.stat3Value, heroDefaults.stat3Value),
     stat3Label: pickBookingString(heroSrc.stat3Label, heroDefaults.stat3Label),
+    statsValueColor: pickBookingString(heroSrc.statsValueColor, heroDefaults.statsValueColor),
+    statsLabelColor: pickBookingString(heroSrc.statsLabelColor, heroDefaults.statsLabelColor),
+    statsBgColor: pickBookingString(heroSrc.statsBgColor, heroDefaults.statsBgColor),
   };
 
   const servicesDefaults = DEFAULT_BOOKING_PAGE_CONTENT.services;
@@ -150,7 +171,20 @@ export function mergeBookingPageContent(raw: unknown): BookingPageContent {
     }
   );
 
-  return { hero, services, trust };
+  const customWidgetSrc =
+    src.customWidget && typeof src.customWidget === 'object'
+      ? (src.customWidget as Record<string, unknown>)
+      : {};
+  const customWidget: BookingCustomWidget = {
+    enabled:
+      typeof customWidgetSrc.enabled === 'boolean'
+        ? customWidgetSrc.enabled
+        : DEFAULT_BOOKING_PAGE_CONTENT.customWidget.enabled,
+    html: pickBookingString(customWidgetSrc.html, DEFAULT_BOOKING_PAGE_CONTENT.customWidget.html),
+    css: pickBookingString(customWidgetSrc.css, DEFAULT_BOOKING_PAGE_CONTENT.customWidget.css),
+  };
+
+  return { hero, services, trust, customWidget };
 }
 
 export interface SelectedBookingExtra {

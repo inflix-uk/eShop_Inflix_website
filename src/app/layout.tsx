@@ -160,6 +160,7 @@ export default async function RootLayout({
         ),
         typography: cloneTypographyDefaults(),
         tagColors: cloneTagColorDefaults(),
+        tagColorsEnabled: true,
         bookingModuleUi: resolveBookingModuleUi(null),
       })),
       getAnnouncementBannerPublic(),
@@ -209,7 +210,10 @@ export default async function RootLayout({
         <SiteScriptsRaw html={combinedHeadScripts} forHead />
         <SiteThemeInlineStyles theme={siteThemeBundle.colors} />
         <TypographyThemeStyles typography={siteThemeBundle.typography} />
-        <TagColorsThemeStyles tagColors={siteThemeBundle.tagColors} />
+        <TagColorsThemeStyles
+          tagColors={siteThemeBundle.tagColors}
+          enabled={siteThemeBundle.tagColorsEnabled !== false}
+        />
       </head>
 
       <body
