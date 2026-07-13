@@ -27,6 +27,7 @@ const NO_CMS_THEME_COLORS = {
     span: "",
     label: "",
   },
+  tagColorsEnabled: true,
 } as const;
 
 export async function GET() {

@@ -1,6 +1,6 @@
 import { CMS_TYPO_CONTEXTS } from "@/app/lib/typographyThemeUtils";
 
-export type TagColorKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "label";
+export type TagColorKey = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "label" | "bookingCalendarDate" | "bookingSelectedDateBg" | "bookingSelectedSlotBg";
 
 export type TagColorsConfig = Record<TagColorKey, string>;
 
@@ -14,9 +14,20 @@ export const DEFAULT_TAG_COLORS: TagColorsConfig = {
   p: "#374151",
   span: "#374151",
   label: "#374151",
+  bookingCalendarDate: "#111827",
+  bookingSelectedDateBg: "#c2fc12",
+  bookingSelectedSlotBg: "#c2fc12",
 };
 
-const TAG_KEYS: TagColorKey[] = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "label"];
+const TAG_KEYS: TagColorKey[] = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span", "label", "bookingCalendarDate", "bookingSelectedDateBg", "bookingSelectedSlotBg"];
+
+const CUSTOM_SELECTORS: Partial<Record<TagColorKey, string>> = {
+  bookingCalendarDate: "[data-booking-calendar-date]:not([data-selected]):not(:disabled),[data-booking-slot]:not([data-selected]):not(:disabled)",
+  bookingSelectedDateBg: "[data-booking-calendar-date][data-selected='true']",
+  bookingSelectedSlotBg: "[data-booking-slot][data-selected='true']",
+};
+
+const BG_COLOR_KEYS: TagColorKey[] = ["bookingSelectedDateBg", "bookingSelectedSlotBg"];
 
 function normalizeHex(value: string): string | null {
   const v = (value || "").trim();
@@ -49,6 +60,9 @@ export function resolveTagColorsFromApi(data: unknown): TagColorsConfig {
 }
 
 function levelSelectors(tag: TagColorKey): string {
+  if (CUSTOM_SELECTORS[tag]) {
+    return CUSTOM_SELECTORS[tag]!;
+  }
   return CMS_TYPO_CONTEXTS.map((ctx) => `${ctx}${tag}`.trim()).join(",");
 }
 
@@ -58,13 +72,24 @@ function levelSelectors(tag: TagColorKey): string {
  */
 export function tagColorsThemeStyleCss(tagColors: TagColorsConfig): string {
   const vars = TAG_KEYS.map((k) => `--${k}-color:${tagColors[k]}`).join(";");
-  const rules = TAG_KEYS.map(
-    (k) => `${levelSelectors(k)}{color:var(--${k}-color)!important;}`
-  );
+  const rules = TAG_KEYS.map((k) => {
+    const selector = levelSelectors(k);
+    if (BG_COLOR_KEYS.includes(k)) {
+      return `${selector}{background-color:var(--${k}-color)!important;border-color:var(--${k}-color)!important;}`;
+    }
+    return `${selector}{color:var(--${k}-color)!important;}`;
+  });
   return `:root{${vars}}${rules.join("")}`;
 }
 
 export const TAG_COLORS_STYLE_ID = "cms-tag-colors-theme";
+
+export function resolveTagColorsEnabled(data: unknown): boolean {
+  if (!data || typeof data !== "object") return true;
+  const o = data as Record<string, unknown>;
+  if (typeof o.tagColorsEnabled === "boolean") return o.tagColorsEnabled;
+  return true;
+}
 
 export function applyTagColorsStyleDocument(
   doc: Document,
@@ -78,4 +103,9 @@ export function applyTagColorsStyleDocument(
     doc.head.appendChild(el);
   }
   el.textContent = css;
+}
+
+export function removeTagColorsStyleDocument(doc: Document): void {
+  const el = doc.getElementById(TAG_COLORS_STYLE_ID);
+  if (el) el.remove();
 }
