@@ -17,6 +17,11 @@ const NewsletterModal = dynamic(
 );
 
 
+const NavbarVariantTestBar = dynamic(
+  () => import("@/app/components/navbar/NavbarVariantTestBar"),
+  { ssr: false }
+);
+
 const Nav = dynamic(() => import("@/app/components/navbar/Nav"), {
   ssr: false,
 });
@@ -52,6 +57,7 @@ import CheckoutBenefits from "./components/checkout-benefits";
 import PaymentLogos from "@/app/components/PaymentLogos";
 import PaymentVendorScripts from "@/app/components/PaymentVendorScripts";
 import { trackBeginCheckout } from "@/app/lib/analyticsEvents";
+import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 
 // Booking data loaded from localStorage when user arrives from booking flow
 const API_URL = (() => {
@@ -167,6 +173,28 @@ export default function CheckoutPage() {
   // Additional local state
   const [showForm, setShowForm] = useState<boolean>(false);
   const [stockData, setStockData] = useState<Record<string, { availableQuantity: number; inStock: boolean }>>({});
+  const [navbarConfig, setNavbarConfig] = useState<NavbarVariantTestConfig | null>(null);
+  const [navbarLoaded, setNavbarLoaded] = useState(false);
+
+  // Fetch navbar config on mount
+  useEffect(() => {
+    const fetchNavbarConfig = async () => {
+      try {
+        const res = await fetch(`${API_URL}navbar-variant-test/public`);
+        if (res.ok) {
+          const json = await res.json();
+          // API returns { success: true, data: { config: {...} } }
+          const config = json?.data?.config || null;
+          setNavbarConfig(config);
+        }
+      } catch (err) {
+        console.error("Failed to fetch navbar config:", err);
+      } finally {
+        setNavbarLoaded(true);
+      }
+    };
+    fetchNavbarConfig();
+  }, []);
 
   const toggleFormVisibility = () => setShowForm(!showForm);
 
@@ -779,7 +807,11 @@ export default function CheckoutPage() {
 
       <header className="relative">
         {/* <TopBar /> */}
-        <Nav />
+        {navbarLoaded && navbarConfig ? (
+          <NavbarVariantTestBar config={navbarConfig} />
+        ) : (
+          <Nav />
+        )}
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">

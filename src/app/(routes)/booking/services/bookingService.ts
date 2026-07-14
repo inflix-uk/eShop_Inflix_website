@@ -29,6 +29,7 @@ export interface BookingPackage {
   highlightBadgeEnabled?: boolean;
   highlightBadgeText?: string;
   highlightBadgeUrl?: string;
+  bundleBenefits?: string;
   extras?: BookingPackageExtra[];
 }
 

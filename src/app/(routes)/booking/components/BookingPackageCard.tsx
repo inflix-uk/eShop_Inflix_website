@@ -15,6 +15,11 @@ function capitalizeWords(value: string): string {
     .join(" ");
 }
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "").trim();
+}
+
 function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
   const desc = (pkg.description || "").trim();
   const nameLower = pkg.name.toLowerCase();
@@ -99,12 +104,23 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
         ) : null}
       </p>
 
+      {pkg.description?.trim() ? (
+        <p className="psm-booking-card__description">{stripHtml(pkg.description)}</p>
+      ) : null}
+
       {features.length > 0 ? (
         <ul className="psm-booking-card__features">
           {features.map((feature, featureIndex) => (
             <li key={`${pkg._id}-feature-${featureIndex}`}>{feature}</li>
           ))}
         </ul>
+      ) : null}
+
+      {pkg.bundleBenefits?.trim() ? (
+        <div className="psm-booking-card__bundle">
+          <span className="psm-booking-card__bundle-title">Bundle Benefits</span>
+          <p className="psm-booking-card__bundle-text">{pkg.bundleBenefits.trim()}</p>
+        </div>
       ) : null}
 
       <Link

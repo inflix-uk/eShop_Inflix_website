@@ -146,7 +146,7 @@
   font-size: 15px;
   letter-spacing: 0.1em;
   color: var(--psm-green);
-  margin-bottom: 22px;
+  margin-bottom: 8px;
   line-height: 1.5;
 }
 
@@ -160,6 +160,19 @@
   color: var(--psm-description);
   font-size: 11px;
   letter-spacing: 0.18em;
+}
+
+.psm-booking-card__description {
+  color: var(--psm-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+
+/* When no description exists, price needs more bottom margin */
+.psm-booking-card__price:has(+ .psm-booking-card__features),
+.psm-booking-card__price:has(+ .psm-booking-card__cta) {
+  margin-bottom: 22px;
 }
 
 .psm-booking-card__features {
@@ -188,6 +201,31 @@
   border: 1px solid var(--psm-green);
   transform: rotate(45deg);
   background: transparent;
+}
+
+.psm-booking-card__bundle {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(194, 252, 18, 0.06);
+  border: 1px solid rgba(194, 252, 18, 0.2);
+}
+
+.psm-booking-card__bundle-title {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--psm-green);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.psm-booking-card__bundle-text {
+  color: var(--psm-cream);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .psm-booking-card__cta {
