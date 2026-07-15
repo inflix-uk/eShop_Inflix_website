@@ -85,7 +85,7 @@ export default function ProductCardView({
                 <ProductCardLinkSpinner />
               </Link>
             </h3>
-            <p className="text-xs sm:text-sm font-normal text-gray-600">
+            <p className="text-xs sm:text-sm font-normal text-gray-600 transition-opacity duration-200">
               £{displayPrice}
             </p>
           </div>
@@ -146,7 +146,7 @@ export default function ProductCardView({
           </div>
 
           <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
-            <div>
+            <div className="transition-opacity duration-200">
               <small className="text-gray-500 flex gap-1">
                 {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
               </small>
@@ -214,7 +214,7 @@ export default function ProductCardView({
         </div>
 
         <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
-          <div>
+          <div className="transition-opacity duration-200">
             <small className="text-gray-500 flex gap-1">
               {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
             </small>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, FC, Suspense } from "react";
+import { useState, useEffect, useCallback, FC } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { EmblaOptionsType } from "embla-carousel";
 import Link from "next/link";
@@ -46,9 +46,11 @@ const SwiperComponent: FC<SwiperComponentProps> = ({
   } as EmblaOptionsType);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isCarouselReady, setIsCarouselReady] = useState(false);
 
   useEffect(() => {
     if (emblaApi) {
+      setIsCarouselReady(true);
       setSelectedIndex(emblaApi.selectedScrollSnap());
 
       const onSelect = () => {
@@ -152,28 +154,22 @@ const SwiperComponent: FC<SwiperComponentProps> = ({
           </button>
         </div>
       </div>
-      <div className="embla mt-4 w-full min-w-0 overflow-hidden" ref={emblaRef}>
-        <div className="embla__container flex">
-          {items.slice(0, 8).map((item) => (
+      <div 
+        className={`embla mt-4 w-full min-w-0 ${isCarouselReady ? 'overflow-hidden' : 'overflow-visible'}`} 
+        ref={emblaRef}
+      >
+        <div className={`embla__container ${isCarouselReady ? 'flex' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'}`}>
+          {items.slice(0, isCarouselReady ? 8 : 4).map((item) => (
             <div
               key={item._id}
-              className="embla__slide min-w-0 flex-[0_0_85%] shrink-0 xs:flex-[0_0_50%] sm:flex-[0_0_46%] md:flex-[0_0_31%] lg:flex-[0_0_24%] xl:flex-[0_0_25%] px-1.5"
+              className={`embla__slide min-w-0 ${isCarouselReady ? 'flex-[0_0_85%] shrink-0 xs:flex-[0_0_50%] sm:flex-[0_0_46%] md:flex-[0_0_31%] lg:flex-[0_0_24%] xl:flex-[0_0_25%] px-1.5' : ''}`}
             >
               <div className="h-full min-h-[22rem] min-w-0">
-                <Suspense
-                  fallback={
-                    <div
-                      className="h-[22rem] w-full animate-pulse rounded-lg bg-gray-100"
-                      aria-hidden
-                    />
-                  }
-                >
-                  {renderCard(item)}
-                </Suspense>
+                {renderCard(item)}
               </div>
             </div>
           ))}
-          {items.length > 8 && link && (
+          {isCarouselReady && items.length > 8 && link && (
             <div className="embla__slide min-w-0 flex-[0_0_85%] shrink-0 xs:flex-[0_0_50%] sm:flex-[0_0_46%] md:flex-[0_0_31%] lg:flex-[0_0_24%] px-2">
               <div className="flex flex-col justify-center items-center h-full">
                 <Link href={link}>

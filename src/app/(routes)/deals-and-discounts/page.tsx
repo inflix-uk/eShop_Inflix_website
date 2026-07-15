@@ -2,12 +2,16 @@ import Link from "next/link";
 import SlugRouteHeader from "@/app/components/slug-route/SlugRouteHeader";
 import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 import { fetchFooterPageBySlug } from "@/app/services/footerPageService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import DealsAndDiscountsFallback from "./DealsAndDiscountsFallback";
 
 const SLUG = "deals-and-discounts";
 
 export default async function DealsAndDiscountsPage() {
-  const page = await fetchFooterPageBySlug(SLUG);
+  const [page, widgetVisibility] = await Promise.all([
+    fetchFooterPageBySlug(SLUG),
+    getSiteWidgetSettingsPublic(),
+  ]);
   const useCms = page && page.publishStatus === "published";
 
   if (useCms && page) {
@@ -22,7 +26,7 @@ export default async function DealsAndDiscountsPage() {
             <span className="mx-2">»</span>
             <span className="text-gray-900">{page.title}</span>
           </nav>
-          <FooterPageContent page={page} />
+          <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
         </div>
       </>
     );

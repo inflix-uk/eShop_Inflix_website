@@ -13,16 +13,10 @@ import { useAuth } from "@/app/context/Auth";
 import { scheduleIdle } from "./lib/scheduleIdle";
 import type { HomeServerCmsBundle } from "./lib/homeServerCms";
 import { mergePublicStoreLogoIntoHomepageBlocks } from "./lib/mergePublicStoreLogoIntoHomepageBlocks";
+import type { Product } from "../../types";
+import type { Blog } from "../../types";
 
-const HomepageContent = dynamic(() => import("./components/HomepageContent"), {
-  loading: () => (
-    <div className="animate-pulse space-y-4 mt-8" aria-hidden>
-      <div className="h-8 bg-gray-200 rounded w-1/3" />
-      <div className="h-4 bg-gray-200 rounded w-full" />
-      <div className="h-4 bg-gray-200 rounded w-5/6" />
-    </div>
-  ),
-});
+import HomepageContent from "./components/HomepageContent";
 
 const NewsletterSuccessModal = dynamic(
   () => import("./components/common/NewsletterSuccessModal"),
@@ -78,6 +72,12 @@ export default function HomeClient({
   const [widgetVisibility, setWidgetVisibility] = useState<SiteWidgetVisibility>(
     () =>
       prefetched ? cmsPrefetch!.widgetVisibility : DEFAULT_SITE_WIDGET_VISIBILITY
+  );
+  const [prefetchedProductsMap] = useState<Record<string, Product[]>>(() =>
+    prefetched ? cmsPrefetch!.prefetchedProductsMap : {}
+  );
+  const [prefetchedBlogsMap] = useState<Record<string, Blog[]>>(() =>
+    prefetched ? cmsPrefetch!.prefetchedBlogsMap : {}
   );
 
   useEffect(() => {
@@ -284,6 +284,8 @@ export default function HomeClient({
           <HomepageContent
             blocks={homepageBlocks}
             widgetVisibility={widgetVisibility}
+            prefetchedProductsMap={prefetchedProductsMap}
+            prefetchedBlogsMap={prefetchedBlogsMap}
           />
         ) : cmsApiAvailable === false ? null : (
           <div className="rounded-lg border border-gray-200 bg-gray-50 px-6 py-10 text-center">

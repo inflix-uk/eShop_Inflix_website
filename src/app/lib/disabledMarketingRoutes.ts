@@ -10,7 +10,6 @@ const DISABLED = new Set([
   "recycle-mobile-phone",
   "sustainability",
   "18-months-warranty",
-  "faqs",
   "about-us",
   "deals-and-discounts",
 ]);

@@ -5,14 +5,19 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 
 const REFUND_SLUG = "refund-policy";
 
 export default async function RefundPolicyPage() {
   let page: FooterPage | null = null;
+  let widgetVisibility;
   try {
-    page = await fetchFooterPageBySlug(REFUND_SLUG);
+    [page, widgetVisibility] = await Promise.all([
+      fetchFooterPageBySlug(REFUND_SLUG),
+      getSiteWidgetSettingsPublic(),
+    ]);
   } catch {
     notFound();
   }
@@ -33,7 +38,7 @@ export default async function RefundPolicyPage() {
           </Link>
         </nav>
 
-        <FooterPageContent page={page} />
+        <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
       </div>
     </>
   );

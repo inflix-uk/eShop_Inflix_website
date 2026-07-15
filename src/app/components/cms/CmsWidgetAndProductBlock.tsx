@@ -25,6 +25,11 @@ import {
   type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
 import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
+import BlogHtmlCssWidget from "@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget";
+import type { Product } from "../../../../types";
+import type { Blog } from "../../../../types";
+export { prefetchProductsForSlider } from "@/app/lib/productNormalization";
+export { prefetchLatestBlogs } from "@/app/lib/blogPrefetch";
 
 function WidgetChunkFallback() {
   return (
@@ -37,7 +42,7 @@ function WidgetChunkFallback() {
 
 const ContentProductSlider = dynamic(
   () => import("@/app/components/ContentProductSlider"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const BlogSliderWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogSliderWidget"),
@@ -61,7 +66,7 @@ const BlogIconBoxWidget = dynamic(
 );
 const BlogTestimonialsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogTestimonialsWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const BlogTrustpilotEmbedWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogTrustpilotEmbedWidget"),
@@ -69,15 +74,15 @@ const BlogTrustpilotEmbedWidget = dynamic(
 );
 const BlogCategoryCardsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogCategoryCardsWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const BlogPromotionalSectionsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogPromotionalSectionsWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const BlogLatestBlogsWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/BlogLatestBlogsWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
+  { loading: WidgetChunkFallback, ssr: true }
 );
 const NewsletterSignupWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/NewsletterSignupWidget"),
@@ -86,10 +91,6 @@ const NewsletterSignupWidget = dynamic(
 const FaqWidget = dynamic(
   () => import("@/app/(routes)/blogs/new/[slug]/FaqWidget"),
   { loading: WidgetChunkFallback, ssr: true }
-);
-const BlogHtmlCssWidget = dynamic(
-  () => import("@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget"),
-  { loading: WidgetChunkFallback, ssr: false }
 );
 const ActiveDealsWidget = dynamic(
   () => import("@/app/components/deals/ActiveDealsWidget"),
@@ -117,6 +118,10 @@ export type CmsWidgetAndProductBlockProps = {
   widgetVisibility: SiteWidgetVisibility;
   /** For gallery, testimonials, promotional widgets; defaults to homepage image URL builder. */
   resolveImageUrl?: (path: string | null | undefined) => string;
+  /** Pre-fetched products for SSR (only for products blocks). */
+  initialProducts?: Product[];
+  /** Pre-fetched blogs for SSR (only for latestBlogs widgets). */
+  initialBlogs?: Blog[];
 };
 
 /**
@@ -127,11 +132,14 @@ export function CmsWidgetAndProductBlock({
   block,
   widgetVisibility,
   resolveImageUrl = getHomepageImageUrl,
+  initialProducts,
+  initialBlogs,
 }: CmsWidgetAndProductBlockProps) {
   if (block.type === "products") {
     return (
       <ContentProductSlider
         content={block.content as ProductSliderBlockContent}
+        initialProducts={initialProducts}
       />
     );
   }
@@ -292,6 +300,7 @@ export function CmsWidgetAndProductBlock({
         sectionHeading={lb.sectionHeading}
         maxPosts={lb.maxPosts}
         viewAllLabel={lb.viewAllLabel}
+        initialBlogs={initialBlogs}
       />
     );
   }

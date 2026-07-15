@@ -7,6 +7,7 @@ import {
   type FooterPage,
 } from "@/app/services/footerPageService";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 
@@ -27,9 +28,10 @@ export default async function FooterPage({ params }: FooterPageProps) {
   
   console.log(`[FooterPage] Rendering page with slug: "${decodedSlug}"`);
   
-  const [page, navbarVariantTestConfig] = await Promise.all([
+  const [page, navbarVariantTestConfig, widgetVisibility] = await Promise.all([
     fetchFooterPageBySlug(decodedSlug),
     getNavbarVariantTestPublicServer(),
+    getSiteWidgetSettingsPublic(),
   ]);
 
   if (!page) {
@@ -54,7 +56,7 @@ export default async function FooterPage({ params }: FooterPageProps) {
         </nav>
 
         {/* Page Content */}
-        <FooterPageContent page={page} />
+        <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
       </div>
 
       </>

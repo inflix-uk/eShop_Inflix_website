@@ -5,14 +5,19 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 
 const TERMS_SLUG = "terms-of-service";
 
 export default async function TermsOfServicePage() {
   let page: FooterPage | null = null;
+  let widgetVisibility;
   try {
-    page = await fetchFooterPageBySlug(TERMS_SLUG);
+    [page, widgetVisibility] = await Promise.all([
+      fetchFooterPageBySlug(TERMS_SLUG),
+      getSiteWidgetSettingsPublic(),
+    ]);
   } catch {
     notFound();
   }
@@ -33,7 +38,7 @@ export default async function TermsOfServicePage() {
           </Link>
         </nav>
 
-        <FooterPageContent page={page} />
+        <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
       </div>
     </>
   );
