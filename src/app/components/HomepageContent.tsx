@@ -10,6 +10,8 @@ import {
 import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { CmsWidgetAndProductBlock } from "@/app/components/cms/CmsWidgetAndProductBlock";
+import type { Product } from "../../../types";
+import type { Blog } from "../../../types";
 
 /**
  * Renders a text block with HTML content
@@ -86,9 +88,13 @@ function ImageBlock({
 function BlockRenderer({
   block,
   widgetVisibility,
+  initialProducts,
+  initialBlogs,
 }: {
   block: ContentBlock;
   widgetVisibility: SiteWidgetVisibility;
+  initialProducts?: Product[];
+  initialBlogs?: Blog[];
 }) {
   if (block.type === "text") {
     return (
@@ -107,6 +113,8 @@ function BlockRenderer({
       <CmsWidgetAndProductBlock
         block={block}
         widgetVisibility={widgetVisibility}
+        initialProducts={initialProducts}
+        initialBlogs={initialBlogs}
       />
     );
   }
@@ -120,9 +128,17 @@ function BlockRenderer({
 function ColumnRenderer({
   column,
   widgetVisibility,
+  rowIndex,
+  colIndex,
+  prefetchedProductsMap,
+  prefetchedBlogsMap,
 }: {
   column: { width: number; blocks?: ContentBlock[] };
   widgetVisibility: SiteWidgetVisibility;
+  rowIndex: number;
+  colIndex: number;
+  prefetchedProductsMap?: Record<string, Product[]>;
+  prefetchedBlogsMap?: Record<string, Blog[]>;
 }) {
   const columnBlocks = column.blocks ?? [];
   return (
@@ -131,13 +147,20 @@ function ColumnRenderer({
       style={{ ["--homepage-col-max" as string]: `${column.width}%` }}
     >
       <div className="space-y-4">
-        {columnBlocks.map((block, blockIndex) => (
-          <BlockRenderer
-            key={blockIndex}
-            block={block}
-            widgetVisibility={widgetVisibility}
-          />
-        ))}
+        {columnBlocks.map((block, blockIndex) => {
+          const key = `${rowIndex}-${colIndex}-${blockIndex}`;
+          const initialProducts = prefetchedProductsMap?.[key];
+          const initialBlogs = prefetchedBlogsMap?.[key];
+          return (
+            <BlockRenderer
+              key={blockIndex}
+              block={block}
+              widgetVisibility={widgetVisibility}
+              initialProducts={initialProducts}
+              initialBlogs={initialBlogs}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -149,9 +172,15 @@ function ColumnRenderer({
 function RowRenderer({
   row,
   widgetVisibility,
+  rowIndex,
+  prefetchedProductsMap,
+  prefetchedBlogsMap,
 }: {
   row: HomepageBlock;
   widgetVisibility: SiteWidgetVisibility;
+  rowIndex: number;
+  prefetchedProductsMap?: Record<string, Product[]>;
+  prefetchedBlogsMap?: Record<string, Blog[]>;
 }) {
   const rowColumns = row.columns ?? [];
   return (
@@ -161,6 +190,10 @@ function RowRenderer({
           key={colIndex}
           column={column}
           widgetVisibility={widgetVisibility}
+          rowIndex={rowIndex}
+          colIndex={colIndex}
+          prefetchedProductsMap={prefetchedProductsMap}
+          prefetchedBlogsMap={prefetchedBlogsMap}
         />
       ))}
     </div>
@@ -174,9 +207,13 @@ function RowRenderer({
 export default function HomepageContent({
   blocks,
   widgetVisibility = DEFAULT_SITE_WIDGET_VISIBILITY,
+  prefetchedProductsMap,
+  prefetchedBlogsMap,
 }: {
   blocks: HomepageBlock[];
   widgetVisibility?: SiteWidgetVisibility;
+  prefetchedProductsMap?: Record<string, Product[]>;
+  prefetchedBlogsMap?: Record<string, Blog[]>;
 }) {
   if (!blocks || blocks.length === 0) {
     return null;
@@ -189,6 +226,9 @@ export default function HomepageContent({
           key={row.id ?? `homepage-row-${rowIndex}`}
           row={row}
           widgetVisibility={widgetVisibility}
+          rowIndex={rowIndex}
+          prefetchedProductsMap={prefetchedProductsMap}
+          prefetchedBlogsMap={prefetchedBlogsMap}
         />
       ))}
     </>

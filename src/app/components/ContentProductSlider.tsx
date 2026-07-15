@@ -4,95 +4,27 @@ import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import SwiperComponent from "@/app/components/SwiperComponent";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import type { Product } from "../../../types";
-import {
-  getHomepageImageUrl,
-  type ProductSliderBlockContent,
-} from "@/app/services/homepageDataService";
+import { type ProductSliderBlockContent } from "@/app/services/homepageDataService";
 import {
   bleedStyle,
   useBlogContentFullBleed,
 } from "@/app/(routes)/blogs/new/[slug]/useBlogContentFullBleed";
 import { useAuth } from "@/app/context/Auth";
 import { useDeferUntilVisible } from "@/app/lib/useDeferUntilVisible";
+import {
+  normalizeProductThumb,
+  mapHomepageAggregateToProduct,
+  LATEST_SLIDER_COUNT,
+} from "@/app/lib/productNormalization";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
-const LATEST_SLIDER_COUNT = 6;
-
-function normalizeProductThumb(p: Product): Product {
-  const thumb = p.thumbnail_image;
-  if (!thumb) return p;
-  const raw = (thumb as { url?: string; path?: string }).url || (thumb as { path?: string }).path;
-  if (!raw) return p;
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return p;
-  return {
-    ...p,
-    thumbnail_image: {
-      ...thumb,
-      url: getHomepageImageUrl(raw),
-    },
-  };
-}
-
-function thumbnailPathFromAggregate(thumb: unknown): string {
-  if (!thumb) return "";
-  if (typeof thumb === "string") return thumb;
-  if (typeof thumb === "object" && thumb !== null) {
-    const o = thumb as Record<string, string>;
-    return o.url || o.path || "";
-  }
-  return "";
-}
-
-/** Map `/get/latest/products/homepage` aggregate docs to `Product` for cards. */
-function mapHomepageAggregateToProduct(p: Record<string, unknown>): Product {
-  const id = String(p._id ?? "");
-  const minP = Number(p.minPrice);
-  const minS = Number(p.minSalePrice);
-  const resolvedPrice = Number(p.price);
-  const resolvedOriginalPrice = Number(p.originalPrice);
-  const resolvedGroupPrice = Number(p.groupPrice);
-  const safeMin = Number.isFinite(minP) && minP > 0 ? minP : 1;
-  const safeSale = Number.isFinite(minS) && minS >= 0 ? minS : safeMin;
-  const totalStock = Number(p.totalStock);
-  const hasStock = Number.isFinite(totalStock) ? totalStock > 0 : true;
-  const path = thumbnailPathFromAggregate(p.thumbnail_image);
-
-  return {
-    _id: id,
-    name: String(p.name ?? ""),
-    category: String(p.category ?? ""),
-    subCategory: String(p.subCategory ?? ""),
-    brand: p.brand != null ? String(p.brand) : undefined,
-    condition: String(p.condition ?? "Refurbished"),
-    is_featured: Boolean(p.is_featured),
-    thumbnail_image: {
-      filename: "",
-      path,
-      url: path && path.startsWith("http") ? path : undefined,
-    },
-    createdAt: String(p.createdAt ?? ""),
-    updatedAt: String(p.updatedAt ?? ""),
-    producturl: String(p.producturl ?? ""),
-    minPrice: safeMin,
-    minSalePrice: safeSale,
-    price: Number.isFinite(resolvedPrice) ? resolvedPrice : undefined,
-    originalPrice: Number.isFinite(resolvedOriginalPrice)
-      ? resolvedOriginalPrice
-      : undefined,
-    groupPrice: Number.isFinite(resolvedGroupPrice) ? resolvedGroupPrice : null,
-    averageRating:
-      typeof p.averageRating === "number" && Number.isFinite(p.averageRating)
-        ? p.averageRating
-        : null,
-    hasStock,
-  };
-}
-
 export default function ContentProductSlider({
   content,
+  initialProducts = [],
 }: {
   content: ProductSliderBlockContent;
+  initialProducts?: Product[];
 }) {
   const auth = useAuth();
   const isLatest = content.productSource === "latest";
@@ -103,8 +35,10 @@ export default function ContentProductSlider({
   const title =
     (content.sectionTitle && String(content.sectionTitle).trim()) || "Products";
 
-  const [items, setItems] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(() => isLatest || ids.length > 0);
+  const [items, setItems] = useState<Product[]>(initialProducts);
+  const [loading, setLoading] = useState(() => 
+    initialProducts.length === 0 && (isLatest || ids.length > 0)
+  );
 
   const rootRef = useRef<HTMLDivElement>(null);
   const shouldFetch = useDeferUntilVisible(rootRef, { rootMargin: "320px 0px" });
@@ -187,10 +121,14 @@ export default function ContentProductSlider({
     }
   }, [isLatest, ids.join(","), auth?.user?.pricingGroup, auth?.user?._id]);
 
+  const hasUserPricing = Boolean(auth?.user?.pricingGroup);
+  const needsRefetch = initialProducts.length === 0 || hasUserPricing;
+
   useEffect(() => {
     if (!shouldFetch) return;
+    if (!needsRefetch) return;
     fetchProducts();
-  }, [fetchProducts, shouldFetch]);
+  }, [fetchProducts, shouldFetch, needsRefetch]);
 
   if (!isLatest && ids.length === 0) {
     return null;

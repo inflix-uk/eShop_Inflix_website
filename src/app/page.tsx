@@ -1,4 +1,4 @@
-import { Suspense, cache } from "react";
+import { cache } from "react";
 import HeroSlider2 from "./components/HeroSlider2";
 import NavbarVariantTestBar from "./components/navbar/NavbarVariantTestBar";
 import HomePageBelowHero from "./components/home/HomePageBelowHero";
@@ -192,21 +192,7 @@ export default async function Home() {
       ) : null}
       {/* Top hero: Admin → Banners only (`/get/banners/active`). Homepage Banners widgets are separate. */}
       <HeroSlider2 serverBanners={heroBanners} heroSocial={heroSocial} />
-      <Suspense
-        fallback={
-          <section
-            className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 min-h-[120px] animate-pulse"
-            aria-busy="true"
-            aria-label="Loading homepage content"
-          >
-            <div className="h-8 bg-gray-200 rounded w-1/3 max-w-md mb-4" />
-            <div className="h-4 bg-gray-200 rounded w-full mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-5/6" />
-          </section>
-        }
-      >
-        <HomePageBelowHero backendAvailable={backendAvailable} />
-      </Suspense>
+      <HomePageBelowHero backendAvailable={backendAvailable} />
     </>
   );
 }

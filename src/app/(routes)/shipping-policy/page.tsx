@@ -5,14 +5,19 @@ import {
   fetchFooterPageBySlug,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 
 const SHIPPING_SLUG = "shipping-policy";
 
 export default async function ShippingPolicyPage() {
   let page: FooterPage | null = null;
+  let widgetVisibility;
   try {
-    page = await fetchFooterPageBySlug(SHIPPING_SLUG);
+    [page, widgetVisibility] = await Promise.all([
+      fetchFooterPageBySlug(SHIPPING_SLUG),
+      getSiteWidgetSettingsPublic(),
+    ]);
   } catch {
     notFound();
   }
@@ -33,7 +38,7 @@ export default async function ShippingPolicyPage() {
           </Link>
         </nav>
 
-        <FooterPageContent page={page} />
+        <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
       </div>
     </>
   );

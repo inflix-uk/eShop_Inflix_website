@@ -51,18 +51,21 @@ export default function BlogHtmlCssWidget({
       className="cms-html-css-widget w-full"
       data-widget="html-css"
       data-cms-html-css={scopeToken}
+      suppressHydrationWarning
     >
       {hasCss ? (
         <style
           dangerouslySetInnerHTML={{
             __html: scopedCss,
           }}
+          suppressHydrationWarning
         />
       ) : null}
       {hasHtml ? (
         <div
           className="prose prose-sm sm:prose-base max-w-none blog-content cms-html-css-widget-inner"
           dangerouslySetInnerHTML={{ __html: cleanHtml }}
+          suppressHydrationWarning
         />
       ) : null}
     </div>

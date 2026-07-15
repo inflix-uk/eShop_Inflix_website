@@ -4,6 +4,7 @@ import {
   getHomepageNewsletterWidgetPublic,
   type HomepageBlock,
   type HomepageNewsletterSingleton,
+  type ProductSliderBlockContent,
 } from "@/app/services/homepageDataService";
 import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import {
@@ -34,6 +35,10 @@ import {
 import { getLogo } from "@/app/services/logoService";
 import { mergePublicStoreLogoIntoHomepageBlocks } from "@/app/lib/mergePublicStoreLogoIntoHomepageBlocks";
 import type { PublicStoreLogoPayload } from "@/app/lib/mergePublicStoreLogoIntoHomepageBlocks";
+import { prefetchProductsForSlider } from "@/app/lib/productNormalization";
+import { prefetchLatestBlogs } from "@/app/lib/blogPrefetch";
+import type { Product } from "../../../types";
+import type { Blog } from "../../../types";
 
 export type HomeServerCmsBundle = {
   homepageBlocks: HomepageBlock[];
@@ -47,6 +52,10 @@ export type HomeServerCmsBundle = {
   buyNowPayLater: BuyNowPayLater | null;
   sellBuyCards: SellBuyCards | null;
   tinyPhoneBanner: TinyPhoneBanner | null;
+  /** SSR-prefetched products keyed by block index path (e.g., "0-0-0" for row 0, col 0, block 0). */
+  prefetchedProductsMap: Record<string, Product[]>;
+  /** SSR-prefetched blogs keyed by block index path. */
+  prefetchedBlogsMap: Record<string, Blog[]>;
 };
 
 const FALLBACK_CATEGORY_CARDS: CategoryCardsSectionSettings = {
@@ -69,7 +78,101 @@ export function createFallbackHomeServerCmsBundle(): HomeServerCmsBundle {
     buyNowPayLater: null,
     sellBuyCards: null,
     tinyPhoneBanner: null,
+    prefetchedProductsMap: {},
+    prefetchedBlogsMap: {},
   };
+}
+
+/** Extract products blocks from homepage blocks and prefetch their data. */
+async function prefetchAllProductsForBlocks(
+  blocks: HomepageBlock[]
+): Promise<Record<string, Product[]>> {
+  const productsFetches: Array<{ key: string; promise: Promise<Product[]> }> = [];
+
+  blocks.forEach((row, rowIndex) => {
+    (row.columns || []).forEach((column, colIndex) => {
+      (column.blocks || []).forEach((block, blockIndex) => {
+        if (block.type === "products") {
+          const content = block.content as ProductSliderBlockContent;
+          const key = `${rowIndex}-${colIndex}-${blockIndex}`;
+          productsFetches.push({
+            key,
+            promise: prefetchProductsForSlider(
+              content.productSource,
+              content.productIds
+            ),
+          });
+        }
+      });
+    });
+  });
+
+  if (productsFetches.length === 0) {
+    return {};
+  }
+
+  const results = await Promise.allSettled(
+    productsFetches.map((f) => f.promise)
+  );
+
+  const map: Record<string, Product[]> = {};
+  results.forEach((result, index) => {
+    const key = productsFetches[index].key;
+    if (result.status === "fulfilled") {
+      map[key] = result.value;
+    } else {
+      console.error(`[HomeServerCms] Products prefetch failed for ${key}:`, result.reason);
+      map[key] = [];
+    }
+  });
+
+  return map;
+}
+
+/** Extract latestBlogs widgets from homepage blocks and prefetch their data. */
+async function prefetchAllBlogsForBlocks(
+  blocks: HomepageBlock[]
+): Promise<Record<string, Blog[]>> {
+  const blogsFetches: Array<{ key: string; promise: Promise<Blog[]> }> = [];
+
+  blocks.forEach((row, rowIndex) => {
+    (row.columns || []).forEach((column, colIndex) => {
+      (column.blocks || []).forEach((block, blockIndex) => {
+        if (block.type === "widget") {
+          const content = block.content as { widgetType?: string; maxPosts?: number };
+          if (content?.widgetType === "latestBlogs") {
+            const key = `${rowIndex}-${colIndex}-${blockIndex}`;
+            const maxPosts = typeof content.maxPosts === "number" ? content.maxPosts : 6;
+            blogsFetches.push({
+              key,
+              promise: prefetchLatestBlogs(maxPosts),
+            });
+          }
+        }
+      });
+    });
+  });
+
+  if (blogsFetches.length === 0) {
+    return {};
+  }
+
+  const results = await Promise.allSettled(
+    blogsFetches.map((f) => f.promise)
+  );
+
+  const map: Record<string, Blog[]> = {};
+  results.forEach((result, index) => {
+    const key = blogsFetches[index].key;
+    if (result.status === "fulfilled") {
+      map[key] = result.value;
+    } else {
+      console.error(`[HomeServerCms] Blogs prefetch failed for ${key}:`, result.reason);
+      map[key] = [];
+    }
+  });
+
+  return map;
 }
 
 /** One parallel CMS fetch for the homepage (ISR via per-service revalidate). */
@@ -146,6 +249,12 @@ export const getHomeServerCmsBundle = cache(
       publicStoreLogo
     );
 
+    // Prefetch products and blogs for SSR (parallel)
+    const [prefetchedProductsMap, prefetchedBlogsMap] = await Promise.all([
+      prefetchAllProductsForBlocks(homepageBlocks),
+      prefetchAllBlogsForBlocks(homepageBlocks),
+    ]);
+
     return {
       homepageBlocks,
       publicStoreLogo,
@@ -157,6 +266,8 @@ export const getHomeServerCmsBundle = cache(
       buyNowPayLater,
       sellBuyCards,
       tinyPhoneBanner,
+      prefetchedProductsMap,
+      prefetchedBlogsMap,
     };
   }
 );

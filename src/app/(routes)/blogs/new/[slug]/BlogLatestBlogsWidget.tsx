@@ -11,6 +11,8 @@ export type BlogLatestBlogsWidgetProps = {
   sectionHeading?: string;
   maxPosts?: number;
   viewAllLabel?: string;
+  /** SSR-prefetched blogs. */
+  initialBlogs?: Blog[];
 };
 
 function clampMaxPosts(n: unknown): number {
@@ -34,12 +36,15 @@ export default function BlogLatestBlogsWidget({
   sectionHeading = "Latest blogs",
   maxPosts = 6,
   viewAllLabel = "View all blogs",
+  initialBlogs = [],
 }: BlogLatestBlogsWidgetProps) {
   const limit = useMemo(() => clampMaxPosts(maxPosts), [maxPosts]);
   const sectionRef = useRef<HTMLDivElement>(null);
-  const shouldLoad = useDeferUntilVisible(sectionRef, { rootMargin: "280px 0px" });
-  const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(false);
+  const visibleCheck = useDeferUntilVisible(sectionRef, { rootMargin: "280px 0px" });
+  // If we have SSR blogs, bypass visibility check
+  const shouldLoad = initialBlogs.length > 0 || visibleCheck;
+  const [blogs, setBlogs] = useState<Blog[]>(initialBlogs);
+  const [loading, setLoading] = useState(initialBlogs.length === 0);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const emblaOptions = useMemo<EmblaOptionsType>(
@@ -60,6 +65,11 @@ export default function BlogLatestBlogsWidget({
 
   useEffect(() => {
     if (!shouldLoad) return;
+    // Skip fetch if we have initialBlogs from SSR
+    if (initialBlogs.length > 0) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -81,7 +91,7 @@ export default function BlogLatestBlogsWidget({
     return () => {
       cancelled = true;
     };
-  }, [limit, shouldLoad]);
+  }, [limit, shouldLoad, initialBlogs.length]);
 
   useEffect(() => {
     if (!emblaApi) return;

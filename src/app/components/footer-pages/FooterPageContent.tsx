@@ -356,9 +356,15 @@ function stripDuplicateTitleFromFirstTextBlock(
  * Footer Page Content Component
  * Renders the content of a footer page (banner + blocks; no separate top h1)
  */
-export default function FooterPageContent({ page }: { page: FooterPage }) {
+export default function FooterPageContent({
+  page,
+  initialWidgetVisibility,
+}: {
+  page: FooterPage;
+  initialWidgetVisibility?: SiteWidgetVisibility;
+}) {
   const [widgetVisibility, setWidgetVisibility] = useState<SiteWidgetVisibility>(
-    DEFAULT_SITE_WIDGET_VISIBILITY
+    initialWidgetVisibility ?? DEFAULT_SITE_WIDGET_VISIBILITY
   );
 
   const blocksForRender = useMemo(
@@ -372,8 +378,10 @@ export default function FooterPageContent({ page }: { page: FooterPage }) {
   );
 
   useEffect(() => {
-    getSiteWidgetSettingsPublic().then(setWidgetVisibility);
-  }, []);
+    if (!initialWidgetVisibility) {
+      getSiteWidgetSettingsPublic().then(setWidgetVisibility);
+    }
+  }, [initialWidgetVisibility]);
 
   return (
     <>
