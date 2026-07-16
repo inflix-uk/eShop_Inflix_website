@@ -41,14 +41,26 @@ function columnHasHtmlCssContactPair(column: { blocks?: any[] }): boolean {
   return false;
 }
 
+const TEXT_BLOCK_CLASS =
+  "prose prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-gray-900";
+
 /**
- * Renders a text block with HTML content
+ * CMS/TinyMCE HTML often contains stray `</div>` / invalid nesting. If that HTML is
+ * SSR'd into the document, the browser closes parent wrappers early and Next's
+ * streamed Suspense/HMR scripts appear in the wrong place → hydration mismatch.
+ * Inject HTML only after mount so SSR stays a stable empty shell.
  */
 function TextBlock({ content }: { content: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHtml(typeof content === "string" ? content : "");
+  }, [content]);
+
   return (
     <div
-      className="prose prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-gray-900"
-      dangerouslySetInnerHTML={{ __html: content }}
+      className={TEXT_BLOCK_CLASS}
+      {...(html != null ? { dangerouslySetInnerHTML: { __html: html } } : {})}
     />
   );
 }
@@ -266,7 +278,7 @@ function extraTitleAliases(slug: string): string[] {
       "Returns and Refunds",
     ];
   }
-  if (s === "terms-of-service") {
+  if (s === "terms-and-conditions" || s === "terms-of-service") {
     return [
       "Terms of Service",
       "Terms Of Service",

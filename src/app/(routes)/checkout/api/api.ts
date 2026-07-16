@@ -25,7 +25,8 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  status: number;
+  success?: boolean;
+  status?: number;
   user: User;
   message?: string;
 }
@@ -58,6 +59,19 @@ export interface GetCouponsResponse {
   status: number;
   coupon: Coupon[];
   message?: string;
+}
+
+export interface ValidateCouponRequest {
+  code: string;
+  cartTotal?: number;
+  userId?: string;
+}
+
+export interface ValidateCouponResponse {
+  success: boolean;
+  status: number;
+  message?: string;
+  coupon?: Coupon;
 }
 
 // Order Types
@@ -242,6 +256,11 @@ export class CheckoutApi {
 
   async getAllCoupons(): Promise<GetCouponsResponse> {
     const response = await axios.get(`${this.baseUrl}/get/all/coupons`);
+    return response.data;
+  }
+
+  async validateCoupon(data: ValidateCouponRequest): Promise<ValidateCouponResponse> {
+    const response = await axios.post(`${this.baseUrl}/validate/coupon`, data);
     return response.data;
   }
 

@@ -97,11 +97,9 @@ export default function NavServer({ categories }: NavServerProps) {
         {/* <li>
           <Link href="/faqs">FAQs</Link>
         </li> */}
-        {/* Route disabled: /terms-and-conditions (see `disabledRootSlugs.ts`)
         <li>
           <Link href="/terms-and-conditions">Terms</Link>
         </li>
-        */}
         <li>
           <Link href="/privacy-policy">Privacy</Link>
         </li>

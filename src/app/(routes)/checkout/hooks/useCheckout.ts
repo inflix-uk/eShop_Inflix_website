@@ -457,19 +457,6 @@ export const useCheckout = () => {
     };
   }, [products.length, clientSecret, isPaymentReady]);
 
-  // Load coupons
-  useEffect(() => {
-    const loadCoupons = async () => {
-      setProgress(50);
-      const couponsData = await couponService.getAllCoupons();
-      if (couponsData) {
-        setCoupons(couponsData);
-      }
-      setProgress(100);
-    };
-    loadCoupons();
-  }, [couponService]);
-
   // Load cart and validate stored coupon
   useEffect(() => {
     const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
@@ -572,7 +559,7 @@ export const useCheckout = () => {
       setErrors(ValidationService.getCleanErrors());
 
       const response = await authService.login(email, password);
-      if (response && response.status === 201) {
+      if (response && response.user?._id) {
         dispatch(setUser({
           email: response.user.email,
           userId: response.user._id,
@@ -665,36 +652,37 @@ export const useCheckout = () => {
   const handleCouponInputChange = (code: string) => {
     setEnteredCoupon(code);
     setCouponError('');
-
-    const isValid = couponService.validateCouponCode(code, coupons);
-    setIsCouponValid(isValid);
-
-    if (code && !isValid) {
-      setCouponError('Invalid coupon code');
-    }
+    setIsCouponValid(code.trim().length > 0);
   };
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     setCouponError('');
 
-    if (isCouponValid) {
-      const cartTotal = couponService.getCartTotal();
-      const validation = couponService.validateCouponApplication(
-        enteredCoupon,
-        coupons,
-        cartTotal,
-        auth?.user?._id
-      );
+    const code = enteredCoupon.trim();
+    if (!code) {
+      setCouponError('Enter a coupon code');
+      setIsCouponValid(false);
+      return;
+    }
 
-      if (!validation.isValid) {
-        setCouponError(validation.error);
-        return;
-      }
+    const cartTotal = couponService.getCartTotal();
+    const validation = await couponService.validateCouponWithServer(
+      code,
+      cartTotal,
+      auth?.user?._id
+    );
 
-      if (validation.coupon) {
-        setAppliedCoupon(validation.coupon);
-        couponService.storeAppliedCoupon(validation.coupon);
-      }
+    if (!validation.isValid) {
+      setIsCouponValid(false);
+      setCouponError(validation.error);
+      return;
+    }
+
+    if (validation.coupon) {
+      setIsCouponValid(true);
+      setAppliedCoupon(validation.coupon);
+      setCoupons([validation.coupon]);
+      couponService.storeAppliedCoupon(validation.coupon);
     }
   };
 
@@ -1076,7 +1064,7 @@ export const useCheckout = () => {
         }
 
         try {
-          // Register the user
+          // Register the user (or log in if the account already exists)
           const registerResponse = await authService.register(email, password, confirmPassword, shippingInformation);
 
           if (registerResponse && registerResponse.status === 201 && registerResponse.user) {
@@ -1100,15 +1088,47 @@ export const useCheckout = () => {
               userId: registerResponse.user._id,
             }));
 
-          } else if (registerResponse && registerResponse.message) {
-            // Registration failed with specific error
-            setProgress(100);
-            setIsProcessingPayment(false);
-            return { success: false, error: registerResponse.message };
           } else {
-            setProgress(100);
-            setIsProcessingPayment(false);
-            return { success: false, error: 'Registration failed. Please try again.' };
+            // Email/phone already registered → try login with the same credentials
+            console.log('👤 Registration rejected. Trying login with provided credentials...');
+            const loginResponse = await authService.login(email, password);
+            const loggedInUser =
+              loginResponse && typeof loginResponse === 'object' && loginResponse.user?._id
+                ? loginResponse.user
+                : null;
+
+            if (loggedInUser) {
+              console.log('✅ Existing user logged in:', loggedInUser.email);
+
+              orderService.storeUserForOrder({
+                email: loggedInUser.email,
+                _id: loggedInUser._id,
+              });
+
+              validContactInfo = {
+                email: loggedInUser.email,
+                userId: loggedInUser._id,
+              };
+
+              dispatch(setUser({
+                email: loggedInUser.email,
+                userId: loggedInUser._id,
+              }));
+
+              auth.login(loggedInUser);
+            } else {
+              const errorMessage =
+                (loginResponse && 'message' in loginResponse && loginResponse.message) ||
+                (registerResponse && registerResponse.message) ||
+                'Unable to complete registration. Please log in with your existing account, or use a different email.';
+              setProgress(100);
+              setIsProcessingPayment(false);
+              setErrors((prev) => ({
+                ...prev,
+                email: errorMessage,
+              }));
+              return { success: false, error: errorMessage };
+            }
           }
         } catch (regError: any) {
           console.error('Registration error:', regError);
@@ -1223,7 +1243,7 @@ export const useCheckout = () => {
       setIsProcessingPayment(false);
       return { success: false, error: error.message || 'Validation failed. Please try again.' };
     }
-  }, [isChecked, shippingInformation, contactInfo, userState, appliedCoupon, orderService, email, password, confirmPassword, authService, dispatch, selectedShippingMethod, shippingCost]);
+  }, [isChecked, shippingInformation, contactInfo, userState, appliedCoupon, orderService, email, password, confirmPassword, authService, auth, dispatch, selectedShippingMethod, shippingCost]);
 
   // Create order + patch PaymentIntent metadata BEFORE stripe.confirmPayment
   // for wallet payments. Without this, Stripe's payment_intent.succeeded event

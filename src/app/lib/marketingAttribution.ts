@@ -1,27 +1,33 @@
 /**
- * Storefront marketing attribution capture (Phase 1C).
- * Sends raw touch/click/consent data to POST /create/order — backend normalizes.
+ * Guide §6.2–§6.6 — storefront attribution (Zextons matrix).
  *
- * Consent (ConsentCookie.tsx via js-cookie) — see cookieConsent.ts.
- *
- * BEFORE explicit consent (banner unset / no opt-in):
- * - No localStorage attribution, visitorId, or sessionStorage session
- * - No click IDs in order payload
- * - Order payload may include `consent` + ephemeral UTM-only `orderTouch` (no referrer/landing URL)
+ * Always (no consent): URL UTMs + URL click IDs; campaign click POST.
+ * Marketing: _fbc / _fbp cookies.
+ * Analytics: visitorId persist, session POST, gaClientId.
+ * Order: keep URL click IDs without marketing; strip only fbc/fbp.
  */
 import {
+  getConsentPreferences,
+  getConversionConsent,
+  hasAnalyticsConsent,
+  hasMarketingConsent,
   readMarketingConsent,
   type MarketingConsentState,
 } from '@/app/lib/cookieConsent';
 
 export type { MarketingConsentState };
-export { readMarketingConsent };
+export { readMarketingConsent, getConversionConsent };
 
-const STORAGE_KEY = 'marketingAttribution_v1';
-const VISITOR_ID_KEY = 'marketingVisitorId';
-const SESSION_STORAGE_KEY = 'marketingSession_v1';
+const CAMPAIGN_CLICK_DEDUPE_PREFIX = 'campaign_click_sent_';
 
-/** Align with typical attribution lookback; stored record expires after this. */
+const STORAGE_KEY = 'inflix_attribution';
+const STORAGE_KEY_LEGACY = 'marketingAttribution_v1';
+const VISITOR_ID_KEY = 'inflix_visitor_id';
+const VISITOR_ID_KEY_LEGACY = 'marketingVisitorId';
+const VISITOR_EPHEMERAL_KEY = 'inflix_visitor_id_ephemeral';
+const SESSION_STORAGE_KEY = 'inflix_session_v1';
+const SESSION_STORAGE_KEY_LEGACY = 'marketingSession_v1';
+
 const ATTRIBUTION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 const MAX = {
@@ -39,17 +45,26 @@ const UTM_KEYS = [
   'utm_campaign',
   'utm_term',
   'utm_content',
+  'utm_id',
 ] as const;
 
-/** Matches backend ALLOWED_CLICK_IDS in marketingAttribution.js — LinkedIn li_fat_id not supported. */
-const CLICK_ID_KEYS = [
+/** URL click IDs — always capture (guide §6.4 / §7.5). */
+const URL_CLICK_ID_KEYS = [
   'gclid',
   'gbraid',
   'wbraid',
   'fbclid',
   'msclkid',
   'ttclid',
+  'oppref',
 ] as const;
+
+/** Cookie-based Meta IDs — marketing consent only. */
+const COOKIE_CLICK_ID_KEYS = ['fbc', 'fbp'] as const;
+
+type UrlClickIdKey = (typeof URL_CLICK_ID_KEYS)[number];
+type CookieClickIdKey = (typeof COOKIE_CLICK_ID_KEYS)[number];
+type ClickIdKey = UrlClickIdKey | CookieClickIdKey;
 
 export interface MarketingTouch {
   source?: string;
@@ -67,9 +82,10 @@ export interface MarketingAttributionPayload {
   firstTouch?: MarketingTouch;
   lastTouch?: MarketingTouch;
   orderTouch?: MarketingTouch;
-  clickIds?: Partial<Record<(typeof CLICK_ID_KEYS)[number], string>>;
+  clickIds?: Partial<Record<ClickIdKey, string>>;
   sessionId?: string;
   visitorId?: string;
+  gaClientId?: string | null;
   consent?: MarketingConsentState;
 }
 
@@ -78,7 +94,8 @@ interface StoredAttribution {
   firstTouch?: MarketingTouch;
   lastTouch?: MarketingTouch;
   landingPage?: string;
-  clickIds?: Partial<Record<(typeof CLICK_ID_KEYS)[number], string>>;
+  clickIds?: Partial<Record<ClickIdKey, string>>;
+  gaClientId?: string;
   updatedAt: string;
 }
 
@@ -95,88 +112,6 @@ function isBrowser(): boolean {
 function devLog(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
     console.debug('[marketingAttribution]', ...args);
-  }
-}
-
-function traceEnabled(): boolean {
-  return (
-    process.env.NODE_ENV === 'development' ||
-    process.env.NEXT_PUBLIC_MARKETING_ATTRIBUTION_DEBUG === 'true'
-  );
-}
-
-/** Dev/staging trace — filter browser console with `orderAttribution`. */
-export function logOrderAttributionTrace(
-  stage: 'capture' | 'capture-skipped' | 'checkout',
-  payload?: MarketingAttributionPayload,
-  detail?: string
-): void {
-  if (!traceEnabled() || !isBrowser()) return;
-
-  if (stage === 'capture-skipped') {
-    console.log(`[orderAttribution] capture skipped — ${detail ?? 'unknown reason'}`);
-    return;
-  }
-
-  const p = payload ?? getMarketingAttributionForOrder();
-  if (!p) {
-    console.log(`[orderAttribution] ${stage} — no marketingAttribution payload`);
-    return;
-  }
-
-  const gclid = p.clickIds?.gclid ?? null;
-  const source = p.orderTouch?.source ?? p.lastTouch?.source ?? p.firstTouch?.source ?? null;
-  const medium = p.orderTouch?.medium ?? p.lastTouch?.medium ?? p.firstTouch?.medium ?? null;
-
-  let urlGclid: string | null = null;
-  let storedGclid: string | null = null;
-  try {
-    urlGclid = new URLSearchParams(window.location.search).get('gclid');
-    const storedRaw = localStorage.getItem(STORAGE_KEY);
-    if (storedRaw) {
-      const parsed = JSON.parse(storedRaw) as StoredAttribution;
-      storedGclid = parsed?.clickIds?.gclid ?? null;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  console.log(
-    `[orderAttribution] ${stage} OK — gclid: ${gclid ?? 'none'} | source: ${source ?? 'none'} | medium: ${medium ?? 'none'} | marketing consent: ${p.consent?.marketing ?? false}`
-  );
-  console.log('[orderAttribution] URL gclid:', urlGclid || 'not in URL');
-  console.log('[orderAttribution] stored gclid:', storedGclid || 'none');
-  if (!gclid && !urlGclid && (medium === 'cpc' || source === 'google')) {
-    console.log(
-      '[orderAttribution] hint: UTM-only visit — add &gclid=TEST-GCLID-123 to URL to test Google Ads click ID capture'
-    );
-  }
-  if (stage === 'capture') {
-    console.log(
-      '[orderAttribution] note: backend logs appear on checkout (POST /create/order) — homepage capture is browser-only'
-    );
-  }
-  console.log('[orderAttribution] consent:', p.consent);
-  console.log('[orderAttribution] Google Ads clickIds:', {
-    gclid: p.clickIds?.gclid ?? null,
-    gbraid: p.clickIds?.gbraid ?? null,
-    wbraid: p.clickIds?.wbraid ?? null,
-  });
-  console.log('[orderAttribution] touch summary:', {
-    firstTouch: p.firstTouch
-      ? { source: p.firstTouch.source, medium: p.firstTouch.medium, campaign: p.firstTouch.campaign }
-      : null,
-    lastTouch: p.lastTouch
-      ? { source: p.lastTouch.source, medium: p.lastTouch.medium, campaign: p.lastTouch.campaign }
-      : null,
-    orderTouch: p.orderTouch
-      ? { source: p.orderTouch.source, medium: p.orderTouch.medium, campaign: p.orderTouch.campaign }
-      : null,
-  });
-  console.log('[orderAttribution] visitorId:', p.visitorId ?? null);
-  console.log('[orderAttribution] sessionId:', p.sessionId ?? null);
-  if (stage === 'checkout') {
-    console.log('[orderAttribution] full checkout payload:', p);
   }
 }
 
@@ -203,16 +138,25 @@ function generateId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
+function readCookie(name: string): string | undefined {
+  if (!isBrowser()) return undefined;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
 function loadStored(): StoredAttribution | null {
   if (!isBrowser()) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      sessionStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(STORAGE_KEY_LEGACY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredAttribution;
     if (parsed?.schemaVersion !== 1 || !parsed.updatedAt) return null;
     const age = Date.now() - new Date(parsed.updatedAt).getTime();
     if (Number.isNaN(age) || age > ATTRIBUTION_TTL_MS) {
-      localStorage.removeItem(STORAGE_KEY);
+      clearStoredAttribution();
       return null;
     }
     return parsed;
@@ -221,12 +165,29 @@ function loadStored(): StoredAttribution | null {
   }
 }
 
+function clearStoredAttribution(): void {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY_LEGACY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Dual-write sessionStorage + localStorage (guide §6.4). */
 function saveStored(data: StoredAttribution): void {
   if (!isBrowser()) return;
+  const json = JSON.stringify(data);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(STORAGE_KEY, json);
   } catch {
-    /* quota / private mode */
+    /* ignore */
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -235,7 +196,9 @@ function loadOrCreateSession(): StoredSession {
     return { sessionId: generateId('msess'), startedAt: new Date().toISOString() };
   }
   try {
-    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const raw =
+      sessionStorage.getItem(SESSION_STORAGE_KEY) ||
+      sessionStorage.getItem(SESSION_STORAGE_KEY_LEGACY);
     if (raw) {
       const parsed = JSON.parse(raw) as StoredSession;
       if (parsed?.sessionId) return parsed;
@@ -255,17 +218,43 @@ function loadOrCreateSession(): StoredSession {
   return session;
 }
 
-function getOrCreateVisitorId(): string | undefined {
+/** Persist visitorId only with analytics consent; else ephemeral sessionStorage. */
+function resolveVisitorId(analytics: boolean): string | undefined {
   if (!isBrowser()) return undefined;
   try {
-    let visitorId = localStorage.getItem(VISITOR_ID_KEY);
-    if (!visitorId) {
-      visitorId = generateId('mvis');
-      localStorage.setItem(VISITOR_ID_KEY, visitorId);
+    if (analytics) {
+      let visitorId =
+        localStorage.getItem(VISITOR_ID_KEY) ||
+        localStorage.getItem(VISITOR_ID_KEY_LEGACY);
+      if (!visitorId) {
+        visitorId =
+          sessionStorage.getItem(VISITOR_EPHEMERAL_KEY) || generateId('mvis');
+        localStorage.setItem(VISITOR_ID_KEY, visitorId);
+      }
+      return truncate(visitorId, MAX.id);
     }
-    return truncate(visitorId, MAX.id);
+
+    let ephemeral = sessionStorage.getItem(VISITOR_EPHEMERAL_KEY);
+    if (!ephemeral) {
+      ephemeral = generateId('mvis');
+      sessionStorage.setItem(VISITOR_EPHEMERAL_KEY, ephemeral);
+    }
+    return truncate(ephemeral, MAX.id);
   } catch {
     return undefined;
+  }
+}
+
+/** Guide: both denied → clear persisted visitor id (keep attribution click IDs). */
+export function clearPersistedVisitorIdIfDenied(): void {
+  if (!isBrowser()) return;
+  const prefs = getConsentPreferences();
+  if (prefs.analytics || prefs.marketing) return;
+  try {
+    localStorage.removeItem(VISITOR_ID_KEY);
+    localStorage.removeItem(VISITOR_ID_KEY_LEGACY);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -275,7 +264,7 @@ function hasUtmParams(params: URLSearchParams): boolean {
 
 function hasCampaignParams(params: URLSearchParams): boolean {
   if (hasUtmParams(params)) return true;
-  return CLICK_ID_KEYS.some((key) => params.get(key));
+  return URL_CLICK_ID_KEYS.some((key) => params.get(key));
 }
 
 function isExternalReferrer(referrer: string): boolean {
@@ -335,54 +324,52 @@ function buildTouch(
   return hasTouchContent(touch) ? touch : undefined;
 }
 
-/** Pre-consent checkout: UTM fields only — no referrer, landing URL, or click IDs. */
-function buildEphemeralUtmOnlyTouch(params: URLSearchParams): MarketingTouch | undefined {
-  if (!hasUtmParams(params)) return undefined;
-
-  const touch: MarketingTouch = {
-    capturedAt: new Date().toISOString(),
-  };
-
-  const source = truncate(params.get('utm_source'), MAX.generic);
-  const medium = truncate(params.get('utm_medium'), MAX.generic);
-  const campaign = truncate(params.get('utm_campaign'), MAX.campaign);
-  const content = truncate(params.get('utm_content'), MAX.generic);
-  const term = truncate(params.get('utm_term'), MAX.generic);
-
-  if (source) touch.source = source;
-  if (medium) touch.medium = medium;
-  if (campaign) touch.campaign = campaign;
-  if (content) touch.content = content;
-  if (term) touch.term = term;
-
-  return touch.source || touch.medium || touch.campaign ? touch : undefined;
-}
-
-function buildClickIds(
-  params: URLSearchParams,
-  allowMarketing: boolean
-): MarketingAttributionPayload['clickIds'] | undefined {
-  if (!allowMarketing) return undefined;
-
-  const clickIds: NonNullable<MarketingAttributionPayload['clickIds']> = {};
-  for (const key of CLICK_ID_KEYS) {
+function buildUrlClickIds(
+  params: URLSearchParams
+): Partial<Record<UrlClickIdKey, string>> | undefined {
+  const clickIds: Partial<Record<UrlClickIdKey, string>> = {};
+  for (const key of URL_CLICK_ID_KEYS) {
     const value = truncate(params.get(key), MAX.clickId);
     if (value) clickIds[key] = value;
   }
   return Object.keys(clickIds).length > 0 ? clickIds : undefined;
 }
 
+function buildCookieClickIds(
+  allowMarketing: boolean
+): Partial<Record<CookieClickIdKey, string>> | undefined {
+  if (!allowMarketing) return undefined;
+  const clickIds: Partial<Record<CookieClickIdKey, string>> = {};
+  const fbc = truncate(readCookie('_fbc'), MAX.clickId);
+  const fbp = truncate(readCookie('_fbp'), MAX.clickId);
+  if (fbc) clickIds.fbc = fbc;
+  if (fbp) clickIds.fbp = fbp;
+  return Object.keys(clickIds).length > 0 ? clickIds : undefined;
+}
+
 function mergeClickIds(
-  ...sources: Array<MarketingAttributionPayload['clickIds'] | undefined>
-): MarketingAttributionPayload['clickIds'] | undefined {
-  const merged: NonNullable<MarketingAttributionPayload['clickIds']> = {};
+  ...sources: Array<Partial<Record<ClickIdKey, string>> | undefined>
+): Partial<Record<ClickIdKey, string>> | undefined {
+  const merged: Partial<Record<ClickIdKey, string>> = {};
   for (const source of sources) {
     if (!source) continue;
-    for (const key of CLICK_ID_KEYS) {
-      if (source[key]) merged[key] = source[key];
+    for (const [key, value] of Object.entries(source)) {
+      if (value) merged[key as ClickIdKey] = value;
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function readGaClientId(allowAnalytics: boolean): string | undefined {
+  if (!allowAnalytics) return undefined;
+  const ga = readCookie('_ga');
+  if (!ga) return undefined;
+  // _ga=GA1.1.XXXXXXXXXX.YYYYYYYYYY → client id is last two segments
+  const parts = ga.split('.');
+  if (parts.length >= 4) {
+    return truncate(`${parts[parts.length - 2]}.${parts[parts.length - 1]}`, MAX.id);
+  }
+  return truncate(ga, MAX.id);
 }
 
 function detectDeviceType(): 'mobile' | 'desktop' | 'tablet' | 'unknown' {
@@ -394,49 +381,17 @@ function detectDeviceType(): 'mobile' | 'desktop' | 'tablet' | 'unknown' {
 
 function resolveTrafficSourceForSession(): string {
   try {
-    const storedRaw = localStorage.getItem(STORAGE_KEY);
-    if (!storedRaw) return 'direct';
-    const parsed = JSON.parse(storedRaw) as StoredAttribution;
-    const touch = parsed.lastTouch ?? parsed.firstTouch;
-    const source = touch?.source?.trim();
-    return source || 'direct';
+    const stored = loadStored();
+    const touch = stored?.lastTouch ?? stored?.firstTouch;
+    return touch?.source?.trim() || 'direct';
   } catch {
     return 'direct';
   }
 }
 
-/** Persist consented browser session for admin data-quality visitor session counts. */
-function syncVisitorSessionRecord(): void {
-  if (!isBrowser()) return;
-
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-  if (!apiBase) return;
-
-  const session = loadOrCreateSession();
-  const visitorId = getOrCreateVisitorId();
-
-  try {
-    fetch(`${apiBase}/analytics/visitor-session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: session.sessionId,
-        visitorId,
-        startedAt: session.startedAt,
-        landingPage: session.landingPage,
-        deviceType: detectDeviceType(),
-        trafficSource: resolveTrafficSourceForSession(),
-      }),
-      keepalive: true,
-    }).catch(() => {
-      /* non-fatal */
-    });
-  } catch {
-    /* non-fatal */
-  }
-}
-
-function prunePayload(payload: MarketingAttributionPayload): MarketingAttributionPayload | undefined {
+function prunePayload(
+  payload: MarketingAttributionPayload
+): MarketingAttributionPayload | undefined {
   const result: MarketingAttributionPayload = {};
 
   if (payload.firstTouch && hasTouchContent(payload.firstTouch)) {
@@ -453,6 +408,7 @@ function prunePayload(payload: MarketingAttributionPayload): MarketingAttributio
   }
   if (payload.sessionId) result.sessionId = payload.sessionId;
   if (payload.visitorId) result.visitorId = payload.visitorId;
+  if (payload.gaClientId) result.gaClientId = payload.gaClientId;
   if (payload.consent) result.consent = payload.consent;
 
   const hasAttributionData =
@@ -461,7 +417,8 @@ function prunePayload(payload: MarketingAttributionPayload): MarketingAttributio
     result.orderTouch ||
     result.clickIds ||
     result.sessionId ||
-    result.visitorId;
+    result.visitorId ||
+    result.gaClientId;
 
   if (!hasAttributionData && result.consent) {
     return { consent: result.consent };
@@ -471,119 +428,273 @@ function prunePayload(payload: MarketingAttributionPayload): MarketingAttributio
 }
 
 /**
- * Capture attribution on page load / route change. Never throws.
- * Requires explicit analytics consent before any persistence.
+ * Guide §6.2 — always bootstrap URL UTMs + URL click IDs (no consent).
+ * Marketing → fbc/fbp; Analytics → gaClientId.
  */
-export function captureMarketingAttribution(): void {
+export function bootstrapAttribution(): void {
   if (!isBrowser()) return;
 
   try {
-    const consent = readMarketingConsent();
-    if (!consent.analytics) {
-      logOrderAttributionTrace(
-        'capture-skipped',
-        undefined,
-        'analytics consent not granted — click Accept all or enable Performance cookies, then capture runs again'
-      );
-      devLog('capture skipped — analytics consent not granted');
-      return;
-    }
-
-    syncVisitorSessionRecord();
-
+    const prefs = getConsentPreferences();
     const params = new URLSearchParams(window.location.search);
     const referrer = document.referrer || '';
     const currentPage = window.location.href;
     const touch = buildTouch(params, referrer, currentPage);
-    const campaignVisit = hasCampaignParams(params) || isExternalReferrer(referrer);
-
-    if (!campaignVisit || !touch) {
-      logOrderAttributionTrace(
-        'capture-skipped',
-        undefined,
-        'no campaign signal in URL (need utm_* or gclid/fbclid etc.)'
-      );
-      devLog('capture skipped — direct/internal visit');
-      return;
-    }
-
-    const session = loadOrCreateSession();
-    if (!session.landingPage) {
-      session.landingPage = truncate(currentPage, MAX.landingPage);
-      try {
-        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-      } catch {
-        /* ignore */
-      }
-    }
+    const urlClickIds = buildUrlClickIds(params);
+    const cookieClickIds = buildCookieClickIds(prefs.marketing);
+    const campaignVisit =
+      hasCampaignParams(params) || isExternalReferrer(referrer) || Boolean(urlClickIds);
 
     const stored = loadStored() || {
       schemaVersion: 1 as const,
       updatedAt: new Date().toISOString(),
     };
 
-    if (!stored.firstTouch) {
-      stored.firstTouch = touch;
-      stored.landingPage = truncate(currentPage, MAX.landingPage);
+    if (touch && campaignVisit) {
+      if (!stored.firstTouch) {
+        stored.firstTouch = touch;
+        stored.landingPage = truncate(currentPage, MAX.landingPage);
+      }
+      stored.lastTouch = touch;
     }
-    stored.lastTouch = touch;
+
+    stored.clickIds = mergeClickIds(
+      stored.clickIds,
+      urlClickIds,
+      cookieClickIds
+    );
+
+    if (prefs.analytics) {
+      const gaClientId = readGaClientId(true);
+      if (gaClientId) stored.gaClientId = gaClientId;
+    } else {
+      delete stored.gaClientId;
+    }
+
+    // Strip cookie IDs from store when marketing denied
+    if (!prefs.marketing && stored.clickIds) {
+      const next = { ...stored.clickIds };
+      delete next.fbc;
+      delete next.fbp;
+      stored.clickIds = Object.keys(next).length > 0 ? next : undefined;
+    }
+
     stored.updatedAt = new Date().toISOString();
 
-    if (consent.marketing) {
-      const capturedClickIds = buildClickIds(params, true);
-      if (capturedClickIds) {
-        stored.clickIds = mergeClickIds(stored.clickIds, capturedClickIds);
-      }
+    if (
+      stored.firstTouch ||
+      stored.lastTouch ||
+      stored.clickIds ||
+      stored.landingPage
+    ) {
+      saveStored(stored);
     }
 
-    saveStored(stored);
+    if (prefs.analytics) {
+      resolveVisitorId(true);
+    }
 
-    getOrCreateVisitorId();
-    devLog('captured', { campaignVisit, source: touch.source, medium: touch.medium });
-    logOrderAttributionTrace('capture', getMarketingAttributionForOrder());
+    clearPersistedVisitorIdIfDenied();
+    devLog('bootstrap', {
+      analytics: prefs.analytics,
+      marketing: prefs.marketing,
+      hasTouch: Boolean(touch),
+      clickIds: stored.clickIds ? Object.keys(stored.clickIds) : [],
+    });
+  } catch (error) {
+    devLog('bootstrap error', error);
+  }
+}
+
+function buildSessionAttributionPayload(): MarketingAttributionPayload | undefined {
+  try {
+    const consent = readMarketingConsent();
+    if (!consent.analytics) return undefined;
+
+    const stored = loadStored();
+    const session = loadOrCreateSession();
+    const visitorId = resolveVisitorId(true);
+    const params = new URLSearchParams(window.location.search);
+    const referrer = document.referrer || '';
+    const currentPage = window.location.href;
+    const currentTouch = buildTouch(params, referrer, currentPage);
+
+    const urlClickIds = buildUrlClickIds(params);
+    const cookieClickIds = buildCookieClickIds(consent.marketing);
+
+    const payload: MarketingAttributionPayload = {
+      consent,
+      sessionId: session.sessionId,
+      visitorId: visitorId || undefined,
+      gaClientId: stored?.gaClientId || readGaClientId(true) || null,
+    };
+
+    if (stored?.firstTouch) payload.firstTouch = stored.firstTouch;
+    if (stored?.lastTouch) payload.lastTouch = stored.lastTouch;
+
+    if (currentTouch) {
+      payload.orderTouch = currentTouch;
+      if (!payload.lastTouch) payload.lastTouch = currentTouch;
+      if (!payload.firstTouch) payload.firstTouch = currentTouch;
+    }
+
+    payload.clickIds = mergeClickIds(stored?.clickIds, urlClickIds, cookieClickIds);
+
+    return prunePayload(payload);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Persist consented browser session for admin analytics (analytics required). */
+function syncVisitorSessionRecord(): void {
+  if (!isBrowser() || !hasAnalyticsConsent()) return;
+
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  if (!apiBase) return;
+
+  const session = loadOrCreateSession();
+  const visitorId = resolveVisitorId(true);
+  const attribution = buildSessionAttributionPayload();
+
+  try {
+    fetch(`${apiBase}/analytics/visitor-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.sessionId,
+        visitorId,
+        startedAt: session.startedAt,
+        landingPage: session.landingPage || window.location.href,
+        deviceType: detectDeviceType(),
+        trafficSource: resolveTrafficSourceForSession(),
+        attribution,
+      }),
+      keepalive: true,
+    }).catch(() => {
+      /* non-fatal */
+    });
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/**
+ * Guide §6.2 / §4.5.1 — POST campaign click (consent-independent).
+ */
+export function trackCampaignClick(): void {
+  if (!isBrowser()) return;
+
+  try {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    if (!apiBase) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const utmSource = truncate(params.get('utm_source'), MAX.generic);
+    const utmMedium = truncate(params.get('utm_medium'), MAX.generic);
+    const utmCampaign = truncate(params.get('utm_campaign'), MAX.campaign);
+    const utmTerm = truncate(params.get('utm_term'), MAX.generic);
+    const utmContent = truncate(params.get('utm_content'), MAX.generic);
+    const utmId = truncate(params.get('utm_id'), MAX.id);
+
+    if (!utmSource && !utmMedium && !utmCampaign && !utmId) return;
+
+    const session = loadOrCreateSession();
+    const dedupeKey = `${CAMPAIGN_CLICK_DEDUPE_PREFIX}${session.sessionId}|${utmSource || ''}|${utmMedium || ''}|${utmCampaign || ''}|${utmId || ''}|${utmTerm || ''}`;
+    try {
+      if (sessionStorage.getItem(dedupeKey)) return;
+      sessionStorage.setItem(dedupeKey, '1');
+    } catch {
+      /* continue */
+    }
+
+    const visitorId = resolveVisitorId(hasAnalyticsConsent());
+
+    fetch(`${apiBase}/analytics/campaign/click`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        visitorId,
+        sessionId: session.sessionId,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmTerm,
+        utmContent,
+        utmId,
+        landingPage: truncate(window.location.href, MAX.landingPage),
+        referrer: truncate(document.referrer || '', MAX.referrer),
+        deviceType: detectDeviceType(),
+        userAgent: truncate(navigator.userAgent, 512),
+      }),
+      keepalive: true,
+    }).catch(() => {
+      /* non-fatal */
+    });
+  } catch (error) {
+    devLog('trackCampaignClick error', error);
+  }
+}
+
+/**
+ * Route/consent entry: always bootstrap + campaign click; session if analytics.
+ */
+export function captureMarketingAttribution(): void {
+  if (!isBrowser()) return;
+  try {
+    bootstrapAttribution();
+    if (hasAnalyticsConsent()) {
+      syncVisitorSessionRecord();
+    }
   } catch (error) {
     devLog('capture error', error);
   }
 }
 
 /**
- * Build marketingAttribution for POST /create/order. Never throws.
+ * Order payload — guide §6.4 / §7.5:
+ * - Always include URL click IDs when present
+ * - fbc/fbp only with marketing
+ * - visitorId / gaClientId with analytics
  */
 export function getMarketingAttributionForOrder(): MarketingAttributionPayload | undefined {
   if (!isBrowser()) return undefined;
 
   try {
+    bootstrapAttribution();
     const consent = readMarketingConsent();
     const params = new URLSearchParams(window.location.search);
     const referrer = document.referrer || '';
     const currentPage = window.location.href;
     const stored = loadStored();
-    const clickIds = consent.marketing
-      ? mergeClickIds(stored?.clickIds, buildClickIds(params, true))
-      : undefined;
+    const session = loadOrCreateSession();
 
-    if (consent.analytics) {
-      const orderTouchRaw = buildTouch(params, referrer, currentPage);
-      const shouldIncludeOrderTouch =
-        hasCampaignParams(params) ||
-        isExternalReferrer(referrer) ||
-        Boolean(stored?.firstTouch || stored?.lastTouch);
-      const session = loadOrCreateSession();
-      const visitorId = getOrCreateVisitorId();
+    const urlClickIds = buildUrlClickIds(params);
+    const cookieClickIds = buildCookieClickIds(consent.marketing);
+    const clickIds = mergeClickIds(stored?.clickIds, urlClickIds, cookieClickIds);
 
-      return prunePayload({
-        firstTouch: stored?.firstTouch,
-        lastTouch: stored?.lastTouch,
-        orderTouch: shouldIncludeOrderTouch ? orderTouchRaw : undefined,
-        clickIds,
-        sessionId: truncate(session.sessionId, MAX.id),
-        visitorId,
-        consent,
-      });
+    // Ensure cookie IDs stripped if marketing false
+    if (!consent.marketing && clickIds) {
+      delete clickIds.fbc;
+      delete clickIds.fbp;
     }
 
+    const orderTouch = buildTouch(params, referrer, currentPage);
+    const shouldIncludeOrderTouch =
+      hasCampaignParams(params) ||
+      isExternalReferrer(referrer) ||
+      Boolean(stored?.firstTouch || stored?.lastTouch || clickIds);
+
     return prunePayload({
-      orderTouch: buildEphemeralUtmOnlyTouch(params),
+      firstTouch: stored?.firstTouch,
+      lastTouch: stored?.lastTouch,
+      orderTouch: shouldIncludeOrderTouch ? orderTouch : undefined,
+      clickIds,
+      sessionId: truncate(session.sessionId, MAX.id),
+      visitorId: consent.analytics ? resolveVisitorId(true) : undefined,
+      gaClientId: consent.analytics
+        ? stored?.gaClientId || readGaClientId(true) || null
+        : null,
       consent,
     });
   } catch (error) {
@@ -592,18 +703,25 @@ export function getMarketingAttributionForOrder(): MarketingAttributionPayload |
   }
 }
 
-/**
- * Safely attach marketingAttribution to an order payload without mutating the input.
- */
 export function withMarketingAttribution<T extends Record<string, unknown>>(
   orderData: T
-): T & { marketingAttribution?: MarketingAttributionPayload } {
+): T & {
+  marketingAttribution?: MarketingAttributionPayload;
+  conversionConsent?: { analytics: boolean; marketing: boolean };
+} {
   try {
     const marketingAttribution = getMarketingAttributionForOrder();
-    if (!marketingAttribution) return orderData;
-    logOrderAttributionTrace('checkout', marketingAttribution);
-    return { ...orderData, marketingAttribution };
+    const conversionConsent = getConversionConsent();
+    if (!marketingAttribution && !conversionConsent) return orderData;
+    return {
+      ...orderData,
+      ...(marketingAttribution ? { marketingAttribution } : {}),
+      conversionConsent,
+    };
   } catch {
     return orderData;
   }
 }
+
+// Re-export for callers that used the old name
+export { hasMarketingConsent, hasAnalyticsConsent };

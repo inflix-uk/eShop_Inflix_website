@@ -3,6 +3,7 @@ import { isDisabledRootSlug } from "@/app/lib/disabledRootSlugs";
 const SLUGS_WITHOUT_TOPBAR = new Set([
   "about-us",
   "refund-policy",
+  "terms-and-conditions",
   "terms-of-service",
 ]);
 

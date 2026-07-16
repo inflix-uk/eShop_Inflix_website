@@ -1,17 +1,26 @@
 "use client";
 
 import { useState, useEffect, FC } from "react";
-import Cookies from "js-cookie";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import CookieImage from "@/app/assets/cookie.png";
 import Image from "next/image";
-import { dispatchCookieConsentUpdated } from "@/app/lib/cookieConsent";
+import {
+  OPEN_CONSENT_SETTINGS_EVENT,
+  acceptAllConsent,
+  getConsentPreferences,
+  rejectAllConsent,
+  saveConsentPreferences,
+} from "@/app/lib/cookieConsent";
+import {
+  applyGoogleConsentMode,
+  setDefaultConsentMode,
+} from "@/app/lib/consentMode";
 
 interface Preferences {
   necessary: boolean;
-  performance: boolean;
-  targeting: boolean;
+  analytics: boolean;
+  marketing: boolean;
 }
 
 function PreferenceToggle({
@@ -41,73 +50,81 @@ function PreferenceToggle({
   );
 }
 
+/**
+ * Original bottom-banner UI + preferences overlay.
+ * Consent storage / Consent Mode still use guide analytics + marketing cookies.
+ */
 const CookieConsent: FC = () => {
   const [visible, setVisible] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
   const [preferences, setPreferences] = useState<Preferences>({
     necessary: true,
-    performance: false,
-    targeting: false,
+    analytics: false,
+    marketing: false,
   });
 
-  const handlePreferenceChange = (type: keyof Preferences) => {
-    setPreferences((prev) => ({
-      ...prev,
-      [type]: !prev[type],
-    }));
+  const syncFromCookies = () => {
+    const prefs = getConsentPreferences();
+    setPreferences({
+      necessary: true,
+      analytics: prefs.analytics,
+      marketing: prefs.marketing,
+    });
+    return prefs;
   };
 
   useEffect(() => {
-    const consent = Cookies.get("cookieConsent");
-    if (!consent) setVisible(true);
+    try {
+      setDefaultConsentMode();
+    } catch {
+      /* non-fatal */
+    }
 
-    setPreferences({
-      necessary: true,
-      performance: Cookies.get("performance") === "true",
-      targeting: Cookies.get("targeting") === "true",
-    });
+    const prefs = syncFromCookies();
+    if (!prefs.hasChoice) {
+      setVisible(true);
+    } else {
+      applyGoogleConsentMode(prefs.analytics, prefs.marketing);
+    }
+
+    const onOpenSettings = () => {
+      syncFromCookies();
+      setVisible(true);
+      setShowPreferences(true);
+    };
+    window.addEventListener(OPEN_CONSENT_SETTINGS_EVENT, onOpenSettings);
+    return () => {
+      window.removeEventListener(OPEN_CONSENT_SETTINGS_EVENT, onOpenSettings);
+    };
   }, []);
 
-  const handleAccept = () => {
-    Cookies.set("cookieConsent", "accepted", { expires: 365 });
-    const prefs: Preferences = {
-      necessary: true,
-      performance: true,
-      targeting: true,
-    };
-    Cookies.set("performance", "true", { expires: 365 });
-    Cookies.set("targeting", "true", { expires: 365 });
-    setPreferences(prefs);
+  const applyConsentUi = (analytics: boolean, marketing: boolean) => {
+    applyGoogleConsentMode(analytics, marketing);
     setShowPreferences(false);
     setVisible(false);
-    dispatchCookieConsentUpdated();
+  };
+
+  const handleAccept = () => {
+    acceptAllConsent();
+    applyConsentUi(true, true);
   };
 
   const handleReject = () => {
-    Cookies.set("cookieConsent", "rejected", { expires: 365 });
-    const prefs: Preferences = {
-      necessary: true,
-      performance: false,
-      targeting: false,
-    };
-    Cookies.set("performance", "false", { expires: 365 });
-    Cookies.set("targeting", "false", { expires: 365 });
-    setPreferences(prefs);
-    setShowPreferences(false);
-    setVisible(false);
-    dispatchCookieConsentUpdated();
+    rejectAllConsent();
+    applyConsentUi(false, false);
   };
 
-  const savePreferences = (prefs: Preferences) => {
-    Cookies.set("performance", String(prefs.performance), { expires: 365 });
-    Cookies.set("targeting", String(prefs.targeting), { expires: 365 });
-    setPreferences(prefs);
-    setShowPreferences(false);
-    dispatchCookieConsentUpdated();
+  const handleSavePreferences = () => {
+    saveConsentPreferences({
+      analytics: preferences.analytics,
+      marketing: preferences.marketing,
+    });
+    applyConsentUi(preferences.analytics, preferences.marketing);
   };
 
   const handleClose = () => {
     setVisible(false);
+    setShowPreferences(false);
   };
 
   if (!visible) return null;
@@ -267,8 +284,10 @@ const CookieConsent: FC = () => {
                     </p>
                   </div>
                   <PreferenceToggle
-                    checked={preferences.performance}
-                    onChange={() => handlePreferenceChange("performance")}
+                    checked={preferences.analytics}
+                    onChange={() =>
+                      setPreferences((p) => ({ ...p, analytics: !p.analytics }))
+                    }
                   />
                 </div>
               </div>
@@ -285,8 +304,10 @@ const CookieConsent: FC = () => {
                     </p>
                   </div>
                   <PreferenceToggle
-                    checked={preferences.targeting}
-                    onChange={() => handlePreferenceChange("targeting")}
+                    checked={preferences.marketing}
+                    onChange={() =>
+                      setPreferences((p) => ({ ...p, marketing: !p.marketing }))
+                    }
                   />
                 </div>
               </div>
@@ -303,7 +324,7 @@ const CookieConsent: FC = () => {
               <button
                 type="button"
                 className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-                onClick={() => savePreferences(preferences)}
+                onClick={handleSavePreferences}
               >
                 Save preferences
               </button>

@@ -3,10 +3,8 @@
  * Server returns 404 immediately; Trustpilot strip is hidden on these paths via
  * `slugPagesWithoutTopBar`.
  */
-export const DISABLED_ROOT_SLUGS = new Set([
-  "terms-and-conditions",
-  "refund-and-return-policy",
-]);
+/** Empty = no root slugs are hard-blocked; CMS `[slug]` can serve any published page. */
+export const DISABLED_ROOT_SLUGS = new Set<string>([]);
 
 export function isDisabledRootSlug(slug: string): boolean {
   if (!slug) return false;
