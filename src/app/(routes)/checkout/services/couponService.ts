@@ -13,70 +13,38 @@ export class CouponService {
     return new CouponService();
   }
 
-  async getAllCoupons(): Promise<Coupon[] | null> {
-    try {
-      const response = await api.getAllCoupons();
-
-      if (response.status === 201) {
-        return response.coupon;
-      } else {
-        console.log('Failed to load coupons');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error loading coupons:', error);
-      return null;
-    }
-  }
-
-  validateCouponCode(enteredCode: string, availableCoupons: Coupon[]): boolean {
-    return availableCoupons.some(
-      coupon => coupon.code.toLowerCase() === enteredCode.toLowerCase()
-    );
-  }
-
-  validateCouponApplication(
+  async validateCouponWithServer(
     enteredCode: string,
-    availableCoupons: Coupon[],
     cartTotal: number,
     userId?: string
-  ): CouponValidationResult {
-    const coupon = availableCoupons.find(
-      c => c.code.toLowerCase() === enteredCode.toLowerCase()
-    );
-
-    if (!coupon) {
-      return { isValid: false, error: 'Invalid coupon code' };
+  ): Promise<CouponValidationResult> {
+    const code = enteredCode.trim();
+    if (!code) {
+      return { isValid: false, error: 'Enter a coupon code' };
     }
 
-    // Check if coupon is expired
-    const currentDate = new Date();
-    const expiryDate = new Date((coupon as any).expiryDate);
+    try {
+      const response = await api.validateCoupon({
+        code,
+        cartTotal,
+        userId,
+      });
 
-    if (expiryDate < currentDate) {
-      return { isValid: false, error: 'This coupon has expired.' };
-    }
+      if ((response.success || response.status === 201) && response.coupon) {
+        return { isValid: true, error: '', coupon: response.coupon };
+      }
 
-    // Check minimum order value
-    if ((coupon as any).minOrderValue > 0 && cartTotal < (coupon as any).minOrderValue) {
       return {
         isValid: false,
-        error: `This coupon requires a minimum order of £${(coupon as any).minOrderValue}.`
+        error: response.message || 'Invalid coupon code',
       };
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        (error?.response?.status === 404 ? 'Invalid coupon code' : null) ||
+        'Unable to validate coupon. Please try again.';
+      return { isValid: false, error: message };
     }
-
-    // Check if user has already used this coupon (if user is logged in)
-    if (userId && !(coupon as any).allowMultiple && (coupon as any).usageHistory?.length > 0) {
-      const hasUserUsedCoupon = (coupon as any).usageHistory.some(
-        (usage: { userId: string }) => usage.userId === userId
-      );
-
-      if (hasUserUsedCoupon) {
-        return { isValid: false, error: 'You have already used this coupon.' };
-      }
-    }
-
-    return { isValid: true, error: '', coupon };
   }
 
   calculateTotalSalePrice(products: ProductItem[], coupon: Coupon | null = null): number {

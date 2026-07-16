@@ -32,11 +32,17 @@ function ensureSchemaOrgContext(parsed: unknown): unknown {
   return parsed;
 }
 
+/** Escape `<` so values like `</script>` cannot break the outer script tag. */
+function escapeJsonLdForScriptTag(json: string): string {
+  return json.replace(/</g, "\\u003c");
+}
+
 /**
  * Turn Homepage SEO "Meta Schema" rows into JSON-LD for <script type="application/ld+json">.
  * - Strips surrounding <script>…</script> if pasted from examples.
  * - Valid JSON object or array: adds @context / @graph when missing, then stringifies.
  * - Plain http(s) URL → minimal WebPage node.
+ * - Escapes `<` for safe embedding inside a script tag (avoids hydration breaks).
  */
 export function metaSchemaEntryToJsonLdString(raw: string): string | null {
   const unwrapped = unwrapScriptWrapper(raw);
@@ -47,18 +53,20 @@ export function metaSchemaEntryToJsonLdString(raw: string): string | null {
     try {
       const parsed = JSON.parse(unwrapped) as unknown;
       const withContext = ensureSchemaOrgContext(parsed);
-      return JSON.stringify(withContext);
+      return escapeJsonLdForScriptTag(JSON.stringify(withContext));
     } catch {
       return null;
     }
   }
 
   if (/^https?:\/\//i.test(unwrapped)) {
-    return JSON.stringify({
-      "@context": SCHEMA_CONTEXT,
-      "@type": "WebPage",
-      url: unwrapped,
-    });
+    return escapeJsonLdForScriptTag(
+      JSON.stringify({
+        "@context": SCHEMA_CONTEXT,
+        "@type": "WebPage",
+        url: unwrapped,
+      })
+    );
   }
 
   return null;

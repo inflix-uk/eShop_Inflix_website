@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getCanonical } from "@/lib/getCanonical";
 import {
-  fetchFooterPageBySlug,
+  fetchFooterPageBySlugFresh,
   type FooterPage,
 } from "@/app/services/footerPageService";
 
@@ -26,7 +26,7 @@ export async function metadataForFooterPolicyPage(
 ): Promise<Metadata> {
   let page: FooterPage | null = null;
   try {
-    page = await fetchFooterPageBySlug(slug);
+    page = await fetchFooterPageBySlugFresh(slug);
   } catch {
     /* network / parse */
   }

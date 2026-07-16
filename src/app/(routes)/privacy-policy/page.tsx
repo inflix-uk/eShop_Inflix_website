@@ -1,21 +1,24 @@
-import Nav from "@/app/components/navbar/Nav";
-import Link from "next/link";
-import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
+import PolicyCmsPageClient from "@/app/components/footer-pages/PolicyCmsPageClient";
 import {
-  fetchFooterPageBySlug,
+  fetchFooterPageBySlugFresh,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 
 const PRIVACY_SLUG = "privacy-policy";
 
+export const dynamic = "force-dynamic";
+
 export default async function PrivacyPolicyPage() {
   let page: FooterPage | null = null;
+  let navbarVariantTestConfig = null;
   let widgetVisibility;
   try {
-    [page, widgetVisibility] = await Promise.all([
-      fetchFooterPageBySlug(PRIVACY_SLUG),
+    [page, navbarVariantTestConfig, widgetVisibility] = await Promise.all([
+      fetchFooterPageBySlugFresh(PRIVACY_SLUG),
+      getNavbarVariantTestPublicServer(),
       getSiteWidgetSettingsPublic(),
     ]);
   } catch {
@@ -27,19 +30,10 @@ export default async function PrivacyPolicyPage() {
   }
 
   return (
-    <>
-      <header className="relative">
-        <Nav />
-      </header>
-      <div className="max-w-7xl mx-auto p-6">
-        <nav className="mb-4 text-sm text-gray-600" aria-label="Breadcrumb">
-          <Link href="/" className="hover:underline">
-            Home
-          </Link>
-        </nav>
-
-        <FooterPageContent page={page} initialWidgetVisibility={widgetVisibility} />
-      </div>
-    </>
+    <PolicyCmsPageClient
+      page={page}
+      navbarVariantTestConfig={navbarVariantTestConfig}
+      widgetVisibility={widgetVisibility}
+    />
   );
 }

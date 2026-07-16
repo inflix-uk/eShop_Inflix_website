@@ -7,17 +7,17 @@ import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTe
 import { getSiteWidgetSettingsPublic } from "@/app/services/siteWidgetSettingsService";
 import { notFound } from "next/navigation";
 
-const SHIPPING_SLUG = "shipping-policy";
+const TERMS_SLUG = "terms-and-conditions";
 
 export const dynamic = "force-dynamic";
 
-export default async function ShippingPolicyPage() {
+export default async function TermsAndConditionsPage() {
   let page: FooterPage | null = null;
   let navbarVariantTestConfig = null;
   let widgetVisibility;
   try {
     [page, navbarVariantTestConfig, widgetVisibility] = await Promise.all([
-      fetchFooterPageBySlugFresh(SHIPPING_SLUG),
+      fetchFooterPageBySlugFresh(TERMS_SLUG),
       getNavbarVariantTestPublicServer(),
       getSiteWidgetSettingsPublic(),
     ]);

@@ -142,6 +142,16 @@ const nextConfig: NextConfig = {
         destination: "/:role/:slug/",
         permanent: true,
       },
+      {
+        source: "/terms-of-service",
+        destination: "/terms-and-conditions/",
+        permanent: true,
+      },
+      {
+        source: "/terms-of-service/",
+        destination: "/terms-and-conditions/",
+        permanent: true,
+      },
     ];
   },
   compiler: {

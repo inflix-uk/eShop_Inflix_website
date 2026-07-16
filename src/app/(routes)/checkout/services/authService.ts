@@ -3,7 +3,8 @@ import { toast } from 'react-toastify';
 import { api, RegisterRequest } from '../api';
 
 export interface LoginResponse {
-  status: number;
+  success?: boolean;
+  status?: number;
   user: User;
   message?: string;
 }
@@ -28,12 +29,12 @@ export class AuthService {
     try {
       const response = await api.login({ email, password });
 
-      if (response.status === 201) {
-        return response;
-      } else {
-        // Return the response with error message (e.g., "Invalid password")
+      // Backend sendLoginSuccess returns { success, message, user } (no status: 201)
+      if (response?.user?._id || response?.success) {
         return response;
       }
+      // Return the response with error message (e.g., "Invalid password")
+      return response;
     } catch (error: any) {
       console.error('Login failed:', error);
       // Return error message from API response
@@ -110,14 +111,14 @@ export class AuthService {
         return response;
       }
     } catch (error: any) {
-      console.error('Registration error:', error);
-      // Return error message from API response
+      // Expected when email/phone already exists (API returns generic 400)
       if (error.response?.data?.message) {
         return {
           status: error.response.status || 400,
           message: error.response.data.message
         };
       }
+      console.error('Registration error:', error);
       return false;
     }
   }

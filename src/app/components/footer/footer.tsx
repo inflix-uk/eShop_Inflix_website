@@ -13,6 +13,7 @@ import type {
 } from "./footerTypes";
 import { DEFAULT_FOOTER } from "./footerDefaults";
 import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
+import { openConsentSettings } from "@/app/lib/cookieConsent";
 
 const FOOTER_PUBLIC_PATH = "/footer/settings/public";
 
@@ -769,28 +770,37 @@ const Footer: React.FC<FooterProps> = ({
           </div>
       </div>
       <div className="mt-4 border-t border-gray-700 pt-3">
-        <p className="text-center text-gray-400 text-sm">
-          {bottomBarDisplay.before}
-          {bottomBarDisplay.label && bottomBarDisplay.isHttpUrl ? (
-            <>
-              {" "}
-              <a
-                href={bottomBarDisplay.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-                aria-label={`Visit ${bottomBarDisplay.label} website`}
-              >
-                {bottomBarDisplay.label}
-              </a>
-            </>
-          ) : bottomBarDisplay.label ? (
-            <>
-              {" "}
-              <span className="underline">{bottomBarDisplay.label}</span>
-            </>
-          ) : null}
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+          <p className="text-center text-gray-400 text-sm">
+            {bottomBarDisplay.before}
+            {bottomBarDisplay.label && bottomBarDisplay.isHttpUrl ? (
+              <>
+                {" "}
+                <a
+                  href={bottomBarDisplay.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                  aria-label={`Visit ${bottomBarDisplay.label} website`}
+                >
+                  {bottomBarDisplay.label}
+                </a>
+              </>
+            ) : bottomBarDisplay.label ? (
+              <>
+                {" "}
+                <span className="underline">{bottomBarDisplay.label}</span>
+              </>
+            ) : null}
+          </p>
+          <button
+            type="button"
+            onClick={() => openConsentSettings()}
+            className="text-sm text-gray-400 underline transition hover:text-white"
+          >
+            Cookie settings
+          </button>
+        </div>
       </div>
     </footer>
   );
