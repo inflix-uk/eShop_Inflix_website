@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { bookingService, BookingPackage } from "../services/bookingService";
+import { formatDuration, normalizeDurationUnit } from "../utils/formatDuration";
 
 type BookingPackageCardProps = {
   pkg: BookingPackage;
@@ -33,7 +34,14 @@ function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
   }
 
   const isDayHire = nameLower.includes("day") || pkg.durationMinutes >= 240;
-  const unit = isDayHire ? "" : " / hr";
+  if (isDayHire) return { unit: "", note };
+
+  const durationLabel = formatDuration(
+    pkg.durationMinutes,
+    normalizeDurationUnit(pkg.durationDisplayUnit),
+    { short: true }
+  );
+  const unit = durationLabel ? ` / ${durationLabel}` : "";
 
   return { unit, note };
 }
