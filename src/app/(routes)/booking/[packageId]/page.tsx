@@ -20,6 +20,7 @@ import {
   resolveBookingModuleUi,
   type BookingModuleUi,
 } from "@/app/lib/bookingModuleThemeUtils";
+import { formatDuration } from "../utils/formatDuration";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
@@ -259,7 +260,11 @@ export default function BookingFlowPage() {
         (settings?.minAdvanceBookingHours ?? 0) > 0
       ) {
         setSlotsMessage(
-          `No slots available — bookings require at least ${settings?.minAdvanceBookingHours} hour(s) notice`
+          `No slots available — bookings require at least ${formatDuration(
+            Math.round((settings?.minAdvanceBookingHours ?? 0) * 60),
+            settings?.minAdvanceDisplayUnit || "hours",
+            { short: false }
+          )} notice`
         );
       } else setSlotsMessage("No slots available for this date");
     } catch {
@@ -636,7 +641,9 @@ export default function BookingFlowPage() {
                   {bookingService.getTypeLabel(pkg?.type || "")}
                 </span>
                 <h3 className="text-lg font-bold mt-2">{pkg?.name}</h3>
-                <p className="text-sm text-bookingCardMuted">{pkg?.durationMinutes} min per slot</p>
+                <p className="text-sm text-bookingCardMuted">
+                  {formatDuration(pkg?.durationMinutes, pkg?.durationDisplayUnit)} per slot
+                </p>
 
                 {displaySlots.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-bookingCardDivider">

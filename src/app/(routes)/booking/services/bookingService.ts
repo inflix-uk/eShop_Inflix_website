@@ -11,6 +11,9 @@ export interface BookingSettings {
   timezone: string;
   minAdvanceBookingHours: number;
   maxAdvanceBookingDays: number;
+  slotIntervalDisplayUnit?: "minutes" | "hours";
+  holdDurationDisplayUnit?: "minutes" | "hours";
+  minAdvanceDisplayUnit?: "minutes" | "hours";
 }
 
 export interface BookingPackage {
@@ -19,6 +22,7 @@ export interface BookingPackage {
   slug: string | null;
   type: 'service' | 'consultation' | 'studio';
   durationMinutes: number;
+  durationDisplayUnit?: "minutes" | "hours";
   price: number;
   description: string;
   detailPage: string;
@@ -210,6 +214,7 @@ export interface AvailableSlotsResponse {
     name: string;
     type: string;
     durationMinutes: number;
+    durationDisplayUnit?: "minutes" | "hours";
     price: number;
   };
   date: string;
@@ -279,6 +284,7 @@ export interface Booking {
     name: string;
     price: number;
     durationMinutes: number;
+    durationDisplayUnit?: "minutes" | "hours";
   };
 }
 

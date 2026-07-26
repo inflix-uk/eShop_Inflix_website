@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { bookingService, BookingPackage } from "../../services/bookingService";
 import { hasRichDescription } from "../../utils/description";
+import { formatDuration } from "../../utils/formatDuration";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
@@ -138,7 +139,12 @@ export default function BookingPackageDetailPage() {
                   <svg className="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>{pkg.durationMinutes} minute session</span>
+                  <span>
+                    {formatDuration(pkg.durationMinutes, pkg.durationDisplayUnit, {
+                      short: false,
+                    })}{" "}
+                    session
+                  </span>
                 </div>
 
                 {features.length > 0 && (

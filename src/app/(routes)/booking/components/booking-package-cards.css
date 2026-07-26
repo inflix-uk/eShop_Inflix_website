@@ -48,28 +48,22 @@
 .psm-booking-packages__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 }
 
 @media (min-width: 640px) {
   .psm-booking-packages__grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 18px;
   }
 }
 
+/* Desktop: always 3 cards per row (slightly wider columns vs previous 4-col). */
 @media (min-width: 1024px) {
   .psm-booking-packages__grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .psm-booking-packages__grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
   }
 }
 
@@ -77,11 +71,12 @@
   position: relative;
   background: var(--psm-coal);
   border: 1px solid var(--psm-line-soft);
-  padding: clamp(24px, 2.5vw, 36px);
+  padding: clamp(28px, 2.8vw, 40px);
   display: flex;
   flex-direction: column;
   min-height: 100%;
   width: 100%;
+  min-width: 0;
   transition:
     transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.5s,

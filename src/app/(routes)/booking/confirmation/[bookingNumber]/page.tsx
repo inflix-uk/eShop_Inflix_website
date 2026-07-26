@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { bookingService, Booking, GroupBookingSlot } from "../../services/bookingService";
+import { formatDuration } from "../../utils/formatDuration";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
@@ -43,6 +44,19 @@ function getPackageDuration(booking: Booking | null): number | null {
   if (booking.package?.durationMinutes != null) return booking.package.durationMinutes;
   if (typeof booking.packageId === "object" && booking.packageId !== null && "durationMinutes" in booking.packageId) {
     return (booking.packageId as { durationMinutes?: number }).durationMinutes ?? null;
+  }
+  return null;
+}
+
+function getPackageDurationUnit(booking: Booking | null): string | null {
+  if (!booking) return null;
+  if (booking.package?.durationDisplayUnit) return booking.package.durationDisplayUnit;
+  if (
+    typeof booking.packageId === "object" &&
+    booking.packageId !== null &&
+    "durationDisplayUnit" in booking.packageId
+  ) {
+    return (booking.packageId as { durationDisplayUnit?: string }).durationDisplayUnit ?? null;
   }
   return null;
 }
@@ -216,6 +230,7 @@ function BookingConfirmationContent() {
   const packageName = getPackageName(booking);
   const packagePrice = getPackagePrice(booking);
   const packageDuration = getPackageDuration(booking);
+  const packageDurationUnit = getPackageDurationUnit(booking);
   const displayNumber = booking?.groupBookingNumber || booking?.bookingNumber || bookingNumber;
   const slotsToShow = groupSlots && groupSlots.length > 1
     ? groupSlots
@@ -364,7 +379,9 @@ function BookingConfirmationContent() {
                         </svg>
                       }
                       label="Duration"
-                      value={`${packageDuration} minutes`}
+                      value={formatDuration(packageDuration, packageDurationUnit, {
+                        short: false,
+                      })}
                     />
                   )}
 

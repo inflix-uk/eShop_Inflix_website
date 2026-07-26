@@ -35,13 +35,17 @@ export async function getSuperadminControlsPublic(): Promise<SuperadminPublicCon
   }
 
   try {
-    const response = await fetch(`${apiUrl}/superadmin/controls/public`, {
+    // Middleware runs on every page — never hang the whole site waiting on API.
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/superadmin/controls/public`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
+      signal: AbortSignal.timeout(2500),
     });
 
     if (!response.ok) {
+      // Short negative cache so a slow/down API does not block every navigation.
+      cache = { value: DEFAULT_CONTROLS, expiresAt: now + 15000 };
       return DEFAULT_CONTROLS;
     }
 
@@ -58,6 +62,7 @@ export async function getSuperadminControlsPublic(): Promise<SuperadminPublicCon
     };
     return nextValue;
   } catch {
+    cache = { value: DEFAULT_CONTROLS, expiresAt: now + 15000 };
     return DEFAULT_CONTROLS;
   }
 }
