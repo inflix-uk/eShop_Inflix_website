@@ -75,11 +75,20 @@ export interface BookingCustomWidget {
   css: string;
 }
 
+/** HTML/CSS inserted into the packages grid after N cards (typically 3, 6, 9…). */
+export interface BookingInlineWidget {
+  enabled: boolean;
+  afterPackageCount: number;
+  html: string;
+  css: string;
+}
+
 export interface BookingPageContent {
   hero: BookingPageHero;
   services: BookingPageServicesSection;
   trust: BookingTrustBlock[];
   customWidget: BookingCustomWidget;
+  inlineWidgets: BookingInlineWidget[];
 }
 
 export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
@@ -112,6 +121,7 @@ export const DEFAULT_BOOKING_PAGE_CONTENT: BookingPageContent = {
     html: '',
     css: '',
   },
+  inlineWidgets: [],
 };
 
 function pickBookingString(value: unknown, fallback: string): string {
@@ -189,7 +199,21 @@ export function mergeBookingPageContent(raw: unknown): BookingPageContent {
     css: pickBookingString(customWidgetSrc.css, DEFAULT_BOOKING_PAGE_CONTENT.customWidget.css),
   };
 
-  return { hero, services, trust, customWidget };
+  const inlineSrc = Array.isArray(src.inlineWidgets) ? src.inlineWidgets : [];
+  const inlineWidgets: BookingInlineWidget[] = inlineSrc
+    .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+    .map((entry) => {
+      const count = Number(entry.afterPackageCount);
+      return {
+        enabled: typeof entry.enabled === 'boolean' ? entry.enabled : true,
+        afterPackageCount:
+          Number.isFinite(count) && count > 0 ? Math.floor(count) : 3,
+        html: typeof entry.html === 'string' ? entry.html : '',
+        css: typeof entry.css === 'string' ? entry.css : '',
+      };
+    });
+
+  return { hero, services, trust, customWidget, inlineWidgets };
 }
 
 export interface SelectedBookingExtra {

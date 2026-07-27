@@ -52,6 +52,19 @@
   width: 100%;
 }
 
+/* Full-width HTML/CSS widget inserted after a package row (e.g. every 3 cards). */
+.psm-booking-packages__widget {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.psm-booking-packages__widget .cms-html-css-widget,
+.psm-booking-packages__widget .cms-html-css-widget-inner {
+  max-width: none;
+  color: inherit;
+}
+
 @media (min-width: 640px) {
   .psm-booking-packages__grid {
     grid-template-columns: repeat(2, 1fr);
