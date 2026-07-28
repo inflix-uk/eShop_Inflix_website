@@ -10,6 +10,7 @@ import {
 } from "./services/bookingService";
 import BookingPackageCard from "./components/BookingPackageCard";
 import "./components/booking-package-cards.css";
+import BlogHtmlCssWidget from "@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget";
 import {
   bookingModuleRootStyle,
   type BookingModuleUi,
@@ -36,6 +37,17 @@ export default function BookingPageClient({
       : packages.filter((pkg) => pkg.type === selectedType);
 
   const packageTypes = ["all", ...Array.from(new Set(packages.map((p) => p.type)))];
+
+  const inlineWidgetsByCount = new Map<number, typeof content.inlineWidgets>();
+  for (const widget of content.inlineWidgets || []) {
+    if (!widget?.enabled || !widget.html?.trim()) continue;
+    const count = Number(widget.afterPackageCount);
+    if (!Number.isFinite(count) || count < 1) continue;
+    const key = Math.floor(count);
+    const list = inlineWidgetsByCount.get(key) || [];
+    list.push(widget);
+    inlineWidgetsByCount.set(key, list);
+  }
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -231,9 +243,28 @@ export default function BookingPageClient({
               </div>
             ) : (
               <div className="psm-booking-packages__grid">
-                {filteredPackages.map((pkg) => (
-                  <BookingPackageCard key={pkg._id} pkg={pkg} />
-                ))}
+                {filteredPackages.flatMap((pkg, index) => {
+                  const nodes = [
+                    <BookingPackageCard key={pkg._id} pkg={pkg} />,
+                  ];
+                  const rowWidgets = inlineWidgetsByCount.get(index + 1);
+                  if (rowWidgets?.length) {
+                    rowWidgets.forEach((widget, wIndex) => {
+                      nodes.push(
+                        <div
+                          key={`inline-widget-${index + 1}-${wIndex}`}
+                          className="psm-booking-packages__widget"
+                        >
+                          <BlogHtmlCssWidget
+                            html={widget.html}
+                            css={widget.css}
+                          />
+                        </div>
+                      );
+                    });
+                  }
+                  return nodes;
+                })}
               </div>
             )}
           </div>
