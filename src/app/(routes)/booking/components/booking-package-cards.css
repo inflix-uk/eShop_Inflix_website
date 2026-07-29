@@ -236,16 +236,25 @@
   margin: 0;
 }
 
-.psm-booking-card__cta {
-  display: block;
+.psm-booking-card__cta-row {
+  display: flex;
+  gap: 8px;
   margin-top: 26px;
   width: 100%;
+}
+
+.psm-booking-card__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
   text-align: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  padding: 14px 20px;
+  white-space: nowrap;
+  padding: 14px 8px;
   border: 1px solid var(--psm-line-soft);
   color: var(--psm-cream);
   text-decoration: none;
@@ -255,9 +264,14 @@
     color 0.35s;
 }
 
+.psm-booking-card__cta--secondary {
+  flex: 0 0 auto;
+}
+
 .psm-booking-card__cta:hover {
-  border-color: var(--psm-line);
-  background: color-mix(in srgb, var(--psm-green) 8%, transparent);
+  border-color: var(--psm-green);
+  background: var(--psm-green);
+  color: var(--psm-btn-text);
 }
 
 .psm-booking-card__cta--featured {

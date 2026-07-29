@@ -26,6 +26,8 @@ export interface BookingPackage {
   price: number;
   description: string;
   detailPage: string;
+  detailPageHtml?: string;
+  detailPageCss?: string;
   features: string[];
   image: string | null;
   sortOrder: number;

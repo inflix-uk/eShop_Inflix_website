@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { bookingService, BookingPackage } from "../services/bookingService";
 import { formatDuration, normalizeDurationUnit } from "../utils/formatDuration";
 
@@ -23,7 +24,6 @@ function stripHtml(html: string): string {
 
 function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
   const desc = (pkg.description || "").trim();
-  const nameLower = pkg.name.toLowerCase();
 
   let note = "";
   if (/includes?\s+engineer/i.test(desc)) {
@@ -32,9 +32,6 @@ function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
     const part = desc.split("·").map((s) => s.trim()).find((s) => s.length > 0);
     if (part && !part.startsWith("£")) note = part;
   }
-
-  const isDayHire = nameLower.includes("day") || pkg.durationMinutes >= 240;
-  if (isDayHire) return { unit: "", note };
 
   const durationLabel = formatDuration(
     pkg.durationMinutes,
@@ -82,6 +79,7 @@ function HighlightBadge({
 }
 
 export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
+  const router = useRouter();
   const features = Array.isArray(pkg.features)
     ? pkg.features.filter((item) => item.trim().length > 0)
     : [];
@@ -89,24 +87,28 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
   const highlighted = Boolean(pkg.highlightBadgeEnabled);
   const badgeText = pkg.highlightBadgeText?.trim() || "Most Popular";
 
+  const handleCardClick = () => {
+    router.push(`/booking/details/${pkg._id}`);
+  };
+
   return (
     <article
-      className={`psm-booking-card group flex flex-col ${highlighted ? "psm-booking-card--featured" : ""}`}
+      onClick={handleCardClick}
+      className={`psm-booking-card group flex flex-col cursor-pointer ${highlighted ? "psm-booking-card--featured" : ""}`}
     >
       {highlighted ? (
         <HighlightBadge text={badgeText} url={pkg.highlightBadgeUrl} />
       ) : null}
 
-      <Link href={`/booking/details/${pkg._id}`} className="psm-booking-card__title-link">
+      <div className="psm-booking-card__title-link">
         <h3 className="psm-booking-card__name">{capitalizeWords(pkg.name)}</h3>
-      </Link>
+      </div>
 
       <p className="psm-booking-card__price">
         <span className="psm-booking-card__price-amount">
           {bookingService.formatPrice(pkg.price)}
         </span>
         {unit ? <span className="psm-booking-card__price-unit">{unit}</span> : null}
-        <span className="psm-booking-card__price-vat"> +VAT</span>
         {note ? (
           <span className="psm-booking-card__price-note"> · {note}</span>
         ) : null}
@@ -131,12 +133,18 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
         </div>
       ) : null}
 
-      <Link
-        href={`/booking/${pkg._id}`}
-        className={`psm-booking-card__cta mt-auto ${highlighted ? "psm-booking-card__cta--featured" : ""}`}
-      >
-        Book Now
-      </Link>
+      <div className="psm-booking-card__cta-row mt-auto">
+        <span data-booking-btn-text className="psm-booking-card__cta psm-booking-card__cta--secondary">
+          View Detail
+        </span>
+        <Link
+          href={`/booking/${pkg._id}`}
+          onClick={(e) => e.stopPropagation()}
+          className={`psm-booking-card__cta ${highlighted ? "psm-booking-card__cta--featured" : ""}`}
+        >
+          Book Now
+        </Link>
+      </div>
     </article>
   );
 }

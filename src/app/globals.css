@@ -72,21 +72,64 @@ html.has-product-sticky-buy-bar #site-footer {
   background-image: none !important;
 }
 
-/* Checkout order summary + booking confirmation — block CMS tag colors */
-.checkout-order-summary,
+/* Checkout order summary — black text on white card (ignore podcast CMS tag colors) */
+.checkout-order-summary {
+  color: #000000;
+}
+
+.checkout-order-summary > div {
+  background-color: #f3f4f6 !important; /* light gray outer shell */
+}
+
+.checkout-order-summary > div > .bg-white,
+.checkout-order-summary > div > .rounded-lg.border {
+  background-color: #ffffff !important;
+}
+
+.checkout-order-summary h1,
+.checkout-order-summary h2,
+.checkout-order-summary h3,
+.checkout-order-summary h4,
+.checkout-order-summary h5,
+.checkout-order-summary h6,
+.checkout-order-summary p,
+.checkout-order-summary span,
+.checkout-order-summary dt,
+.checkout-order-summary dd,
+.checkout-order-summary label,
+.checkout-order-summary li,
+.checkout-order-summary b,
+.checkout-order-summary a,
+.checkout-order-summary svg {
+  color: #000000 !important;
+}
+
 .booking-confirmation-module {
-  color: #111827;
+  color: #000000;
 }
 
-.checkout-order-summary :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, li, b, ul),
-.booking-confirmation-module :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, li, b, ul) {
-  background-color: transparent !important;
-  background-image: none !important;
+.booking-confirmation-module h1,
+.booking-confirmation-module h2,
+.booking-confirmation-module h3,
+.booking-confirmation-module h4,
+.booking-confirmation-module h5,
+.booking-confirmation-module h6,
+.booking-confirmation-module p,
+.booking-confirmation-module span,
+.booking-confirmation-module dt,
+.booking-confirmation-module dd,
+.booking-confirmation-module label,
+.booking-confirmation-module li,
+.booking-confirmation-module b,
+.booking-confirmation-module a,
+.booking-confirmation-module svg {
+  color: #000000 !important;
 }
 
-.checkout-order-summary :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, b),
-.booking-confirmation-module :where(h1, h2, h3, h4, h5, h6, p, span, dt, dd, label, b) {
-  color: unset !important;
+/* Keep primary payment CTA label white */
+.checkout-order-summary button.bg-primary,
+.checkout-order-summary button.bg-primary * {
+  color: #ffffff !important;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

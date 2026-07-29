@@ -459,15 +459,19 @@ export default function BookingFlowPage() {
     return (
       <>
         <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-        <main className="bg-bodyBg flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-bodyBg"
+          role="status"
+          aria-busy="true"
+        >
+          <div className="text-center px-4">
             <div className="relative w-20 h-20 mx-auto mb-4">
               <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
               <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
             <p className="text-gray-500 animate-pulse">{busyMessage}</p>
           </div>
-        </main>
+        </div>
       </>
     );
   }
@@ -481,21 +485,26 @@ export default function BookingFlowPage() {
             type="button"
             onClick={() => router.push("/booking")}
             disabled={submitting}
-            className="mb-8 text-sm text-gray-500 hover:text-gray-900 disabled:opacity-50 disabled:pointer-events-none"
+            className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 transition-colors disabled:opacity-50 disabled:pointer-events-none"
           >
-            ← Back to Services
+            <div className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 group-hover:border-gray-300 group-hover:bg-gray-50 transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </div>
+            <span className="font-medium text-sm">Back to Services</span>
           </button>
 
           <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
             <div className="lg:col-span-8">
-              <div className="bg-bookingCardBg rounded-xl border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
+              <div className="bg-bookingCardBg border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <button
                       type="button"
                       onClick={goPrevMonth}
                       disabled={!canGoPrevMonth || submitting}
-                      className="h-8 w-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                      className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
                       aria-label="Previous month"
                     >
                       ‹
@@ -505,7 +514,7 @@ export default function BookingFlowPage() {
                       type="button"
                       onClick={goNextMonth}
                       disabled={!canGoNextMonth || submitting}
-                      className="h-8 w-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                      className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
                       aria-label="Next month"
                     >
                       ›
@@ -528,10 +537,10 @@ export default function BookingFlowPage() {
                           data-selected={isSelected ? "true" : undefined}
                           onClick={() => selectDate(cell.dateStr)}
                           disabled={!selectable || submitting}
-                          className={`relative h-9 rounded-full text-sm ${isSelected ? "text-white font-semibold" : selectable ? "hover:bg-gray-100" : "text-gray-300"}`}
+                          className={`relative h-9 text-sm ${isSelected ? "text-white font-semibold" : selectable ? "hover:bg-gray-100" : "text-gray-300"}`}
                         >
                           {cell.day}
-                          {hasDot && !isSelected && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full" style={{ backgroundColor: bookingUi.buttonBgColor }} />}
+                          {hasDot && !isSelected && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1" style={{ backgroundColor: bookingUi.buttonBgColor }} />}
                         </button>
                       );
                     })}
@@ -558,7 +567,7 @@ export default function BookingFlowPage() {
                                   data-selected={selected ? "true" : undefined}
                                   onClick={() => handleSlotSelect(slot)}
                                   disabled={submitting || hasActiveHold}
-                                  className={`py-2.5 text-sm font-medium rounded-lg border ${selected ? "text-white" : "border-gray-300"} ${hasActiveHold ? "opacity-50" : ""}`}
+                                  className={`py-2.5 text-sm font-medium border ${selected ? "text-white" : "border-gray-300"} ${hasActiveHold ? "opacity-50" : ""}`}
                                 >
                                   {bookingService.formatTime(slot.startTime)}
                                 </button>
@@ -577,53 +586,47 @@ export default function BookingFlowPage() {
                     <h2 className="text-lg font-bold text-gray-900">Extras</h2>
                     <p className="text-sm text-gray-500 mt-1">Optional add-ons for your booking</p>
                   </div>
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3">
                     {packageExtras.map((extra, index) => {
                       const selected = isExtraSelected(index);
                       const imageUrl = bookingService.resolveImageUrl(extra.image);
                       return (
                         <div
                           key={`${extra.title}-${index}`}
-                          className={`bg-bookingCardBg rounded-xl border overflow-hidden flex flex-row shadow-[0_4px_24px_rgba(0,0,0,0.06)] ${selected ? "border-primary ring-1 ring-primary/20" : "border-gray-200"}`}
+                          className={`bg-bookingCardBg border overflow-hidden flex flex-row items-stretch ${selected ? "border-primary" : "border-gray-200"}`}
                         >
-                          <div className="w-32 sm:w-40 md:w-48 shrink-0 bg-white relative overflow-hidden flex items-center justify-center p-2 border-r border-gray-100">
-                            {imageUrl ? (
+                          {imageUrl && (
+                            <div className="w-24 sm:w-28 shrink-0 self-stretch bg-gray-100 border-r border-gray-100">
                               <img
                                 src={imageUrl}
                                 alt={extra.title}
-                                className="max-w-full max-h-full w-auto h-auto object-contain"
+                                className="w-full h-full object-cover"
                               />
-                            ) : (
-                              <div className="w-full h-full min-h-[120px] flex items-center justify-center text-gray-400 text-xs">
-                                No image
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4 sm:p-5 flex flex-col flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
-                              {extra.title}
-                            </h3>
-                            {extra.description && (
-                              <p className="text-sm text-gray-600 mt-1 line-clamp-3">
-                                {extra.description}
-                              </p>
-                            )}
-                            <div className="mt-3 flex items-center justify-between gap-3">
-                              <span className="text-base font-bold text-primary whitespace-nowrap">
+                            </div>
+                          )}
+                          <div className="p-3 sm:p-4 flex items-center flex-1 min-w-0 gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                                {extra.title}
+                              </h3>
+                              {extra.description && (
+                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                                  {extra.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-sm font-bold text-primary whitespace-nowrap">
                                 {bookingService.formatPrice(extra.price || 0)}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => toggleExtra(extra, index)}
                                 disabled={submitting}
-                                className={`px-5 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-50 disabled:pointer-events-none ${
-                                  selected
-                                    ? "text-white"
-                                    : "border-gray-300 text-gray-700 hover:border-primary hover:text-primary"
-                                }`}
-                                style={selected ? { backgroundColor: bookingUi.buttonBgColor, borderColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor } : undefined}
+                                className="px-4 py-2 text-xs font-semibold disabled:opacity-60"
+                                style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}
                               >
-                                {selected ? "Unselect" : "Select"}
+                                {selected ? "Remove" : "Add"}
                               </button>
                             </div>
                           </div>
@@ -636,8 +639,8 @@ export default function BookingFlowPage() {
             </div>
 
             <div className="lg:col-span-4">
-              <div className="sticky top-24 bg-bookingCardBg booking-card-themed rounded-xl border border-bookingCardDivider p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
-                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              <div className="sticky top-24 bg-bookingCardBg booking-card-themed border border-bookingCardDivider p-5">
+                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5">
                   {bookingService.getTypeLabel(pkg?.type || "")}
                 </span>
                 <h3 className="text-lg font-bold mt-2">{pkg?.name}</h3>
@@ -650,7 +653,7 @@ export default function BookingFlowPage() {
                     <p className="text-xs font-semibold text-bookingCardMuted uppercase mb-2">Selected ({displaySlots.length})</p>
                     <ul className="space-y-2 max-h-40 overflow-y-auto">
                       {displaySlots.map((slot) => (
-                        <li key={slotKey(slot.date, slot.startTime)} className="flex justify-between text-sm booking-card-surface rounded-lg px-3 py-2">
+                        <li key={slotKey(slot.date, slot.startTime)} className="flex justify-between text-sm booking-card-surface px-3 py-2">
                           <div>
                             <p className="font-medium">{bookingService.formatDate(slot.date)}</p>
                             <p className="text-xs text-bookingCardMuted">{bookingService.formatTime(slot.startTime)} – {bookingService.formatTime(slot.endTime)}</p>
@@ -701,7 +704,7 @@ export default function BookingFlowPage() {
 
                 {remainingTime && (
                   <div
-                    className="mt-4 p-3 rounded-xl text-sm booking-hold-banner"
+                    className="mt-4 p-3 text-sm booking-hold-banner"
                     role="status"
                     aria-live="polite"
                   >
@@ -717,7 +720,7 @@ export default function BookingFlowPage() {
                       type="button"
                       onClick={handleContinueToCheckout}
                       disabled={submitting}
-                      className="w-full py-3 text-white font-semibold rounded-xl disabled:opacity-60"
+                      className="w-full py-3 text-white font-semibold disabled:opacity-60"
                       style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}
                     >
                       {submitting ? "Continuing..." : "Continue to Checkout"}
@@ -732,7 +735,7 @@ export default function BookingFlowPage() {
                     </button>
                   </div>
                 ) : selectedSlots.length > 0 ? (
-                  <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 font-semibold rounded-xl disabled:opacity-60" style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}>
+                  <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 font-semibold disabled:opacity-60" style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}>
                     {submitting ? "Reserving..." : `Reserve ${selectedSlots.length} Slot${selectedSlots.length > 1 ? "s" : ""} & Continue`}
                   </button>
                 ) : null}

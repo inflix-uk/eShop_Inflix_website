@@ -103,6 +103,300 @@ function heroVideoOverlayStyle(
   };
 }
 
+/** Check if banner uses podcast layout style */
+function isPodcastLayout(banner: Banner): boolean {
+  return banner.content?.layoutStyle === "podcast";
+}
+
+/** Podcast layout content overlay - Desktop */
+function PodcastLayoutDesktop({
+  banner,
+  isActive,
+  embedded,
+}: {
+  banner: Banner;
+  isActive: boolean;
+  embedded?: boolean;
+}) {
+  const content = banner.content;
+  if (!content) return null;
+
+  const accentColor = content.headingAccentColor || "#C2FC12";
+  const ctaBgColor = content.ctaButtonColor || "#C2FC12";
+  const ctaTextColor = content.ctaButtonTextColor || "#000000";
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 z-[5] hidden sm:flex flex-col justify-between ${
+        isActive ? "opacity-100" : "opacity-0"
+      } transition-opacity duration-500`}
+    >
+      {/* Main content area */}
+      <div className="flex flex-col justify-center px-8 lg:px-16 xl:px-24 py-6 flex-1 min-h-0">
+        <div className="max-w-2xl">
+          {/* Heading */}
+          {content.heading && (
+            <h1
+              className={`text-4xl font-bold text-white md:text-5xl lg:text-6xl xl:text-7xl leading-[1.1] tracking-tight ${
+                embedded ? "text-3xl md:text-4xl lg:text-5xl" : ""
+              }`}
+            >
+              {content.heading}
+              {content.headingAccent && (
+                <>
+                  <br />
+                  <span style={{ color: accentColor }}>{content.headingAccent}</span>
+                </>
+              )}
+            </h1>
+          )}
+
+          {/* Tagline */}
+          {content.tagline && (
+            <p
+              className={`mt-4 text-lg text-white/90 md:text-xl lg:text-2xl font-light ${
+                embedded ? "mt-3 text-base md:text-lg" : ""
+              }`}
+            >
+              {content.tagline.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
+                part.toLowerCase() === "two minds studio" ? (
+                  <span key={i} style={{ color: accentColor }}>{part}</span>
+                ) : (
+                  part
+                )
+              )}
+            </p>
+          )}
+
+          {/* Description */}
+          {content.description && (
+            <p
+              className={`mt-4 text-sm text-white/70 md:text-base lg:text-lg max-w-xl leading-relaxed ${
+                embedded ? "mt-3 text-sm line-clamp-4" : "line-clamp-5"
+              }`}
+            >
+              {content.description.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
+                part.toLowerCase() === "two minds studio" ? (
+                  <span key={i} style={{ color: accentColor }}>{part}</span>
+                ) : (
+                  part
+                )
+              )}
+            </p>
+          )}
+
+          {/* CTA Button */}
+          {content.ctaText && content.ctaLink && (
+            <>
+              <style>{`
+                .podcast-cta-${banner.id || 'default'},
+                .podcast-cta-${banner.id || 'default'} i,
+                .podcast-cta-${banner.id || 'default'} i::before {
+                  color: ${ctaTextColor} !important;
+                }
+              `}</style>
+              <a
+                href={content.ctaLink}
+                className={`podcast-cta-${banner.id || 'default'} pointer-events-auto mt-6 inline-flex items-center gap-2 rounded-lg px-6 py-3 font-semibold transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] ${
+                  embedded ? "mt-4 px-5 py-2.5" : "lg:px-8 lg:py-3.5"
+                }`}
+                style={{
+                  backgroundColor: ctaBgColor,
+                  fontSize: embedded ? "0.75rem" : "0.875rem",
+                }}
+              >
+                {content.ctaIcon && <i className={content.ctaIcon} />}
+                {content.ctaText}
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Feature Cards */}
+      {content.featureCards && content.featureCards.length > 0 && (
+        <div
+          className={`pointer-events-auto w-full border-t border-white/10 bg-black/40 backdrop-blur-sm shrink-0 ${
+            embedded ? "py-3 px-4" : "py-3 px-8 lg:px-16 xl:px-24"
+          }`}
+        >
+          <div
+            className={`grid gap-4 ${
+              content.featureCards.length === 4
+                ? "grid-cols-4"
+                : content.featureCards.length === 3
+                  ? "grid-cols-3"
+                  : content.featureCards.length === 2
+                    ? "grid-cols-2"
+                    : "grid-cols-1"
+            } ${embedded ? "gap-3" : "lg:gap-6"}`}
+          >
+            {content.featureCards.map((card, idx) => (
+              <div key={idx} className="flex items-start gap-3">
+                {card.icon && (
+                  <div
+                    className={`flex shrink-0 items-center justify-center rounded-lg border border-white/20 ${
+                      embedded ? "h-8 w-8" : "h-10 w-10 lg:h-12 lg:w-12"
+                    }`}
+                    style={{ borderColor: `${accentColor}40` }}
+                  >
+                    <i
+                      className={`${card.icon} ${embedded ? "text-sm" : "text-lg lg:text-xl"}`}
+                      style={{ color: accentColor }}
+                    />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  {card.title && (
+                    <p
+                      className={`font-semibold text-white ${
+                        embedded ? "text-xs" : "text-sm lg:text-base"
+                      }`}
+                    >
+                      {card.title}
+                    </p>
+                  )}
+                  {card.text && (
+                    <p
+                      className={`text-white/60 line-clamp-2 ${
+                        embedded ? "text-[10px]" : "text-xs lg:text-sm"
+                      }`}
+                    >
+                      {card.text}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Podcast layout content overlay - Mobile */
+function PodcastLayoutMobile({
+  banner,
+  isActive,
+  embedded,
+}: {
+  banner: Banner;
+  isActive: boolean;
+  embedded?: boolean;
+}) {
+  const content = banner.content;
+  if (!content) return null;
+
+  const accentColor = content.headingAccentColor || "#C2FC12";
+  const ctaBgColor = content.ctaButtonColor || "#C2FC12";
+  const ctaTextColor = content.ctaButtonTextColor || "#000000";
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 z-[5] flex flex-col justify-between sm:hidden ${
+        isActive ? "opacity-100" : "opacity-0"
+      } transition-opacity duration-500`}
+    >
+      {/* Main content area */}
+      <div className="flex flex-col justify-center px-4 py-4 flex-1 min-h-0">
+        <div className="max-w-full">
+          {/* Heading */}
+          {content.heading && (
+            <h1 className="text-3xl font-bold text-white leading-[1.1] tracking-tight">
+              {content.heading}
+              {content.headingAccent && (
+                <>
+                  <br />
+                  <span style={{ color: accentColor }}>{content.headingAccent}</span>
+                </>
+              )}
+            </h1>
+          )}
+
+          {/* Tagline */}
+          {content.tagline && (
+            <p className="mt-3 text-base text-white/90 font-light">
+              {content.tagline.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
+                part.toLowerCase() === "two minds studio" ? (
+                  <span key={i} style={{ color: accentColor }}>{part}</span>
+                ) : (
+                  part
+                )
+              )}
+            </p>
+          )}
+
+          {/* Description - shorter on mobile */}
+          {content.description && (
+            <p className="mt-3 text-sm text-white/70 leading-relaxed line-clamp-3">
+              {content.description.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
+                part.toLowerCase() === "two minds studio" ? (
+                  <span key={i} style={{ color: accentColor }}>{part}</span>
+                ) : (
+                  part
+                )
+              )}
+            </p>
+          )}
+
+          {/* CTA Button */}
+          {content.ctaText && content.ctaLink && (
+            <>
+              <style>{`
+                .podcast-cta-mobile-${banner.id || 'default'},
+                .podcast-cta-mobile-${banner.id || 'default'} i,
+                .podcast-cta-mobile-${banner.id || 'default'} i::before {
+                  color: ${ctaTextColor} !important;
+                }
+              `}</style>
+              <a
+                href={content.ctaLink}
+                className={`podcast-cta-mobile-${banner.id || 'default'} pointer-events-auto mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-all duration-200 hover:brightness-110`}
+                style={{
+                  backgroundColor: ctaBgColor,
+                  fontSize: "0.875rem",
+                }}
+              >
+                {content.ctaIcon && <i className={content.ctaIcon} />}
+                {content.ctaText}
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Feature Cards - 2x2 grid on mobile */}
+      {content.featureCards && content.featureCards.length > 0 && (
+        <div className="pointer-events-auto w-full border-t border-white/10 bg-black/40 backdrop-blur-sm py-2 px-4 shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+            {content.featureCards.slice(0, 4).map((card, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                {card.icon && (
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20"
+                    style={{ borderColor: `${accentColor}40` }}
+                  >
+                    <i className={`${card.icon} text-xs`} style={{ color: accentColor }} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  {card.title && (
+                    <p className="text-xs font-semibold text-white line-clamp-1">{card.title}</p>
+                  )}
+                  {card.text && (
+                    <p className="text-[10px] text-white/60 line-clamp-1">{card.text}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Static frame while slide is inactive or before viewport is known (avoids N×11MB downloads). */
 function HeroBannerVideoPoster({
   posterSrc,
@@ -1024,6 +1318,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
 
                 {/* Desktop: full banners — same min-h as image; flex-1 spacers vertically center copy without shrinking the hero */}
                 {banner.type === "full" && (
+                  isPodcastLayout(banner) ? (
+                    <PodcastLayoutDesktop
+                      banner={banner}
+                      isActive={currentSlide === index}
+                      embedded={embedded}
+                    />
+                  ) : (
                   <>
                     <div
                       className={`pointer-events-none absolute inset-0 z-[5] hidden sm:flex w-full min-w-0 flex-row ${desktopTextBlockRowJustify(
@@ -1051,6 +1352,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                           >
                             {banner.content.title?.trim() ? (
                               <h2
+                                data-banner-text
                                 className={`m-0 font-semibold tracking-wide text-white/95 ${bannerCopyWrap} pb-1 ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
                                   fontSize: banner.content.titleSize || "15px",
@@ -1064,6 +1366,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             ) : null}
                             {banner.content.subtitle?.trim() ? (
                               <h3
+                                data-banner-text
                                 className={`m-0 font-extrabold tracking-wide text-primary ${bannerCopyWrap}`}
                                 style={{
                                   fontSize:
@@ -1079,6 +1382,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             ) : null}
                             {banner.content.paragraph && (
                               <p
+                                data-banner-text
                                 className={`mt-2 max-w-full text-white ${bannerCopyWrap} ${embedded ? "" : "line-clamp-3"} ${paragraphAlignClass(
                                   textAlign
                                 )}`}
@@ -1096,6 +1400,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                             )}
                             {banner.content.price && (
                               <p
+                                data-banner-text
                                 className={`mt-2 font-bold text-red-500 ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                                 style={{
                                   fontSize: banner.content.priceSize || "20px",
@@ -1123,6 +1428,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                                   >
                                     <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-white lg:h-2 lg:w-2"></div>
                                     <span
+                                      data-banner-text
                                       className={`${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                                     >
                                       {item}
@@ -1160,6 +1466,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       )}
                     </div>
                   </>
+                  )
                 )}
 
                 {/* Desktop: simple banners — button left, optional product center */}
@@ -1225,6 +1532,13 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
 
                 {/* Mobile: full banners — vertically centered in slide; horizontal alignment from CMS */}
                 {banner.type === "full" && (
+                  isPodcastLayout(banner) ? (
+                    <PodcastLayoutMobile
+                      banner={banner}
+                      isActive={currentSlide === index}
+                      embedded={embedded}
+                    />
+                  ) : (
                 <div
                   className={`pointer-events-none absolute inset-0 z-[5] flex min-h-0 w-full flex-col justify-center gap-3 sm:hidden ${embedded ? "gap-4 p-4" : "gap-3 p-3"} ${mobileStackClass(
                     textPos
@@ -1279,6 +1593,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     >
                       {banner.content.title?.trim() ? (
                         <h2
+                          data-banner-text
                           className={`mb-1 text-sm font-semibold tracking-wide text-shadow text-white/95 sm:text-base ${bannerCopyWrap}`}
                           style={{
                             color: banner.content.titleColor || "#FFFFFF",
@@ -1291,6 +1606,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       ) : null}
                       {banner.content.subtitle?.trim() ? (
                         <h3
+                          data-banner-text
                           className={`mb-1 text-[24px] font-bold leading-tight tracking-wide text-shadow text-white ${bannerCopyWrap}`}
                           style={{
                             color: banner.content.subtitleColor || "#FFFFFF",
@@ -1302,6 +1618,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       ) : null}
                       {banner.content.paragraph && (
                         <p
+                          data-banner-text
                           className={`mb-1 max-w-full text-[13px] leading-relaxed text-shadow text-white ${bannerCopyWrap} ${paragraphAlignClass(
                             textAlign
                           )}`}
@@ -1315,6 +1632,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       )}
                       {banner.content.price && (
                         <p
+                          data-banner-text
                           className={`mb-1 text-sm font-bold text-shadow text-red-500 ${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}
                           style={{
                             color: banner.content.priceColor || "#FF0000",
@@ -1334,8 +1652,8 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                               key={i}
                               className={`mb-0.5 ${warrantyRowClass(textAlign)}`}
                             >
-                              <span className="shrink-0 opacity-90">•</span>
-                              <span className={`${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}>
+                              <span data-banner-text className="shrink-0 opacity-90">•</span>
+                              <span data-banner-text className={`${bannerCopyWrap} ${embedded ? "" : "line-clamp-2"}`}>
                                 {item}
                               </span>
                             </div>
@@ -1369,6 +1687,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     </div>
                   )}
                 </div>
+                  )
                 )}
 
                 {banner.type === "simple" && (
@@ -1424,7 +1743,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
       {/* Pagination Dots */}
       <div
         className={`absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/35 px-3 py-2 backdrop-blur-md ring-1 ring-white/25 ${
-          embedded ? "bottom-3" : "bottom-2 sm:bottom-3"
+          embedded ? "bottom-3" : "bottom-20 sm:bottom-24"
         }`}
       >
         {banners.map((_, index) => (

@@ -59,11 +59,15 @@ export function resolveTagColorsFromApi(data: unknown): TagColorsConfig {
   return out;
 }
 
+/** Exclude chrome that must keep its own Tailwind colors (checkout cards, banners, navbar CTAs). */
+const CUSTOM_COLOR_EXCLUSION =
+  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not(.checkout-order-summary *):not(.booking-confirmation-module *)";
+
 function levelSelectors(tag: TagColorKey): string {
   if (CUSTOM_SELECTORS[tag]) {
     return CUSTOM_SELECTORS[tag]!;
   }
-  return CMS_TYPO_CONTEXTS.map((ctx) => `${ctx}${tag}`.trim()).join(",");
+  return CMS_TYPO_CONTEXTS.map((ctx) => `${ctx}${tag}${CUSTOM_COLOR_EXCLUSION}`.trim()).join(",");
 }
 
 /**

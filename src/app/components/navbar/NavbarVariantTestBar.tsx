@@ -16,6 +16,7 @@ import NavbarCart from "@/app/components/navbar/NavbarCart";
 
 import NavbarBusinessVariantBar from "@/app/components/navbar/NavbarBusinessVariantBar";
 import NavbarBusiness2VariantBar from "@/app/components/navbar/NavbarBusiness2VariantBar";
+import NavbarPodcastVariantBar from "@/app/components/navbar/NavbarPodcastVariantBar";
 
 import { mapNavbarVariantConfigToWidgetContent } from "@/app/components/navbar/navbarVariantContent";
 
@@ -66,6 +67,12 @@ export default function NavbarVariantTestBar({
   if (cfg.variant === "business-2") {
     return (
       <NavbarBusiness2VariantBar config={cfg} serverBootstrapLogo={serverBootstrapLogo} />
+    );
+  }
+
+  if (cfg.variant === "podcast") {
+    return (
+      <NavbarPodcastVariantBar config={cfg} serverBootstrapLogo={serverBootstrapLogo} />
     );
   }
 

@@ -1,4 +1,5 @@
 "use client";
+import { usePathname } from "next/navigation";
 import {
   FiMenu,
   FiX,
@@ -73,7 +74,8 @@ export type NavbarWidgetContent = {
     | "business-2"
     | "retail-two-row"
     | "wing-split"
-    | "pill-black";
+    | "pill-black"
+    | "podcast";
   logoUrl?: string;
   logoText?: string;
   links?: NavbarLinkItem[];
@@ -890,6 +892,7 @@ function NavbarMobileDrawer({
   headerClassName,
   closeButtonClassName,
   children,
+  drawerBgColor,
 }: {
   open: boolean;
   onClose: () => void;
@@ -897,6 +900,7 @@ function NavbarMobileDrawer({
   headerClassName: string;
   closeButtonClassName: string;
   children: ReactNode;
+  drawerBgColor?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -906,6 +910,8 @@ function NavbarMobileDrawer({
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  const hasDarkBg = Boolean(drawerBgColor);
 
   return (
     <>
@@ -921,21 +927,24 @@ function NavbarMobileDrawer({
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l border-slate-200/90 bg-[#f8f9fb] text-slate-900 shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
+        className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
+        style={hasDarkBg ? { backgroundColor: drawerBgColor, borderColor: "rgba(255,255,255,0.1)" } : { backgroundColor: "#f8f9fb", borderColor: "rgba(226,232,240,0.9)" }}
       >
         <div
-          className={`flex shrink-0 flex-col gap-1 border-b border-slate-200/80 bg-white px-6 pb-5 pt-6 ${headerClassName}`}
+          className={`flex shrink-0 flex-col gap-1 border-b px-6 pb-5 pt-6 ${headerClassName}`}
+          style={hasDarkBg ? { backgroundColor: drawerBgColor, borderColor: "rgba(255,255,255,0.1)" } : { backgroundColor: "#ffffff", borderColor: "rgba(226,232,240,0.8)" }}
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
             
-              <h2 className="mt-1.5 text-xl font-semibold leading-tight tracking-tight text-slate-900">Menu</h2>
+              <h2 className={`mt-1.5 text-xl font-semibold leading-tight tracking-tight ${hasDarkBg ? "text-white" : "text-slate-900"}`}>Menu</h2>
             </div>
             <button
               type="button"
               aria-label="Close menu"
               onClick={onClose}
-              className={`shrink-0 rounded-full border border-slate-200/90 bg-slate-50 p-2.5 text-slate-600 shadow-sm transition hover:bg-white hover:text-slate-900 ${closeButtonClassName}`}
+              className={`shrink-0 rounded-full border p-2.5 shadow-sm transition ${closeButtonClassName}`}
+              style={hasDarkBg ? { borderColor: "rgba(255,255,255,0.2)", backgroundColor: "rgba(255,255,255,0.1)" } : { borderColor: "rgba(226,232,240,0.9)", backgroundColor: "rgba(248,250,252,1)" }}
             >
               <FiX className="h-5 w-5" aria-hidden />
             </button>
@@ -1095,7 +1104,7 @@ function NavbarModern({
                       >
                         <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                           <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{primaryLabel}</span>
+                          <span data-navbar-btn-text className="truncate">{primaryLabel}</span>
                         </span>
                       </a>
                     ) : null}
@@ -1107,7 +1116,7 @@ function NavbarModern({
                       >
                         <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                           <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{secondaryLabel}</span>
+                          <span data-navbar-btn-text className="truncate">{secondaryLabel}</span>
                         </span>
                       </a>
                     ) : null}
@@ -1317,7 +1326,7 @@ function NavbarMinimalist({
                 >
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                     <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{primaryLabel}</span>
+                    <span data-navbar-btn-text className="truncate">{primaryLabel}</span>
                   </span>
                 </a>
               ) : null}
@@ -1329,7 +1338,7 @@ function NavbarMinimalist({
                 >
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                     <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{secondaryLabel}</span>
+                    <span data-navbar-btn-text className="truncate">{secondaryLabel}</span>
                   </span>
                 </a>
               ) : null}
@@ -1528,7 +1537,7 @@ function NavbarDarkSidebar({
                     style={primaryButtonStyle}
                   >
                     <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">
+                    <span data-navbar-btn-text className="min-w-0 truncate">
                       {content?.primaryButtonLabel?.trim() || "Sign in"}
                     </span>
                   </a>
@@ -1540,7 +1549,7 @@ function NavbarDarkSidebar({
                     style={secondaryButtonStyle}
                   >
                     <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{secondaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
               </div>
@@ -1758,7 +1767,7 @@ function NavbarBusiness({
                     style={primaryButtonStyle}
                   >
                     <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{primaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{primaryLabel}</span>
                   </a>
                 ) : null}
                 {showSecondaryButton ? (
@@ -1768,7 +1777,7 @@ function NavbarBusiness({
                     style={secondaryButtonStyle}
                   >
                     <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{secondaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
               </div>
@@ -1975,7 +1984,7 @@ function NavbarBusiness2({
                     style={primaryButtonStyle}
                   >
                     <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{primaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{primaryLabel}</span>
                   </a>
                 ) : null}
                 {showSecondaryButton ? (
@@ -1985,7 +1994,7 @@ function NavbarBusiness2({
                     style={secondaryButtonStyle}
                   >
                     <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{secondaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
               </div>
@@ -2241,7 +2250,7 @@ function NavbarDeveloper({
                     style={primaryButtonStyle}
                   >
                     <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">
+                    <span data-navbar-btn-text className="min-w-0 truncate">
                       {content?.primaryButtonLabel?.trim() || "Sign in"}
                     </span>
                   </a>
@@ -2253,7 +2262,7 @@ function NavbarDeveloper({
                     style={secondaryButtonStyle}
                   >
                     <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span className="min-w-0 truncate">{secondaryLabel}</span>
+                    <span data-navbar-btn-text className="min-w-0 truncate">{secondaryLabel}</span>
                   </a>
                 ) : null}
               </div>
@@ -2706,7 +2715,7 @@ function NavbarPillBlack({
                             style={pillPrimaryMerged}
                           >
                             <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
+                            <span data-navbar-btn-text className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
                           </a>
                         ) : null}
                         {showSecondaryButton ? (
@@ -2716,7 +2725,7 @@ function NavbarPillBlack({
                             style={pillSecondaryMerged}
                           >
                             <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
+                            <span data-navbar-btn-text className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
                           </a>
                         ) : null}
                       </div>
@@ -2997,7 +3006,7 @@ function NavbarWingSplit({
                         style={primaryButtonStyle}
                       >
                         <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                        <span className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
+                        <span data-navbar-btn-text className="max-w-[8rem] truncate sm:max-w-none">{primaryLabel}</span>
                       </a>
                     ) : null}
                     {showSecondaryButton ? (
@@ -3007,7 +3016,7 @@ function NavbarWingSplit({
                         style={secondaryButtonStyle}
                       >
                         <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
-                        <span className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
+                        <span data-navbar-btn-text className="max-w-[8rem] truncate sm:max-w-none">{secondaryLabel}</span>
                       </a>
                     ) : null}
                   </div>
@@ -3024,7 +3033,7 @@ function NavbarWingSplit({
                     i={i}
                     fallbackIcon={DEFAULT_NAVBAR_FLATICON}
                     bodyPortalFlyout
-                    linkClassName="shrink-0 whitespace-nowrap text-[15px] font-semibold transition hover:opacity-90 sm:text-base"
+                    linkClassName="shrink-0 whitespace-nowrap text-[15px] font-normal transition hover:opacity-90 sm:text-base"
                   />
                 ))}
               </nav>
@@ -3390,6 +3399,210 @@ function NavbarRetailTwoRow({
   );
 }
 
+function NavbarPodcast({
+  logoText,
+  logoUrl,
+  links,
+  primaryLabel,
+  content,
+}: {
+  logoText: string;
+  logoUrl: string;
+  links: NavbarLinkItem[];
+  primaryLabel: string;
+  content: NavbarWidgetContent;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const showPrimaryButton = content?.showPrimaryButton !== false;
+  const showSecondaryButton = content?.showSecondaryButton === true;
+  const hasPrimaryIcon = Boolean(content?.primaryButtonIcon?.trim());
+  const hasSecondaryIcon = Boolean(content?.secondaryButtonIcon?.trim());
+  const PrimaryButtonIcon = hasPrimaryIcon ? createNavbarIconSlot(content?.primaryButtonIcon, "", NAVBAR_REACT_ICON_MAP) : null;
+  const SecondaryButtonIcon = hasSecondaryIcon ? createNavbarIconSlot(content?.secondaryButtonIcon, "", NAVBAR_REACT_ICON_MAP) : null;
+  const primaryButtonStyle = resolvePrimaryButtonStyle(content);
+  const secondaryButtonStyle = resolveSecondaryButtonStyle(content);
+  const secondaryLabel = content?.secondaryButtonLabel?.trim() || "Contact";
+  const podcastBarColor = String(content?.navbarBgColor || "").trim() || "#0a0f0a";
+  const linkTextColor = content?.menuLinkTextColor?.trim() || "#e5e7eb";
+  const linkHoverColor = content?.menuLinkHoverColor?.trim() || "#c2fc12";
+  const activeBorderColor = "#C2FC12";
+
+  const isLinkActive = (linkUrl?: string) => {
+    if (!linkUrl) return false;
+    const resolved = resolveHref(linkUrl);
+    if (!resolved || !pathname) return false;
+    if (resolved === "/" || resolved === "") return pathname === "/";
+    return pathname === resolved || pathname.startsWith(resolved + "/");
+  };
+
+  return (
+    <>
+      <header
+        className="relative w-full overflow-visible backdrop-blur-md"
+        style={{ backgroundColor: `${podcastBarColor}cc` }}
+      >
+        {/* Mobile header */}
+        <div className="flex items-center justify-between px-4 py-2 md:hidden">
+          <div className={NAV_LOGO_WRAPPER_CLASS}>
+            <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
+          </div>
+          <button
+            type="button"
+            aria-label="Open menu"
+            className="rounded-lg p-2 text-white"
+            onClick={() => setMobileOpen(true)}
+          >
+            <FiMenu className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        {/* Desktop header */}
+        <div className="hidden md:flex items-center justify-between px-6 py-2 lg:px-10 xl:px-16">
+          {/* Logo */}
+          <div className="flex shrink-0 items-center">
+            <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0 [&_img]:max-h-[38px]`}>
+              <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
+            </div>
+          </div>
+
+          {/* Right side - Nav links + CTA buttons */}
+          <div className="flex items-center gap-1">
+            {/* Navigation links */}
+            <nav
+              className="flex items-center gap-0.5 lg:gap-1"
+              aria-label="Primary"
+            >
+              {links.map((link, i) => {
+                const isActive = isLinkActive(link.url);
+                return (
+                  <a
+                    key={link.id || i}
+                    href={resolveHref(link.url)}
+                    data-nav-link="1"
+                    className="relative px-2.5 py-1.5 text-[13px] font-normal transition-colors duration-200 lg:px-3 lg:text-sm"
+                    style={{ color: isActive ? activeBorderColor : linkTextColor }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.color = linkHoverColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.color = linkTextColor;
+                    }}
+                  >
+                    <span data-navbar-btn-text>{link.label}</span>
+                    {isActive ? (
+                      <span
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-[calc(100%-20px)] rounded-full"
+                        style={{ backgroundColor: activeBorderColor }}
+                      />
+                    ) : null}
+                  </a>
+                );
+              })}
+            </nav>
+
+            {/* CTA Buttons */}
+            <div className="flex shrink-0 items-center gap-2 ml-3">
+              {showSecondaryButton ? (
+                <a
+                  href={resolveHref(content?.secondaryButtonUrl)}
+                  className={`inline-flex items-center px-3.5 py-1.5 text-[13px] font-medium border transition-all duration-200 hover:bg-white/5${hasSecondaryIcon ? " gap-1.5" : ""}`}
+                  style={{
+                    borderColor: secondaryButtonStyle?.backgroundColor || "rgba(255,255,255,0.2)",
+                    color: secondaryButtonStyle?.color || "#e5e7eb",
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  {SecondaryButtonIcon ? <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" /> : null}
+                  <span data-navbar-btn-text>{secondaryLabel}</span>
+                </a>
+              ) : null}
+              {showPrimaryButton ? (
+                <a
+                  href={resolveHref(content?.primaryButtonUrl)}
+                  className={`inline-flex items-center px-3.5 py-1.5 text-[13px] font-semibold transition-all duration-200 hover:brightness-110${hasPrimaryIcon ? " gap-1.5" : ""}`}
+                  style={{
+                    backgroundColor: primaryButtonStyle?.backgroundColor || "#c2fc12",
+                    color: primaryButtonStyle?.color || "#0a0f0a",
+                  }}
+                >
+                  {PrimaryButtonIcon ? <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" /> : null}
+                  <span data-navbar-btn-text>{primaryLabel}</span>
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <NavbarMobileDrawer
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        panelClassName="text-white"
+        headerClassName="border-white/10 text-white"
+        closeButtonClassName="hover:bg-white/10 text-white"
+        drawerBgColor="#000000"
+      >
+        <section>
+          <nav className="nav-mobile-dark-drawer flex flex-col gap-1">
+            {links.map((link, i) => {
+              const isActive = isLinkActive(link.url);
+              return (
+                <a
+                  key={link.id || i}
+                  href={resolveHref(link.url)}
+                  className={`relative flex w-full min-w-0 items-center px-4 py-3 text-base font-normal leading-snug transition rounded-lg ${isActive ? "text-[#C2FC12] bg-white/5" : "text-white/90 hover:text-[#c2fc12] hover:bg-white/5"}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <span data-navbar-btn-text>{link.label}</span>
+                  {isActive ? (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-[60%] w-[3px] rounded-full"
+                      style={{ backgroundColor: activeBorderColor }}
+                    />
+                  ) : null}
+                </a>
+              );
+            })}
+          </nav>
+        </section>
+        {(showSecondaryButton || showPrimaryButton) ? (
+          <section className="mt-4 px-4 flex flex-col gap-2">
+            {showSecondaryButton ? (
+              <a
+                href={resolveHref(content?.secondaryButtonUrl)}
+                className={`flex w-full items-center justify-center px-5 py-2.5 text-sm font-medium border transition-all duration-200${hasSecondaryIcon ? " gap-2" : ""}`}
+                style={{
+                  borderColor: secondaryButtonStyle?.backgroundColor || "rgba(255,255,255,0.2)",
+                  color: secondaryButtonStyle?.color || "#e5e7eb",
+                  backgroundColor: "transparent",
+                }}
+                onClick={() => setMobileOpen(false)}
+              >
+                {SecondaryButtonIcon ? <SecondaryButtonIcon className="h-4 w-4 shrink-0" /> : null}
+                <span data-navbar-btn-text>{secondaryLabel}</span>
+              </a>
+            ) : null}
+            {showPrimaryButton ? (
+              <a
+                href={resolveHref(content?.primaryButtonUrl)}
+                className={`flex w-full items-center justify-center px-5 py-2.5 text-sm font-semibold transition-all duration-200${hasPrimaryIcon ? " gap-2" : ""}`}
+                style={{
+                  backgroundColor: primaryButtonStyle?.backgroundColor || "#c2fc12",
+                  color: primaryButtonStyle?.color || "#0a0f0a",
+                }}
+                onClick={() => setMobileOpen(false)}
+              >
+                {PrimaryButtonIcon ? <PrimaryButtonIcon className="h-4 w-4 shrink-0" /> : null}
+                <span data-navbar-btn-text>{primaryLabel}</span>
+              </a>
+            ) : null}
+          </section>
+        ) : null}
+      </NavbarMobileDrawer>
+    </>
+  );
+}
 
 export default function BlogNavbarWidget({ content }: { content: NavbarWidgetContent }) {
   useFlaticonStylesheets();
@@ -3698,6 +3911,20 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
         <>
           <div className="navbar-widget-link-colors relative z-[70]" style={linkColorVars}>
             <NavbarRetailTwoRow {...commonProps} />
+          </div>
+          {linkColorStyle}
+        </>
+      );
+      break;
+    case "podcast":
+      variantNode = (
+        <>
+          <div
+            className="navbar-widget-link-colors relative z-[90]"
+            style={linkColorVars}
+            data-navbar-variant="podcast"
+          >
+            <NavbarPodcast {...commonProps} />
           </div>
           {linkColorStyle}
         </>

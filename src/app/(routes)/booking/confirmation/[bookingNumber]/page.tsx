@@ -91,15 +91,19 @@ function PageLoadingShell({ progress = 0 }: { progress?: number }) {
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => {}} />
-      <main className="bg-bodyBg py-10 px-4 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
+      <div
+        className="fixed inset-0 z-[9998] flex items-center justify-center bg-bodyBg"
+        role="status"
+        aria-busy="true"
+      >
+        <div className="text-center px-4">
           <div className="relative w-20 h-20 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
           </div>
           <p className="text-gray-500 animate-pulse">Loading your booking...</p>
         </div>
-      </main>
+      </div>
     </>
   );
 }

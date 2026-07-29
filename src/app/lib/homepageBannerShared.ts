@@ -65,7 +65,16 @@ export function buildBannerImageContainerStyle(
   };
 }
 
+export interface BannerFeatureCard {
+  icon?: string;
+  title?: string;
+  text?: string;
+}
+
 export interface BannerContent {
+  /** Layout style: "default" = current layout, "podcast" = podcast studio style */
+  layoutStyle?: "default" | "podcast";
+  // === Default layout fields ===
   title?: string;
   subtitle?: string;
   paragraph?: string;
@@ -83,6 +92,18 @@ export interface BannerContent {
   priceSize?: string;
   textAlign?: "left" | "center" | "right";
   textPosition?: "left" | "center" | "right";
+  // === Podcast layout fields ===
+  heading?: string;
+  headingAccent?: string;
+  headingAccentColor?: string;
+  tagline?: string;
+  description?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  ctaIcon?: string;
+  ctaButtonColor?: string;
+  ctaButtonTextColor?: string;
+  featureCards?: BannerFeatureCard[];
 }
 
 export interface Banner {
@@ -113,6 +134,8 @@ export interface Banner {
 }
 
 export interface ApiBannerContent {
+  layoutStyle?: "default" | "podcast";
+  // Default layout fields
   title?: string;
   subtitle?: string;
   paragraph?: string;
@@ -130,6 +153,18 @@ export interface ApiBannerContent {
   priceSize?: string;
   textAlign?: "left" | "center" | "right";
   textPosition?: "left" | "center" | "right";
+  // Podcast layout fields
+  heading?: string;
+  headingAccent?: string;
+  headingAccentColor?: string;
+  tagline?: string;
+  description?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  ctaIcon?: string;
+  ctaButtonColor?: string;
+  ctaButtonTextColor?: string;
+  featureCards?: BannerFeatureCard[];
 }
 
 export interface ApiBanner {
@@ -268,13 +303,22 @@ export function transformApiBannerToBanner(
   apiBanner: ApiBanner,
   apiBase: string
 ): Banner {
-  const hasContent =
+  const isPodcastLayout = apiBanner.content?.layoutStyle === "podcast";
+  const hasDefaultContent =
     apiBanner.content &&
     (apiBanner.content.title ||
       apiBanner.content.subtitle ||
       apiBanner.content.paragraph ||
       apiBanner.content.price ||
       (apiBanner.content.warranty && apiBanner.content.warranty.length > 0));
+  const hasPodcastContent =
+    apiBanner.content &&
+    (apiBanner.content.heading ||
+      apiBanner.content.headingAccent ||
+      apiBanner.content.tagline ||
+      apiBanner.content.description ||
+      apiBanner.content.ctaText);
+  const hasContent = isPodcastLayout ? hasPodcastContent : hasDefaultContent;
 
   const rawLarge = getBannerImageUrl(apiBanner.imageLarge, apiBase);
   const rawSmall = getBannerImageUrl(apiBanner.imageSmall, apiBase);
@@ -314,6 +358,8 @@ export function transformApiBannerToBanner(
     alt: apiBanner.altText || "Banner",
     content: hasContent
       ? {
+          layoutStyle: apiBanner.content?.layoutStyle || "default",
+          // Default layout fields
           title: apiBanner.content?.title,
           subtitle: apiBanner.content?.subtitle,
           paragraph: apiBanner.content?.paragraph,
@@ -335,6 +381,18 @@ export function transformApiBannerToBanner(
           priceSize: apiBanner.content?.priceSize,
           textAlign: resolveBannerTextAlign(apiBanner.content),
           textPosition: resolveTextPosition(apiBanner.content),
+          // Podcast layout fields
+          heading: apiBanner.content?.heading,
+          headingAccent: apiBanner.content?.headingAccent,
+          headingAccentColor: apiBanner.content?.headingAccentColor || "#C2FC12",
+          tagline: apiBanner.content?.tagline,
+          description: apiBanner.content?.description,
+          ctaText: apiBanner.content?.ctaText,
+          ctaLink: apiBanner.content?.ctaLink,
+          ctaIcon: apiBanner.content?.ctaIcon,
+          ctaButtonColor: apiBanner.content?.ctaButtonColor || "#C2FC12",
+          ctaButtonTextColor: apiBanner.content?.ctaButtonTextColor || "#000000",
+          featureCards: apiBanner.content?.featureCards,
         }
       : undefined,
     extraImage: apiBanner.extraImage

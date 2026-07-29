@@ -58,12 +58,16 @@ export default function BookingPackageDetailPage() {
     return (
       <>
         <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-        <main className="min-h-[50vh] flex items-center justify-center bg-bodyBg">
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-bodyBg"
+          role="status"
+          aria-busy="true"
+        >
           <div className="relative w-16 h-16">
             <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
             <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
           </div>
-        </main>
+        </div>
       </>
     );
   }
@@ -93,7 +97,7 @@ export default function BookingPackageDetailPage() {
             onClick={() => router.push("/booking")}
             className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:shadow-md transition-shadow">
+            <div className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 group-hover:border-gray-300 group-hover:bg-gray-50 transition-all">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
@@ -103,8 +107,9 @@ export default function BookingPackageDetailPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 lg:gap-10 items-start">
             {/* Main content */}
-            <article className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden min-w-0">
-              <div className="px-6 sm:px-10 py-8 sm:py-10 border-b border-gray-100 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+            <article className="min-w-0">
+              {/* Header with title */}
+              <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-3">
                   {bookingService.getTypeLabel(pkg.type)}
                 </span>
@@ -113,15 +118,43 @@ export default function BookingPackageDetailPage() {
                 </h1>
               </div>
 
-              {hasRichDescription(pkg.detailPage) ? (
-                <div className="px-6 sm:px-10 py-8 sm:py-10">
+              {/* HTML/CSS Widget - prioritized over detailPage */}
+              {pkg.detailPageHtml?.trim() ? (
+                <div>
+                  {pkg.detailPageCss?.trim() && (
+                    <style
+                      dangerouslySetInnerHTML={{
+                        __html: `/* Booking package widget styles - scoped to container only */
+.booking-widget-container { all: initial; display: block; font-family: inherit; }
+.booking-widget-container * { box-sizing: border-box; }
+${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) => {
+  const scopedSelectors = selector
+    .split(',')
+    .map((s: string) => {
+      const trimmed = s.trim();
+      if (!trimmed || trimmed.startsWith('@') || trimmed.startsWith('.booking-widget-container')) return trimmed;
+      return `.booking-widget-container ${trimmed}`;
+    })
+    .join(', ');
+  return scopedSelectors + rules;
+})}`,
+                      }}
+                    />
+                  )}
+                  <div
+                    className="booking-widget-container"
+                    dangerouslySetInnerHTML={{ __html: pkg.detailPageHtml }}
+                  />
+                </div>
+              ) : hasRichDescription(pkg.detailPage) ? (
+                <div className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] px-6 sm:px-10 py-8 sm:py-10">
                   <div
                     className="prose prose-sm sm:prose-lg max-w-none blog-content text-gray-700 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: pkg.detailPage }}
                   />
                 </div>
               ) : (
-                <div className="px-6 sm:px-10 py-10 text-center">
+                <div className="py-10 text-center">
                   <p className="text-gray-500">No additional details for this service yet.</p>
                 </div>
               )}
@@ -129,14 +162,14 @@ export default function BookingPackageDetailPage() {
 
             {/* Sidebar */}
             <aside className="lg:sticky lg:top-24 space-y-4">
-              <div className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-6 sm:p-7">
-                <p className="text-sm font-medium text-gray-500 mb-1">Price</p>
-                <p className="text-4xl font-bold text-gray-900 mb-4">
+              <div className="booking-card-themed bg-bookingCardBg rounded-2xl border shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-6 sm:p-7" style={{ borderColor: "var(--booking-card-divider)" }}>
+                <p className="text-sm font-medium mb-1" style={{ color: "var(--booking-card-fg-muted)" }}>Price</p>
+                <p className="text-4xl font-bold mb-4" style={{ color: "var(--booking-card-fg)" }}>
                   {bookingService.formatPrice(pkg.price)}
                 </p>
 
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-6 pb-6 border-b border-gray-100">
-                  <svg className="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-2 text-sm mb-6 pb-6 border-b" style={{ color: "var(--booking-card-fg-muted)", borderColor: "var(--booking-card-divider)" }}>
+                  <svg className="w-4 h-4 shrink-0" style={{ color: "var(--booking-card-fg)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>
@@ -149,17 +182,21 @@ export default function BookingPackageDetailPage() {
 
                 {features.length > 0 && (
                   <div className="mb-6">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--booking-card-fg-muted)" }}>
                       Included
                     </p>
                     <ul className="space-y-2.5">
                       {features.map((feature, index) => (
                         <li
                           key={`${pkg._id}-feature-${index}`}
-                          className="flex items-start gap-2.5 text-sm text-gray-700"
+                          className="flex items-start gap-2.5 text-sm"
+                          style={{ color: "var(--booking-card-fg)" }}
                         >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
-                            <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <span 
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full mt-0.5"
+                            style={{ backgroundColor: "var(--booking-card-surface)" }}
+                          >
+                            <svg className="w-3 h-3" style={{ color: "var(--booking-card-fg)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
                           </span>
@@ -178,7 +215,12 @@ export default function BookingPackageDetailPage() {
                 </Link>
                 <Link
                   href="/booking"
-                  className="flex w-full items-center justify-center bg-white text-gray-700 py-3 px-6 rounded-xl text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="flex w-full items-center justify-center py-3 px-6 rounded-xl text-sm font-medium border transition-colors hover:opacity-80"
+                  style={{ 
+                    backgroundColor: "var(--booking-card-surface)", 
+                    color: "var(--booking-card-fg)",
+                    borderColor: "var(--booking-card-surface-border)"
+                  }}
                 >
                   View All Services
                 </Link>

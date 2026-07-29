@@ -167,10 +167,6 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   return (
     <div className={`relative ${className}`}>
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          Address Lookup
-        </label>
-
         <div className="relative">
           <input
             ref={inputRef}
