@@ -90,14 +90,13 @@
   min-height: 100%;
   width: 100%;
   min-width: 0;
+  /* No translateY on hover — moving the hitbox mid-click drops clicks on View Detail / Book Now */
   transition:
-    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.5s,
     box-shadow 0.5s;
 }
 
 .psm-booking-card:hover {
-  transform: translateY(-10px);
   border-color: var(--psm-line);
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.55),
@@ -290,9 +289,5 @@
 @media (prefers-reduced-motion: reduce) {
   .psm-booking-card {
     transition: none;
-  }
-
-  .psm-booking-card:hover {
-    transform: none;
   }
 }

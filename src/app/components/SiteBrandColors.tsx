@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { resolveSiteTheme, applyBookingCardThemeToRoot } from "@/app/lib/siteThemeUtils";
+import {
+  resolveSiteTheme,
+  applyBookingCardThemeToRoot,
+  applyCheckoutThemeToRoot,
+} from "@/app/lib/siteThemeUtils";
 import {
   applyTagColorsStyleDocument,
   removeTagColorsStyleDocument,
@@ -38,6 +42,7 @@ export default function SiteBrandColors() {
         root.style.setProperty("--body-bg-color", t.bodyBgColor);
         root.style.setProperty("--booking-service-card-bg", t.bookingServiceCardBgColor);
         applyBookingCardThemeToRoot(root, t.bookingServiceCardBgColor);
+        applyCheckoutThemeToRoot(root, t.bodyBgColor);
         document.body.style.backgroundColor = t.bodyBgColor;
 
         if (resolveTagColorsEnabled(json.data)) {

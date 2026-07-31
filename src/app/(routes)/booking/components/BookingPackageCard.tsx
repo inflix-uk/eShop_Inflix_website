@@ -134,9 +134,14 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
       ) : null}
 
       <div className="psm-booking-card__cta-row mt-auto">
-        <span data-booking-btn-text className="psm-booking-card__cta psm-booking-card__cta--secondary">
+        <Link
+          href={`/booking/details/${pkg._id}`}
+          onClick={(e) => e.stopPropagation()}
+          data-booking-btn-text
+          className="psm-booking-card__cta psm-booking-card__cta--secondary"
+        >
           View Detail
-        </span>
+        </Link>
         <Link
           href={`/booking/${pkg._id}`}
           onClick={(e) => e.stopPropagation()}
