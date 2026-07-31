@@ -47,6 +47,13 @@ html.has-product-sticky-buy-bar #site-footer {
   --booking-card-surface: #f3f4f6;
   --booking-card-surface-border: #e5e7eb;
   --booking-card-divider: #e5e7eb;
+  /* Checkout surfaces — derived from --body-bg-color via siteThemeUtils */
+  --checkout-fg: #111827;
+  --checkout-fg-muted: #6b7280;
+  --checkout-panel-bg: #ffffff;
+  --checkout-panel-shell: #f3f4f6;
+  --checkout-input-bg: #ffffff;
+  --checkout-border: #e5e7eb;
 }
 
 /* Nested rows inside admin-colored booking cards — always derived from card bg */
@@ -72,36 +79,146 @@ html.has-product-sticky-buy-bar #site-footer {
   background-image: none !important;
 }
 
-/* Checkout order summary — black text on white card (ignore podcast CMS tag colors) */
-.checkout-order-summary {
-  color: #000000;
+/* Checkout — adaptive panels/inputs from CMS body bg (ignore podcast CMS tag colors) */
+.checkout-themed {
+  color: var(--checkout-fg);
 }
 
-.checkout-order-summary > div {
-  background-color: #f3f4f6 !important; /* light gray outer shell */
+.checkout-themed .checkout-billing-panel {
+  background-color: var(--checkout-panel-bg);
+  border: 1px solid var(--checkout-border);
+  border-radius: 0.375rem;
+  padding: 1.25rem 1rem;
 }
 
-.checkout-order-summary > div > .bg-white,
-.checkout-order-summary > div > .rounded-lg.border {
-  background-color: #ffffff !important;
+@media (min-width: 640px) {
+  .checkout-themed .checkout-billing-panel {
+    padding: 1.5rem 1.25rem;
+  }
 }
 
-.checkout-order-summary h1,
-.checkout-order-summary h2,
-.checkout-order-summary h3,
-.checkout-order-summary h4,
-.checkout-order-summary h5,
-.checkout-order-summary h6,
-.checkout-order-summary p,
-.checkout-order-summary span,
-.checkout-order-summary dt,
-.checkout-order-summary dd,
-.checkout-order-summary label,
-.checkout-order-summary li,
-.checkout-order-summary b,
-.checkout-order-summary a,
-.checkout-order-summary svg {
-  color: #000000 !important;
+.checkout-themed .checkout-order-summary > div {
+  background-color: var(--checkout-panel-shell) !important;
+  border: 1px solid var(--checkout-border);
+}
+
+.checkout-themed .checkout-order-summary > div > .bg-white,
+.checkout-themed .checkout-order-summary > div > .rounded-lg.border {
+  background-color: var(--checkout-panel-bg) !important;
+  border-color: var(--checkout-border) !important;
+}
+
+.checkout-themed h1,
+.checkout-themed h2,
+.checkout-themed h3,
+.checkout-themed h4,
+.checkout-themed h5,
+.checkout-themed h6,
+.checkout-themed p,
+.checkout-themed span,
+.checkout-themed dt,
+.checkout-themed dd,
+.checkout-themed label,
+.checkout-themed li,
+.checkout-themed b,
+.checkout-themed a,
+.checkout-themed svg {
+  color: var(--checkout-fg) !important;
+}
+
+.checkout-themed .text-gray-400,
+.checkout-themed .text-gray-500,
+.checkout-themed .text-gray-600,
+.checkout-themed .text-gray-700 {
+  color: var(--checkout-fg-muted) !important;
+}
+
+.checkout-themed .text-gray-800,
+.checkout-themed .text-gray-900 {
+  color: var(--checkout-fg) !important;
+}
+
+.checkout-themed .text-primary {
+  color: var(--primary) !important;
+}
+
+.checkout-themed .text-red-500,
+.checkout-themed .text-red-600 {
+  color: #dc2626 !important;
+}
+
+.checkout-themed .border-red-500,
+.checkout-themed .border-red-600 {
+  border-color: #dc2626 !important;
+}
+
+.checkout-themed .text-green-600,
+.checkout-themed .text-green-700 {
+  color: #15803d !important;
+}
+
+.checkout-themed .text-blue-600,
+.checkout-themed .text-blue-700 {
+  color: #1d4ed8 !important;
+}
+
+.checkout-themed .bg-green-50 {
+  background-color: #f0fdf4 !important;
+}
+
+.checkout-themed .bg-blue-50 {
+  background-color: #eff6ff !important;
+}
+
+.checkout-themed .bg-green-50 span,
+.checkout-themed .bg-blue-50 span {
+  color: inherit !important;
+}
+
+.checkout-themed .border-gray-100,
+.checkout-themed .border-gray-200,
+.checkout-themed .border-gray-300 {
+  border-color: var(--checkout-border) !important;
+}
+
+.checkout-themed .bg-white {
+  background-color: var(--checkout-panel-bg) !important;
+}
+
+.checkout-themed .bg-gray-50,
+.checkout-themed .bg-gray-100,
+.checkout-themed .bg-gray-200 {
+  background-color: var(--checkout-panel-shell) !important;
+}
+
+.checkout-themed input[type="text"],
+.checkout-themed input[type="email"],
+.checkout-themed input[type="tel"],
+.checkout-themed input[type="password"],
+.checkout-themed input[type="number"],
+.checkout-themed input[type="search"],
+.checkout-themed select,
+.checkout-themed textarea {
+  background-color: var(--checkout-input-bg) !important;
+  color: var(--checkout-fg) !important;
+  border-color: var(--checkout-border) !important;
+}
+
+.checkout-themed input::placeholder,
+.checkout-themed textarea::placeholder {
+  color: var(--checkout-fg-muted) !important;
+  opacity: 0.85;
+}
+
+.checkout-themed input[type="checkbox"] {
+  background-color: var(--checkout-input-bg) !important;
+  border-color: var(--checkout-border) !important;
+}
+
+/* Keep primary payment CTA label white */
+.checkout-themed button.bg-primary,
+.checkout-themed button.bg-primary * {
+  color: #ffffff !important;
 }
 
 .booking-confirmation-module {
@@ -124,12 +241,6 @@ html.has-product-sticky-buy-bar #site-footer {
 .booking-confirmation-module a,
 .booking-confirmation-module svg {
   color: #000000 !important;
-}
-
-/* Keep primary payment CTA label white */
-.checkout-order-summary button.bg-primary,
-.checkout-order-summary button.bg-primary * {
-  color: #ffffff !important;
 }
 
 /* Embla / horizontal carousels: `touch-action: pan-x` alone prevents vertical page scroll on mobile */

@@ -815,11 +815,11 @@ export default function CheckoutPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl lg:max-w-none">
+        <div className="checkout-themed mx-auto max-w-2xl lg:max-w-none">
           <h1 className="sr-only">Checkout</h1>
 
           <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 xl:gap-x-16">
-            <div>
+            <div className="checkout-billing-panel">
               <LoginForm
                 toggleFormVisibility={toggleFormVisibility}
                 email={email}

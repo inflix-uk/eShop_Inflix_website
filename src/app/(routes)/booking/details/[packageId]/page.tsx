@@ -86,6 +86,8 @@ export default function BookingPackageDetailPage() {
     );
   }
 
+  const bookingPkg = pkg;
+
   return (
     <>
       <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
@@ -105,7 +107,7 @@ export default function BookingPackageDetailPage() {
             <span className="font-medium text-sm">Back to Services</span>
           </button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 lg:gap-10 items-start">
+          <div className="grid grid-cols-1 gap-8 lg:gap-10 items-start">
             {/* Main content */}
             <article className="min-w-0">
               {/* Header with title */}
@@ -160,12 +162,13 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
               )}
             </article>
 
-            {/* Sidebar */}
+            {/* Sidebar — dynamic price/duration/features card (temporarily hidden) */}
+            {false && (
             <aside className="lg:sticky lg:top-24 space-y-4">
               <div className="booking-card-themed bg-bookingCardBg rounded-2xl border shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-6 sm:p-7" style={{ borderColor: "var(--booking-card-divider)" }}>
                 <p className="text-sm font-medium mb-1" style={{ color: "var(--booking-card-fg-muted)" }}>Price</p>
                 <p className="text-4xl font-bold mb-4" style={{ color: "var(--booking-card-fg)" }}>
-                  {bookingService.formatPrice(pkg.price)}
+                  {bookingService.formatPrice(bookingPkg.price)}
                 </p>
 
                 <div className="flex items-center gap-2 text-sm mb-6 pb-6 border-b" style={{ color: "var(--booking-card-fg-muted)", borderColor: "var(--booking-card-divider)" }}>
@@ -173,7 +176,7 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>
-                    {formatDuration(pkg.durationMinutes, pkg.durationDisplayUnit, {
+                    {formatDuration(bookingPkg.durationMinutes, bookingPkg.durationDisplayUnit, {
                       short: false,
                     })}{" "}
                     session
@@ -188,7 +191,7 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
                     <ul className="space-y-2.5">
                       {features.map((feature, index) => (
                         <li
-                          key={`${pkg._id}-feature-${index}`}
+                          key={`${bookingPkg._id}-feature-${index}`}
                           className="flex items-start gap-2.5 text-sm"
                           style={{ color: "var(--booking-card-fg)" }}
                         >
@@ -208,7 +211,7 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
                 )}
 
                 <Link
-                  href={`/booking/${pkg._id}`}
+                  href={`/booking/${bookingPkg._id}`}
                   className="flex w-full items-center justify-center bg-primary text-white py-3.5 px-6 rounded-xl text-sm font-semibold hover:bg-secondary transition-colors mb-3"
                 >
                   Book This Service
@@ -226,6 +229,7 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
                 </Link>
               </div>
             </aside>
+            )}
           </div>
         </div>
       </main>

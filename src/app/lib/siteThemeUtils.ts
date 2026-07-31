@@ -160,8 +160,67 @@ export function applyBookingCardThemeToRoot(
   root.style.setProperty("--booking-card-divider", v.bookingCardDivider);
 }
 
+export type CheckoutThemeVars = {
+  checkoutFg: string;
+  checkoutFgMuted: string;
+  checkoutPanelBg: string;
+  checkoutPanelShell: string;
+  checkoutInputBg: string;
+  checkoutBorder: string;
+};
+
+/** Contrast tokens for checkout panels/inputs derived from CMS body background. */
+export function resolveCheckoutThemeVars(bodyBgHex: string): CheckoutThemeVars {
+  const bodyBg = resolveBodyBgColor(bodyBgHex);
+  const isLight = relativeLuminanceHex(bodyBg) > 0.45;
+  if (isLight) {
+    return {
+      checkoutFg: "#111827",
+      checkoutFgMuted: "#6b7280",
+      checkoutPanelBg: "#ffffff",
+      checkoutPanelShell: "#f3f4f6",
+      checkoutInputBg: "#ffffff",
+      checkoutBorder: "#e5e7eb",
+    };
+  }
+  return {
+    checkoutFg: "#f9fafb",
+    checkoutFgMuted: "#d1d5db",
+    checkoutPanelBg: mixHex(bodyBg, "#ffffff", 88),
+    checkoutPanelShell: mixHex(bodyBg, "#ffffff", 92),
+    checkoutInputBg: mixHex(bodyBg, "#ffffff", 82),
+    checkoutBorder: mixHex(bodyBg, "#ffffff", 72),
+  };
+}
+
+export function checkoutThemeVarsCss(bodyBgHex: string): string {
+  const v = resolveCheckoutThemeVars(bodyBgHex);
+  return [
+    `--checkout-fg:${v.checkoutFg}`,
+    `--checkout-fg-muted:${v.checkoutFgMuted}`,
+    `--checkout-panel-bg:${v.checkoutPanelBg}`,
+    `--checkout-panel-shell:${v.checkoutPanelShell}`,
+    `--checkout-input-bg:${v.checkoutInputBg}`,
+    `--checkout-border:${v.checkoutBorder}`,
+  ].join(";");
+}
+
+export function applyCheckoutThemeToRoot(
+  root: HTMLElement,
+  bodyBgHex: string
+): void {
+  const v = resolveCheckoutThemeVars(bodyBgHex);
+  root.style.setProperty("--checkout-fg", v.checkoutFg);
+  root.style.setProperty("--checkout-fg-muted", v.checkoutFgMuted);
+  root.style.setProperty("--checkout-panel-bg", v.checkoutPanelBg);
+  root.style.setProperty("--checkout-panel-shell", v.checkoutPanelShell);
+  root.style.setProperty("--checkout-input-bg", v.checkoutInputBg);
+  root.style.setProperty("--checkout-border", v.checkoutBorder);
+}
+
 /** Single `:root` block for `<style>` in document head (overrides `globals.css`). */
 export function siteThemeRootStyleCss(theme: SiteThemeResolved): string {
   const bookingVars = bookingCardThemeVarsCss(theme.bookingServiceCardBgColor);
-  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};--booking-service-card-bg:${theme.bookingServiceCardBgColor};${bookingVars};}body{background-color:var(--body-bg-color);}`;
+  const checkoutVars = checkoutThemeVarsCss(theme.bodyBgColor);
+  return `:root{--primary:${theme.primaryColor};--secondary:${theme.secondaryColor};--primary-rgb:${theme.primaryRgb};--secondary-rgb:${theme.secondaryRgb};--body-bg-color:${theme.bodyBgColor};--booking-service-card-bg:${theme.bookingServiceCardBgColor};${bookingVars};${checkoutVars};}body{background-color:var(--body-bg-color);}`;
 }
