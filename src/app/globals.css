@@ -215,10 +215,30 @@ html.has-product-sticky-buy-bar #site-footer {
   border-color: var(--checkout-border) !important;
 }
 
-/* Keep primary payment CTA label white */
+/* Keep primary payment CTA label white (default stores) */
 .checkout-themed button.bg-primary,
 .checkout-themed button.bg-primary * {
   color: #ffffff !important;
+}
+
+/* Podcast store checkout — lime accent + dark text on primary CTAs only */
+.checkout-themed.checkout-podcast {
+  --primary: #d0fe21;
+  --primary-rgb: 208 254 33;
+}
+
+.checkout-themed.checkout-podcast .text-primary {
+  color: #d0fe21 !important;
+}
+
+.checkout-themed.checkout-podcast button.bg-primary,
+.checkout-themed.checkout-podcast button.bg-primary * {
+  color: #050505 !important;
+}
+
+.checkout-themed.checkout-podcast a.bg-primary,
+.checkout-themed.checkout-podcast a.bg-primary * {
+  color: #050505 !important;
 }
 
 .booking-confirmation-module {
