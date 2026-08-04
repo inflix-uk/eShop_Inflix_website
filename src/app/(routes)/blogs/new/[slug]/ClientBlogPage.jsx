@@ -341,7 +341,11 @@ export default function ClientBlogPage({ blog, navbarVariantTestConfig = null })
       <Nav /> */}
       <NavbarVariantTestBar config={navbarVariantTestConfig} />
       
-      <div className="min-h-screen bg-white relative overflow-x-hidden">
+      <div
+        className={`min-h-screen relative overflow-x-hidden blogs-themed${
+          navbarVariantTestConfig?.variant === "podcast" ? " blogs-podcast" : ""
+        }`}
+      >
         {/* TOC Toggle Button - Better positioned with scroll behavior */}
         <button
           onClick={toggleTOC}

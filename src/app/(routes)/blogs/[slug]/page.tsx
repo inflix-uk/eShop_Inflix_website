@@ -488,7 +488,11 @@ export default async function BlogPage({
       <Nav /> */}
       <NavbarVariantTestBar config={navbarVariantTestConfig} />
 
-      <article className="px-3 sm:px-4 py-6 sm:py-10 min-w-0">
+      <article
+        className={`blogs-themed px-3 sm:px-4 py-6 sm:py-10 min-w-0${
+          navbarVariantTestConfig?.variant === "podcast" ? " blogs-podcast" : ""
+        }`}
+      >
         {/* HERO (server-rendered) */}
         <header className="max-w-7xl mx-auto bg-white rounded-lg overflow-hidden shadow-lg">
           <div className="relative">

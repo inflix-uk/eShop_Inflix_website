@@ -241,6 +241,157 @@ html.has-product-sticky-buy-bar #site-footer {
   color: #050505 !important;
 }
 
+/* Blogs listing — adaptive surfaces from CMS body bg (same tokens as checkout) */
+.blogs-themed {
+  color: var(--checkout-fg);
+}
+
+.blogs-themed h1,
+.blogs-themed h2,
+.blogs-themed h3,
+.blogs-themed h4,
+.blogs-themed h5,
+.blogs-themed h6,
+.blogs-themed p,
+.blogs-themed span,
+.blogs-themed label,
+.blogs-themed li,
+.blogs-themed a,
+.blogs-themed svg,
+.blogs-themed button {
+  color: inherit;
+}
+
+.blogs-themed .text-gray-400,
+.blogs-themed .text-gray-500,
+.blogs-themed .text-gray-600,
+.blogs-themed .text-gray-700 {
+  color: var(--checkout-fg-muted) !important;
+}
+
+.blogs-themed .text-gray-800,
+.blogs-themed .text-gray-900,
+.blogs-themed .text-black {
+  color: var(--checkout-fg) !important;
+}
+
+.blogs-themed .text-primary {
+  color: var(--primary) !important;
+}
+
+.blogs-themed .group:hover .group-hover\:text-primary {
+  color: var(--primary) !important;
+}
+
+.blogs-themed .border-gray-100,
+.blogs-themed .border-gray-200,
+.blogs-themed .border-gray-300,
+.blogs-themed .border-2 {
+  border-color: var(--checkout-border) !important;
+}
+
+.blogs-themed .bg-white {
+  background-color: var(--checkout-panel-bg) !important;
+}
+
+.blogs-themed .bg-gray-50,
+.blogs-themed .bg-gray-100,
+.blogs-themed .bg-gray-200,
+.blogs-themed .hover\:bg-gray-50:hover,
+.blogs-themed .hover\:bg-gray-100:hover,
+.blogs-themed .hover\:bg-gray-200:hover {
+  background-color: var(--checkout-panel-shell) !important;
+}
+
+.blogs-themed input[type="text"],
+.blogs-themed input[type="search"],
+.blogs-themed select {
+  background-color: var(--checkout-input-bg) !important;
+  color: var(--checkout-fg) !important;
+  border-color: var(--checkout-border) !important;
+}
+
+.blogs-themed input::placeholder {
+  color: var(--checkout-fg-muted) !important;
+  opacity: 0.85;
+}
+
+.blogs-themed select option {
+  background-color: var(--checkout-panel-bg);
+  color: var(--checkout-fg);
+}
+
+/* Active / CTA chips — use brand primary; white label on default stores */
+.blogs-themed .blogs-active-chip,
+.blogs-themed button.bg-primary,
+.blogs-themed a.bg-primary {
+  background-color: var(--primary) !important;
+  color: #ffffff !important;
+}
+
+.blogs-themed .blogs-active-chip *,
+.blogs-themed button.bg-primary *,
+.blogs-themed a.bg-primary * {
+  color: #ffffff !important;
+}
+
+/* Podcast store blogs — lime accent + dark text on primary surfaces */
+.blogs-themed.blogs-podcast {
+  --primary: #d0fe21;
+  --primary-rgb: 208 254 33;
+}
+
+.blogs-themed.blogs-podcast .text-primary {
+  color: #d0fe21 !important;
+}
+
+.blogs-themed.blogs-podcast .blogs-active-chip,
+.blogs-themed.blogs-podcast button.bg-primary,
+.blogs-themed.blogs-podcast a.bg-primary,
+.blogs-themed.blogs-podcast .blogs-active-chip *,
+.blogs-themed.blogs-podcast button.bg-primary *,
+.blogs-themed.blogs-podcast a.bg-primary * {
+  color: #050505 !important;
+}
+
+.blogs-themed.blogs-podcast .bg-primary {
+  background-color: #d0fe21 !important;
+  color: #050505 !important;
+}
+
+.blogs-themed.blogs-podcast .bg-primary * {
+  color: #050505 !important;
+}
+
+/* Blog detail prose — follow CMS body contrast (no hardcoded store colors) */
+.blogs-themed .prose,
+.blogs-themed .blog-content {
+  --tw-prose-body: var(--checkout-fg-muted);
+  --tw-prose-headings: var(--checkout-fg);
+  --tw-prose-lead: var(--checkout-fg-muted);
+  --tw-prose-links: var(--primary);
+  --tw-prose-bold: var(--checkout-fg);
+  --tw-prose-counters: var(--checkout-fg-muted);
+  --tw-prose-bullets: var(--checkout-fg-muted);
+  --tw-prose-quotes: var(--checkout-fg-muted);
+  --tw-prose-quote-borders: var(--checkout-border);
+  --tw-prose-captions: var(--checkout-fg-muted);
+  --tw-prose-code: var(--checkout-fg);
+  --tw-prose-th-borders: var(--checkout-border);
+  --tw-prose-td-borders: var(--checkout-border);
+  color: var(--checkout-fg);
+}
+
+.blogs-themed .prose :where(p, li),
+.blogs-themed .blog-content :where(p, li) {
+  color: var(--checkout-fg-muted);
+}
+
+.blogs-themed .prose :where(h1, h2, h3, h4, h5, h6),
+.blogs-themed .blog-content :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--checkout-fg);
+}
+
 .booking-confirmation-module {
   color: #000000;
 }

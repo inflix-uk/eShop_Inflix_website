@@ -213,7 +213,11 @@ function BlogsContent() {
       <NavbarVariantTestBar config={navbarVariantTestConfig} />
       <BreadCrumb breadcrumb={breadCrumb} />
 
-      <div className="container mx-auto max-w-screen-xl py-10 px-4">
+      <div
+        className={`blogs-themed container mx-auto max-w-screen-xl py-10 px-4${
+          navbarVariantTestConfig?.variant === "podcast" ? " blogs-podcast" : ""
+        }`}
+      >
         <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-8 text-center">
           Explore Our Blogs
         </h2>
@@ -242,12 +246,16 @@ function BlogsContent() {
                     onClick={() => handleCategoryChange(cat)}
                     className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
                       isActive
-                        ? "bg-green-600 text-white"
+                        ? "blogs-active-chip bg-primary"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     <span>{label}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"}`}>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        isActive ? "bg-black/10" : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
                       {count}
                     </span>
                   </Link>
@@ -264,7 +272,7 @@ function BlogsContent() {
                 <input
                   type="text"
                   placeholder="Search blogs..."
-                  className="w-full rounded-lg border-2 border-gray-200 p-4 pl-12 shadow-sm transition duration-200 hover:shadow-md focus:border-transparent focus:ring-2 focus:ring-green-500"
+                  className="w-full rounded-lg border-2 border-gray-200 bg-white p-4 pl-12 shadow-sm transition duration-200 hover:shadow-md focus:border-transparent focus:ring-2 focus:ring-primary"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -280,7 +288,7 @@ function BlogsContent() {
               <select
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="min-w-[200px] cursor-pointer rounded-lg border-2 border-gray-200 bg-white p-4 pr-12 font-medium text-gray-700 shadow-sm transition duration-200 hover:shadow-md focus:border-transparent focus:ring-2 focus:ring-green-500"
+                className="min-w-[200px] cursor-pointer rounded-lg border-2 border-gray-200 bg-white p-4 pr-12 font-medium text-gray-700 shadow-sm transition duration-200 hover:shadow-md focus:border-transparent focus:ring-2 focus:ring-primary"
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
@@ -307,7 +315,7 @@ function BlogsContent() {
                 <p className="mb-8 text-gray-500">{loadError}</p>
                 <button
                   onClick={() => void loadBlogs()}
-                  className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+                  className="blogs-active-chip inline-flex items-center rounded-md border border-transparent bg-primary px-6 py-3 text-base font-medium shadow-sm"
                 >
                   Retry
                 </button>
@@ -321,7 +329,7 @@ function BlogsContent() {
                     setSearchTerm("");
                     router.push("/blogs/");
                   }}
-                  className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+                  className="blogs-active-chip inline-flex items-center rounded-md border border-transparent bg-primary px-6 py-3 text-base font-medium shadow-sm"
                 >
                   Reset Filters
                 </button>
@@ -349,7 +357,7 @@ function BlogsContent() {
                   onClick={() => handleCategoryChange(cat)}
                   className={`rounded-full px-4 py-2 transition-all ${
                     selectedCategory === cat
-                      ? "bg-green-600 text-white shadow-md"
+                      ? "blogs-active-chip bg-primary shadow-md"
                       : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                   }`}
                 >
@@ -381,7 +389,7 @@ function BlogsContent() {
                     onClick={() => goToPage(index + 1)}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg ${
                       currentPage === index + 1
-                        ? "scale-110 bg-green-600 text-white shadow-lg"
+                        ? "blogs-active-chip scale-110 bg-primary shadow-lg"
                         : "border-2 hover:bg-gray-50"
                     }`}
                   >
