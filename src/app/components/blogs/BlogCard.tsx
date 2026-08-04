@@ -107,7 +107,7 @@ export default function BlogCard(
           <div className="bg-white rounded-lg shadow-xl sm:p-5 p-1.5 md:mb-0 mb-2 sm:mb-5 transition-all duration-500 ease-in-out hover:scale-105 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full min-w-0">
             <div className="mb-1 sm:mb-2 flex justify-between items-start gap-1 sm:gap-2">
               <div className="min-w-0">
-                <span className="bg-gray-200 text-black px-1 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-sm inline-block max-w-full truncate">
+                <span className="bg-gray-200 text-gray-900 px-1 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-sm inline-block max-w-full truncate">
                   {categoryLabel}
                 </span>
               </div>

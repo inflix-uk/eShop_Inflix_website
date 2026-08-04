@@ -10,6 +10,7 @@ import LoadingBar from "react-top-loading-bar";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toCategorySlug } from "./lib/blogCategorySlug";
+import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 
 type CategoryBlogsClientProps = {
   categorySlug: string;
@@ -32,6 +33,8 @@ export default function CategoryBlogsClient({
   const [blogs, setBlogs] = useState<Blog[]>(initialBlogs ?? []);
   const [isLoading, setIsLoading] = useState(initialBlogs === undefined);
   const [loadError, setLoadError] = useState("");
+  const [navbarVariantTestConfig, setNavbarVariantTestConfig] =
+    useState<NavbarVariantTestConfig | null>(null);
 
   const loadBlogs = React.useCallback(async () => {
     setProgress(30);
@@ -100,6 +103,30 @@ export default function CategoryBlogsClient({
       controller.abort();
     };
   }, [initialBlogs]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadNavbarVariantConfig = async () => {
+      const base = String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+      if (!base) return;
+      try {
+        const res = await fetch(`${base}/navbar-variant-test/public`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setNavbarVariantTestConfig(json?.data?.config || null);
+        }
+      } catch {
+        if (!cancelled) setNavbarVariantTestConfig(null);
+      }
+    };
+    void loadNavbarVariantConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function formatCategoryName(categoryName: string | undefined | null): string {
     if (!categoryName || typeof categoryName !== "string") return "All Categories";
@@ -191,7 +218,11 @@ export default function CategoryBlogsClient({
       <TopBar />
       <Nav />
       <BreadCrumb breadcrumb={breadCrumb} />
-      <div className="container mx-auto max-w-screen-xl py-10 px-4">
+      <div
+        className={`blogs-themed container mx-auto max-w-screen-xl py-10 px-4${
+          navbarVariantTestConfig?.variant === "podcast" ? " blogs-podcast" : ""
+        }`}
+      >
         <h2 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl mb-8 text-center">
           {formatCategoryName(actualCategory || categorySlug)} Blogs
         </h2>
@@ -201,7 +232,7 @@ export default function CategoryBlogsClient({
             <input
               type="text"
               placeholder="Search blogs..."
-              className="w-full p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 shadow-sm hover:shadow-md pl-12"
+              className="w-full p-4 border-2 border-gray-200 bg-white rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition duration-200 shadow-sm hover:shadow-md pl-12"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -220,7 +251,7 @@ export default function CategoryBlogsClient({
             </svg>
           </div>
           <select
-            className="p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200 shadow-sm hover:shadow-md cursor-pointer bg-white min-w-[200px] appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[length:12px_12px] bg-[right_1rem_center] pr-12 text-gray-700 font-medium"
+            className="p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition duration-200 shadow-sm hover:shadow-md cursor-pointer bg-white min-w-[200px] appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[length:12px_12px] bg-[right_1rem_center] pr-12 text-gray-700 font-medium"
             value={actualCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
           >
@@ -228,11 +259,7 @@ export default function CategoryBlogsClient({
               <option
                 key={cat}
                 value={cat}
-                className="py-2 px-4 hover:bg-green-50 font-medium capitalize"
-                style={{
-                  backgroundColor: cat === actualCategory ? "#f0fdf4" : "white",
-                  borderBottom: "1px solid #e5e7eb",
-                }}
+                className="py-2 px-4 font-medium capitalize"
               >
                 {cat === "all" ? "All Categories" : formatCategoryName(cat)}
               </option>
@@ -252,7 +279,7 @@ export default function CategoryBlogsClient({
             <button
               type="button"
               onClick={() => void loadBlogs()}
-              className="inline-flex items-center rounded-md border border-transparent bg-green-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-green-700"
+              className="blogs-active-chip inline-flex items-center rounded-md border border-transparent bg-primary px-6 py-3 text-base font-medium shadow-sm"
             >
               Retry
             </button>
@@ -265,7 +292,7 @@ export default function CategoryBlogsClient({
             </p>
             <Link
               href="/blogs/"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="blogs-active-chip inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm bg-primary"
             >
               View All Blogs
             </Link>
@@ -313,7 +340,7 @@ export default function CategoryBlogsClient({
                   onClick={() => setCurrentPage(index + 1)}
                   className={`w-10 h-10 flex items-center justify-center rounded-lg transition duration-200 ${
                     currentPage === index + 1
-                      ? "bg-green-600 text-white shadow-lg transform scale-110"
+                      ? "blogs-active-chip bg-primary shadow-lg transform scale-110"
                       : "border-2 hover:bg-gray-50"
                   }`}
                 >
