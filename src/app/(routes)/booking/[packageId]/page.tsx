@@ -105,7 +105,8 @@ function mergeReservedSlots(slots: TimeSlot[], date: string, reserved: SelectedB
 export default function BookingFlowPage() {
   const params = useParams();
   const router = useRouter();
-  const packageId = params.packageId as string;
+  /** URL segment: package slug or legacy Mongo id */
+  const packageKey = params.packageId as string;
 
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -138,6 +139,8 @@ export default function BookingFlowPage() {
   const today = useMemo(() => new Date(), []);
   const [viewMonth, setViewMonth] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [bookingUi, setBookingUi] = useState<BookingModuleUi>(resolveBookingModuleUi(null));
+  /** Canonical Mongo id — required by slots/hold APIs */
+  const resolvedPackageId = pkg?._id || "";
 
   const displaySlots = hasActiveHold
     ? activeHolds.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime, holdId: h.holdId }))
@@ -153,7 +156,7 @@ export default function BookingFlowPage() {
   const getMinDate = () => bookingService.getDateInTimezone(timezone);
   const getMaxDate = () => bookingService.addDaysToDateStr(getMinDate(), settings?.maxAdvanceBookingDays || 60);
 
-  useEffect(() => { loadInitialData(); }, [packageId]);
+  useEffect(() => { loadInitialData(); }, [packageKey]);
 
   useEffect(() => {
     const fetchBookingUi = async () => {
@@ -204,13 +207,13 @@ export default function BookingFlowPage() {
         return;
       }
 
-      const packageData = await bookingService.getPackageById(packageId);
+      const packageData = await bookingService.getPackageById(packageKey);
       setPkg(packageData);
 
       if (!packageData) { toast.error("Package not found"); router.push("/booking"); return; }
 
       const todayStr = getMinDate();
-      const stored = getStoredBookingForPackage(packageId);
+      const stored = getStoredBookingForPackage(packageData._id);
       let initialDate = todayStr;
       let restored: SelectedBookingSlot[] = [];
 
@@ -236,7 +239,7 @@ export default function BookingFlowPage() {
       }
 
       setSelectedDate(initialDate);
-      await loadSlots(initialDate, restored);
+      await loadSlots(initialDate, restored, packageData._id);
     } catch {
       toast.error("Failed to load booking data");
     } finally {
@@ -245,12 +248,17 @@ export default function BookingFlowPage() {
     }
   };
 
-  const loadSlots = async (date: string, reserved: SelectedBookingSlot[] = selectedSlots) => {
+  const loadSlots = async (
+    date: string,
+    reserved: SelectedBookingSlot[] = selectedSlots,
+    mongoPackageId: string = resolvedPackageId
+  ) => {
+    if (!mongoPackageId) return;
     setSlotsLoading(true);
     setSlotsMessage(null);
     setAvailableSlots([]);
     try {
-      const response = await bookingService.getAvailableSlots(packageId, date);
+      const response = await bookingService.getAvailableSlots(mongoPackageId, date);
       const merged = mergeReservedSlots(response.slots || [], date, reserved);
       if (merged.length > 0) setAvailableSlots(merged);
       else if (response.blocked) setSlotsMessage(response.reason || "This date is not available");
@@ -361,7 +369,7 @@ export default function BookingFlowPage() {
     const data: StoredBookingData = {
       holdId: holdIds[0],
       holdIds,
-      packageId,
+      packageId: resolvedPackageId || pkg?._id || "",
       packageName: pkg?.name,
       packageType: pkg?.type,
       packagePrice: pkg?.price,
@@ -398,12 +406,12 @@ export default function BookingFlowPage() {
   };
 
   const handleConfirmSlots = async () => {
-    if (!selectedSlots.length || submitting || hasActiveHold) return;
+    if (!selectedSlots.length || submitting || hasActiveHold || !resolvedPackageId) return;
     setSubmitting(true);
     setProgress(40);
     try {
       const result = await bookingService.createMultiSlotHold(
-        packageId,
+        resolvedPackageId,
         selectedSlots.map((s) => ({ date: s.date, startTime: s.startTime })),
         sessionId
       );
@@ -485,14 +493,19 @@ export default function BookingFlowPage() {
             type="button"
             onClick={() => router.push("/booking")}
             disabled={submitting}
-            className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-8 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="group inline-flex items-center gap-1.5 mb-8 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:pointer-events-none"
           >
-            <div className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 group-hover:border-gray-300 group-hover:bg-gray-50 transition-all">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </div>
-            <span className="font-medium text-sm">Back to Services</span>
+            <svg
+              className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-700 transition-colors"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Back to Services</span>
           </button>
 
           <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
@@ -537,10 +550,21 @@ export default function BookingFlowPage() {
                           data-selected={isSelected ? "true" : undefined}
                           onClick={() => selectDate(cell.dateStr)}
                           disabled={!selectable || submitting}
-                          className={`relative h-9 text-sm ${isSelected ? "text-white font-semibold" : selectable ? "hover:bg-gray-100" : "text-gray-300"}`}
+                          className={`relative h-9 w-full rounded-md text-sm transition-colors ${
+                            isSelected
+                              ? "font-semibold"
+                              : selectable
+                                ? ""
+                                : "text-gray-300 cursor-not-allowed"
+                          }`}
                         >
                           {cell.day}
-                          {hasDot && !isSelected && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1" style={{ backgroundColor: bookingUi.buttonBgColor }} />}
+                          {hasDot && !isSelected && (
+                            <span
+                              className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                              style={{ backgroundColor: bookingUi.buttonBgColor }}
+                            />
+                          )}
                         </button>
                       );
                     })}
@@ -567,7 +591,9 @@ export default function BookingFlowPage() {
                                   data-selected={selected ? "true" : undefined}
                                   onClick={() => handleSlotSelect(slot)}
                                   disabled={submitting || hasActiveHold}
-                                  className={`py-2.5 text-sm font-medium border ${selected ? "text-white" : "border-gray-300"} ${hasActiveHold ? "opacity-50" : ""}`}
+                                  className={`py-2.5 text-sm font-medium border rounded-md transition-colors ${
+                                    selected ? "font-semibold" : "border-gray-300"
+                                  } ${hasActiveHold ? "opacity-50" : ""}`}
                                 >
                                   {bookingService.formatTime(slot.startTime)}
                                 </button>

@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { bookingService, BookingPackage } from "../services/bookingService";
+import {
+  bookingService,
+  BookingPackage,
+  getPackageUrlKey,
+} from "../services/bookingService";
 import { formatDuration, normalizeDurationUnit } from "../utils/formatDuration";
 
 type BookingPackageCardProps = {
@@ -86,9 +90,12 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
   const { unit, note } = getPriceMeta(pkg);
   const highlighted = Boolean(pkg.highlightBadgeEnabled);
   const badgeText = pkg.highlightBadgeText?.trim() || "Most Popular";
+  const packageKey = getPackageUrlKey(pkg);
+  const detailsHref = `/booking/details/${packageKey}`;
+  const bookHref = `/booking/${packageKey}`;
 
   const handleCardClick = () => {
-    router.push(`/booking/details/${pkg._id}`);
+    router.push(detailsHref);
   };
 
   return (
@@ -135,7 +142,7 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
 
       <div className="psm-booking-card__cta-row mt-auto">
         <Link
-          href={`/booking/details/${pkg._id}`}
+          href={detailsHref}
           onClick={(e) => e.stopPropagation()}
           data-booking-btn-text
           className="psm-booking-card__cta psm-booking-card__cta--secondary"
@@ -143,9 +150,9 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
           View Detail
         </Link>
         <Link
-          href={`/booking/${pkg._id}`}
+          href={bookHref}
           onClick={(e) => e.stopPropagation()}
-          className={`psm-booking-card__cta ${highlighted ? "psm-booking-card__cta--featured" : ""}`}
+          className="psm-booking-card__cta psm-booking-card__cta--featured"
         >
           Book Now
         </Link>

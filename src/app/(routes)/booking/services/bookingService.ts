@@ -46,6 +46,26 @@ export interface BookingPackageExtra {
   description?: string;
 }
 
+/** SEO slug from package title (hyphenated, lowercase). */
+export function toPackageSlug(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-');
+}
+
+/** URL segment for booking package routes — prefers stored slug, then name, then id. */
+export function getPackageUrlKey(
+  pkg: Pick<BookingPackage, '_id' | 'name' | 'slug'>
+): string {
+  const fromSlug = pkg.slug?.trim();
+  if (fromSlug) return fromSlug;
+  const fromName = toPackageSlug(pkg.name);
+  return fromName || pkg._id;
+}
+
 export interface BookingPageHero {
   badgeText: string;
   title: string;
