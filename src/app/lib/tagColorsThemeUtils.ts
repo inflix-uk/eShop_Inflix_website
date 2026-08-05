@@ -79,11 +79,17 @@ export function tagColorsThemeStyleCss(tagColors: TagColorsConfig): string {
   const rules = TAG_KEYS.map((k) => {
     const selector = levelSelectors(k);
     if (BG_COLOR_KEYS.includes(k)) {
-      return `${selector}{background-color:var(--${k}-color)!important;border-color:var(--${k}-color)!important;}`;
+      // Lime/light brand fills need dark label text — white washes out on #c2fc12.
+      return `${selector}{background-color:var(--${k}-color)!important;border-color:var(--${k}-color)!important;color:#050505!important;}`;
     }
     return `${selector}{color:var(--${k}-color)!important;}`;
   });
-  return `:root{${vars}}${rules.join("")}`;
+  const bookingHover = [
+    "[data-booking-calendar-date]:not([data-selected]):not(:disabled):hover",
+    "[data-booking-slot]:not([data-selected]):not(:disabled):hover",
+  ].join(",");
+  const hoverRule = `${bookingHover}{background-color:color-mix(in srgb,var(--bookingSelectedDateBg-color,#c2fc12) 55%,#111827)!important;color:#ffffff!important;}`;
+  return `:root{${vars}}${rules.join("")}${hoverRule}`;
 }
 
 export const TAG_COLORS_STYLE_ID = "cms-tag-colors-theme";

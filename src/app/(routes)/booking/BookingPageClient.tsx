@@ -108,30 +108,14 @@ export default function BookingPageClient({
         <section className="relative border-b border-gray-200/60">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
             <div className="text-center max-w-5xl mx-auto">
-              {/* Badge */}
+              {/* Badge — neon capsule (recording-style) */}
               {content.hero.badgeText ? (
                 <div
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6 shadow-sm"
-                  style={{
-                    backgroundColor: bookingModuleUi.buttonBgColor || "#c2fc12",
-                    border: `1px solid ${bookingModuleUi.buttonBgColor || "#c2fc12"}`,
-                  }}
+                  className="psm-booking-hero-badge inline-flex items-center gap-2.5 mb-6"
+                  role="status"
                 >
-                  <span className="relative flex h-2 w-2">
-                    <span
-                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                      style={{ backgroundColor: "#ffffff" }}
-                    />
-                    <span
-                      className="relative inline-flex rounded-full h-2 w-2"
-                      style={{ backgroundColor: "#ffffff" }}
-                    />
-                  </span>
-                  <span
-                    data-booking-btn-text
-                    className="text-sm font-medium"
-                    style={{ color: "#ffffff" }}
-                  >
+                  <span className="psm-booking-hero-badge__dot" aria-hidden />
+                  <span className="psm-booking-hero-badge__text">
                     {content.hero.badgeText}
                   </span>
                 </div>
