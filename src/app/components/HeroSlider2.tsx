@@ -108,8 +108,8 @@ function isPodcastLayout(banner: Banner): boolean {
   return banner.content?.layoutStyle === "podcast";
 }
 
-/** Podcast layout content overlay - Desktop */
-function PodcastLayoutDesktop({
+/** Podcast layout overlay — single DOM tree (one H1) with responsive styles */
+function PodcastLayout({
   banner,
   isActive,
   embedded,
@@ -124,21 +124,28 @@ function PodcastLayoutDesktop({
   const accentColor = content.headingAccentColor || "#C2FC12";
   const ctaBgColor = content.ctaButtonColor || "#C2FC12";
   const ctaTextColor = content.ctaButtonTextColor || "#000000";
+  const featureCards = content.featureCards?.slice(0, 4) ?? [];
+  const desktopCols =
+    featureCards.length === 4
+      ? "sm:grid-cols-4"
+      : featureCards.length === 3
+        ? "sm:grid-cols-3"
+        : featureCards.length === 2
+          ? "sm:grid-cols-2"
+          : "sm:grid-cols-1";
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 z-[5] hidden sm:flex flex-col justify-between ${
+      className={`pointer-events-none absolute inset-0 z-[5] flex flex-col justify-between ${
         isActive ? "opacity-100" : "opacity-0"
       } transition-opacity duration-500`}
     >
-      {/* Main content area */}
-      <div className="flex flex-col justify-center px-8 lg:px-16 xl:px-24 py-6 flex-1 min-h-0">
-        <div className="max-w-2xl">
-          {/* Heading */}
+      <div className="flex flex-col justify-center px-4 py-4 sm:px-8 sm:py-6 lg:px-16 xl:px-24 flex-1 min-h-0">
+        <div className="max-w-full sm:max-w-2xl">
           {content.heading && (
             <h1
-              className={`text-4xl font-bold text-white md:text-5xl lg:text-6xl xl:text-7xl leading-[1.1] tracking-tight ${
-                embedded ? "text-3xl md:text-4xl lg:text-5xl" : ""
+              className={`text-3xl font-bold text-white leading-[1.1] tracking-tight sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl ${
+                embedded ? "sm:text-3xl md:text-4xl lg:text-5xl" : ""
               }`}
             >
               {content.heading}
@@ -151,11 +158,10 @@ function PodcastLayoutDesktop({
             </h1>
           )}
 
-          {/* Tagline */}
           {content.tagline && (
             <p
-              className={`mt-4 text-lg text-white/90 md:text-xl lg:text-2xl font-light ${
-                embedded ? "mt-3 text-base md:text-lg" : ""
+              className={`mt-3 text-base text-white/90 font-light sm:mt-4 sm:text-lg md:text-xl lg:text-2xl ${
+                embedded ? "sm:mt-3 sm:text-base md:text-lg" : ""
               }`}
             >
               {content.tagline.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
@@ -168,11 +174,10 @@ function PodcastLayoutDesktop({
             </p>
           )}
 
-          {/* Description */}
           {content.description && (
             <p
-              className={`mt-4 text-sm text-white/70 md:text-base lg:text-lg max-w-xl leading-relaxed ${
-                embedded ? "mt-3 text-sm line-clamp-4" : "line-clamp-5"
+              className={`mt-3 text-sm text-white/70 leading-relaxed line-clamp-3 sm:mt-4 sm:max-w-xl md:text-base lg:text-lg ${
+                embedded ? "sm:mt-3 sm:text-sm sm:line-clamp-4" : "sm:line-clamp-5"
               }`}
             >
               {content.description.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
@@ -185,20 +190,19 @@ function PodcastLayoutDesktop({
             </p>
           )}
 
-          {/* CTA Button */}
           {content.ctaText && content.ctaLink && (
             <>
               <style>{`
-                .podcast-cta-${banner.id || 'default'},
-                .podcast-cta-${banner.id || 'default'} i,
-                .podcast-cta-${banner.id || 'default'} i::before {
+                .podcast-cta-${banner.id || "default"},
+                .podcast-cta-${banner.id || "default"} i,
+                .podcast-cta-${banner.id || "default"} i::before {
                   color: ${ctaTextColor} !important;
                 }
               `}</style>
               <a
                 href={content.ctaLink}
-                className={`podcast-cta-${banner.id || 'default'} pointer-events-auto mt-6 inline-flex items-center gap-2 rounded-lg px-6 py-3 font-semibold transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] ${
-                  embedded ? "mt-4 px-5 py-2.5" : "lg:px-8 lg:py-3.5"
+                className={`podcast-cta-${banner.id || "default"} pointer-events-auto mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-all duration-200 hover:brightness-110 sm:mt-6 sm:px-6 sm:py-3 sm:hover:scale-[1.02] sm:active:scale-[0.98] ${
+                  embedded ? "sm:mt-4 sm:px-5 sm:py-2.5" : "lg:px-8 lg:py-3.5"
                 }`}
                 style={{
                   backgroundColor: ctaBgColor,
@@ -213,35 +217,30 @@ function PodcastLayoutDesktop({
         </div>
       </div>
 
-      {/* Feature Cards */}
-      {content.featureCards && content.featureCards.length > 0 && (
+      {featureCards.length > 0 && (
         <div
-          className={`pointer-events-auto w-full border-t border-white/10 bg-black/40 backdrop-blur-sm shrink-0 ${
-            embedded ? "py-3 px-4" : "py-3 px-8 lg:px-16 xl:px-24"
+          className={`pointer-events-auto w-full border-t border-white/10 bg-black/40 backdrop-blur-sm shrink-0 py-2 px-4 sm:py-3 ${
+            embedded ? "sm:px-4" : "sm:px-8 lg:px-16 xl:px-24"
           }`}
         >
           <div
-            className={`grid gap-4 ${
-              content.featureCards.length === 4
-                ? "grid-cols-4"
-                : content.featureCards.length === 3
-                  ? "grid-cols-3"
-                  : content.featureCards.length === 2
-                    ? "grid-cols-2"
-                    : "grid-cols-1"
-            } ${embedded ? "gap-3" : "lg:gap-6"}`}
+            className={`grid grid-cols-2 gap-3 sm:gap-4 ${desktopCols} ${
+              embedded ? "sm:gap-3" : "lg:gap-6"
+            }`}
           >
-            {content.featureCards.map((card, idx) => (
-              <div key={idx} className="flex items-start gap-3">
+            {featureCards.map((card, idx) => (
+              <div key={idx} className="flex items-start gap-2 sm:gap-3">
                 {card.icon && (
                   <div
-                    className={`flex shrink-0 items-center justify-center rounded-lg border border-white/20 ${
-                      embedded ? "h-8 w-8" : "h-10 w-10 lg:h-12 lg:w-12"
+                    className={`flex shrink-0 items-center justify-center rounded-md border border-white/20 h-7 w-7 sm:rounded-lg ${
+                      embedded ? "sm:h-8 sm:w-8" : "sm:h-10 sm:w-10 lg:h-12 lg:w-12"
                     }`}
                     style={{ borderColor: `${accentColor}40` }}
                   >
                     <i
-                      className={`${card.icon} ${embedded ? "text-sm" : "text-lg lg:text-xl"}`}
+                      className={`${card.icon} text-xs ${
+                        embedded ? "sm:text-sm" : "sm:text-lg lg:text-xl"
+                      }`}
                       style={{ color: accentColor }}
                     />
                   </div>
@@ -249,8 +248,8 @@ function PodcastLayoutDesktop({
                 <div className="min-w-0">
                   {card.title && (
                     <p
-                      className={`font-semibold text-white ${
-                        embedded ? "text-xs" : "text-sm lg:text-base"
+                      className={`font-semibold text-white line-clamp-1 text-xs sm:line-clamp-none ${
+                        embedded ? "sm:text-xs" : "sm:text-sm lg:text-base"
                       }`}
                     >
                       {card.title}
@@ -258,134 +257,12 @@ function PodcastLayoutDesktop({
                   )}
                   {card.text && (
                     <p
-                      className={`text-white/60 line-clamp-2 ${
-                        embedded ? "text-[10px]" : "text-xs lg:text-sm"
+                      className={`text-white/60 line-clamp-1 text-[10px] sm:line-clamp-2 ${
+                        embedded ? "sm:text-[10px]" : "sm:text-xs lg:text-sm"
                       }`}
                     >
                       {card.text}
                     </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Podcast layout content overlay - Mobile */
-function PodcastLayoutMobile({
-  banner,
-  isActive,
-  embedded,
-}: {
-  banner: Banner;
-  isActive: boolean;
-  embedded?: boolean;
-}) {
-  const content = banner.content;
-  if (!content) return null;
-
-  const accentColor = content.headingAccentColor || "#C2FC12";
-  const ctaBgColor = content.ctaButtonColor || "#C2FC12";
-  const ctaTextColor = content.ctaButtonTextColor || "#000000";
-
-  return (
-    <div
-      className={`pointer-events-none absolute inset-0 z-[5] flex flex-col justify-between sm:hidden ${
-        isActive ? "opacity-100" : "opacity-0"
-      } transition-opacity duration-500`}
-    >
-      {/* Main content area */}
-      <div className="flex flex-col justify-center px-4 py-4 flex-1 min-h-0">
-        <div className="max-w-full">
-          {/* Heading */}
-          {content.heading && (
-            <h1 className="text-3xl font-bold text-white leading-[1.1] tracking-tight">
-              {content.heading}
-              {content.headingAccent && (
-                <>
-                  <br />
-                  <span style={{ color: accentColor }}>{content.headingAccent}</span>
-                </>
-              )}
-            </h1>
-          )}
-
-          {/* Tagline */}
-          {content.tagline && (
-            <p className="mt-3 text-base text-white/90 font-light">
-              {content.tagline.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
-                part.toLowerCase() === "two minds studio" ? (
-                  <span key={i} style={{ color: accentColor }}>{part}</span>
-                ) : (
-                  part
-                )
-              )}
-            </p>
-          )}
-
-          {/* Description - shorter on mobile */}
-          {content.description && (
-            <p className="mt-3 text-sm text-white/70 leading-relaxed line-clamp-3">
-              {content.description.split(/(\bTwo Minds Studio\b)/gi).map((part, i) =>
-                part.toLowerCase() === "two minds studio" ? (
-                  <span key={i} style={{ color: accentColor }}>{part}</span>
-                ) : (
-                  part
-                )
-              )}
-            </p>
-          )}
-
-          {/* CTA Button */}
-          {content.ctaText && content.ctaLink && (
-            <>
-              <style>{`
-                .podcast-cta-mobile-${banner.id || 'default'},
-                .podcast-cta-mobile-${banner.id || 'default'} i,
-                .podcast-cta-mobile-${banner.id || 'default'} i::before {
-                  color: ${ctaTextColor} !important;
-                }
-              `}</style>
-              <a
-                href={content.ctaLink}
-                className={`podcast-cta-mobile-${banner.id || 'default'} pointer-events-auto mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-all duration-200 hover:brightness-110`}
-                style={{
-                  backgroundColor: ctaBgColor,
-                  fontSize: "0.875rem",
-                }}
-              >
-                {content.ctaIcon && <i className={content.ctaIcon} />}
-                {content.ctaText}
-              </a>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Feature Cards - 2x2 grid on mobile */}
-      {content.featureCards && content.featureCards.length > 0 && (
-        <div className="pointer-events-auto w-full border-t border-white/10 bg-black/40 backdrop-blur-sm py-2 px-4 shrink-0">
-          <div className="grid grid-cols-2 gap-3">
-            {content.featureCards.slice(0, 4).map((card, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                {card.icon && (
-                  <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/20"
-                    style={{ borderColor: `${accentColor}40` }}
-                  >
-                    <i className={`${card.icon} text-xs`} style={{ color: accentColor }} />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  {card.title && (
-                    <p className="text-xs font-semibold text-white line-clamp-1">{card.title}</p>
-                  )}
-                  {card.text && (
-                    <p className="text-[10px] text-white/60 line-clamp-1">{card.text}</p>
                   )}
                 </div>
               </div>
@@ -1316,15 +1193,17 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                   </div>
                 )}
 
+                {/* Podcast layout: one overlay (single H1) for all breakpoints */}
+                {banner.type === "full" && isPodcastLayout(banner) && (
+                  <PodcastLayout
+                    banner={banner}
+                    isActive={currentSlide === index}
+                    embedded={embedded}
+                  />
+                )}
+
                 {/* Desktop: full banners — same min-h as image; flex-1 spacers vertically center copy without shrinking the hero */}
-                {banner.type === "full" && (
-                  isPodcastLayout(banner) ? (
-                    <PodcastLayoutDesktop
-                      banner={banner}
-                      isActive={currentSlide === index}
-                      embedded={embedded}
-                    />
-                  ) : (
+                {banner.type === "full" && !isPodcastLayout(banner) && (
                   <>
                     <div
                       className={`pointer-events-none absolute inset-0 z-[5] hidden sm:flex w-full min-w-0 flex-row ${desktopTextBlockRowJustify(
@@ -1466,7 +1345,6 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                       )}
                     </div>
                   </>
-                  )
                 )}
 
                 {/* Desktop: simple banners — button left, optional product center */}
@@ -1531,14 +1409,7 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                 )}
 
                 {/* Mobile: full banners — vertically centered in slide; horizontal alignment from CMS */}
-                {banner.type === "full" && (
-                  isPodcastLayout(banner) ? (
-                    <PodcastLayoutMobile
-                      banner={banner}
-                      isActive={currentSlide === index}
-                      embedded={embedded}
-                    />
-                  ) : (
+                {banner.type === "full" && !isPodcastLayout(banner) && (
                 <div
                   className={`pointer-events-none absolute inset-0 z-[5] flex min-h-0 w-full flex-col justify-center gap-3 sm:hidden ${embedded ? "gap-4 p-4" : "gap-3 p-3"} ${mobileStackClass(
                     textPos
@@ -1687,7 +1558,6 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
                     </div>
                   )}
                 </div>
-                  )
                 )}
 
                 {banner.type === "simple" && (
