@@ -926,6 +926,7 @@ function NavbarMobileDrawer({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby="mobile-nav-menu-title"
         aria-hidden={!open}
         className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
         style={hasDarkBg ? { backgroundColor: drawerBgColor, borderColor: "rgba(255,255,255,0.1)" } : { backgroundColor: "#f8f9fb", borderColor: "rgba(226,232,240,0.9)" }}
@@ -936,8 +937,12 @@ function NavbarMobileDrawer({
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-            
-              <h2 className={`mt-1.5 text-xl font-semibold leading-tight tracking-tight ${hasDarkBg ? "text-white" : "text-slate-900"}`}>Menu</h2>
+              <p
+                id="mobile-nav-menu-title"
+                className={`mt-1.5 text-xl font-semibold leading-tight tracking-tight ${hasDarkBg ? "text-white" : "text-slate-900"}`}
+              >
+                Menu
+              </p>
             </div>
             <button
               type="button"
