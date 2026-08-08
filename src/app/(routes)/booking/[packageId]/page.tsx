@@ -93,11 +93,16 @@ function getStoredBookingForPackage(packageId: string): StoredBookingData | null
 }
 
 function mergeReservedSlots(slots: TimeSlot[], date: string, reserved: SelectedBookingSlot[]): TimeSlot[] {
-  const merged = [...slots];
+  const merged = slots.map((s) => ({ ...s }));
   for (const r of reserved) {
     if (r.date !== date) continue;
-    if (merged.some((s) => s.startTime === r.startTime)) continue;
-    merged.push({ startTime: r.startTime, endTime: r.endTime });
+    const existing = merged.find((s) => s.startTime === r.startTime);
+    if (existing) {
+      existing.available = true;
+      delete existing.unavailableReason;
+    } else {
+      merged.push({ startTime: r.startTime, endTime: r.endTime, available: true });
+    }
   }
   return merged.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
@@ -260,10 +265,20 @@ export default function BookingFlowPage() {
     try {
       const response = await bookingService.getAvailableSlots(mongoPackageId, date);
       const merged = mergeReservedSlots(response.slots || [], date, reserved);
-      if (merged.length > 0) setAvailableSlots(merged);
-      else if (response.blocked) setSlotsMessage(response.reason || "This date is not available");
-      else if (response.noAvailability) setSlotsMessage("No availability on this day");
-      else if (
+      const selectableCount = merged.filter((s) => s.available !== false).length;
+
+      if (merged.length > 0) {
+        setAvailableSlots(merged);
+        if (selectableCount === 0 && (response.fullyBooked || merged.some((s) => s.unavailableReason === "booked"))) {
+          setSlotsMessage("Fully booked");
+        } else {
+          setSlotsMessage(null);
+        }
+      } else if (response.blocked) {
+        setSlotsMessage(response.reason?.trim() || "Fully booked");
+      } else if (response.noAvailability) {
+        setSlotsMessage("No availability on this day");
+      } else if (
         date === getMinDate() &&
         (settings?.minAdvanceBookingHours ?? 0) > 0
       ) {
@@ -274,7 +289,11 @@ export default function BookingFlowPage() {
             { short: false }
           )} notice`
         );
-      } else setSlotsMessage("No slots available for this date");
+      } else if (response.fullyBooked) {
+        setSlotsMessage("Fully booked");
+      } else {
+        setSlotsMessage("Fully booked");
+      }
     } catch {
       setSlotsMessage("Failed to load available slots");
     } finally {
@@ -329,12 +348,13 @@ export default function BookingFlowPage() {
 
   const handleSlotSelect = (slot: TimeSlot) => {
     if (!selectedDate || submitting || hasActiveHold) return;
+    if (slot.available === false) return;
     const key = slotKey(selectedDate, slot.startTime);
     if (selectedSlots.some((s) => slotKey(s.date, s.startTime) === key)) {
       setSelectedSlots((prev) => prev.filter((s) => slotKey(s.date, s.startTime) !== key));
       return;
     }
-    const candidate = { date: selectedDate, ...slot };
+    const candidate = { date: selectedDate, startTime: slot.startTime, endTime: slot.endTime };
     if (selectedSlots.some((s) => bookingService.slotsOverlap({ ...s, date: s.date }, candidate))) {
       toast.warning("This slot overlaps with one you've already selected");
       return;
@@ -578,29 +598,59 @@ export default function BookingFlowPage() {
                       <p className="text-[10px] text-gray-500 uppercase mb-4">Time zone: {timezone.replace(/_/g, " ")}</p>
                       {!hasActiveHold && <p className="text-xs text-gray-500 mb-3">Select multiple slots. Change dates to add more.</p>}
                       {slotsLoading ? <p className="text-sm text-gray-500 py-8 text-center">Loading times...</p>
-                        : slotsMessage ? <p className="text-sm text-gray-500 py-8 text-center">{slotsMessage}</p>
-                        : (
-                          <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                            {availableSlots.map((slot) => {
-                              const selected = selectedSlots.some((s) => s.date === selectedDate && s.startTime === slot.startTime);
-                              return (
-                                <button
-                                  key={slot.startTime}
-                                  type="button"
-                                  data-booking-slot=""
-                                  data-selected={selected ? "true" : undefined}
-                                  onClick={() => handleSlotSelect(slot)}
-                                  disabled={submitting || hasActiveHold}
-                                  className={`py-2.5 text-sm font-medium border rounded-md transition-colors ${
-                                    selected ? "font-semibold" : "border-gray-300"
-                                  } ${hasActiveHold ? "opacity-50" : ""}`}
-                                >
-                                  {bookingService.formatTime(slot.startTime)}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                        : availableSlots.length === 0 && slotsMessage ? (
+                          <p className="text-sm text-gray-500 py-8 text-center">{slotsMessage}</p>
+                        ) : availableSlots.length > 0 ? (
+                          <>
+                            {slotsMessage && (
+                              <p className="text-sm font-medium text-gray-700 mb-3 text-center">{slotsMessage}</p>
+                            )}
+                            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+                              {availableSlots.map((slot) => {
+                                const isUnavailable = slot.available === false;
+                                const selected = selectedSlots.some(
+                                  (s) => s.date === selectedDate && s.startTime === slot.startTime
+                                );
+                                const booked = slot.unavailableReason === "booked";
+                                return (
+                                  <button
+                                    key={slot.startTime}
+                                    type="button"
+                                    data-booking-slot={isUnavailable ? undefined : ""}
+                                    data-selected={selected ? "true" : undefined}
+                                    onClick={() => handleSlotSelect(slot)}
+                                    disabled={submitting || hasActiveHold || isUnavailable}
+                                    title={
+                                      booked
+                                        ? "Fully booked"
+                                        : slot.unavailableReason === "past"
+                                          ? "This time has passed"
+                                          : undefined
+                                    }
+                                    className={`py-2.5 text-sm font-medium border rounded-md transition-colors ${
+                                      isUnavailable
+                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : selected
+                                          ? "font-semibold"
+                                          : "border-gray-300"
+                                    } ${hasActiveHold && !isUnavailable ? "opacity-50" : ""}`}
+                                  >
+                                    <span className={booked ? "line-through decoration-gray-400" : undefined}>
+                                      {bookingService.formatTime(slot.startTime)}
+                                    </span>
+                                    {booked && (
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-500 no-underline">
+                                        Booked
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : slotsMessage ? (
+                          <p className="text-sm text-gray-500 py-8 text-center">{slotsMessage}</p>
+                        ) : null}
                     </>
                   ) : <p className="text-sm text-gray-400 text-center py-10">Select a date</p>}
                 </div>
