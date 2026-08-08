@@ -786,7 +786,25 @@ export default function CheckoutPage() {
     return `/booking/confirmation/${bookingNumber}?payment_success=true&email=${customerEmail}`;
   };
 
-  const handleBookingPaymentSuccess = () => {
+  const handleBookingPaymentSuccess = async (
+    paymentResult: { paymentIntent?: { id?: string } | null } = {}
+  ) => {
+    const paymentIntent = paymentResult?.paymentIntent;
+    try {
+      if (paymentIntent?.id && bookingNumber) {
+        await fetch(`${API_URL}confirm/booking/payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bookingNumber,
+            paymentIntentId: paymentIntent.id,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Error confirming booking payment:", error);
+    }
+
     localStorage.removeItem("bookingData");
     const path = getBookingConfirmationPath();
     if (path) router.push(path);

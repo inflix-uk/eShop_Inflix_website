@@ -396,6 +396,8 @@ html.has-product-sticky-buy-bar #site-footer {
   color: #000000;
 }
 
+/* Body copy stays dark for contrast on white cards.
+   Do NOT force color on CTAs, status badges, or accent icons. */
 .booking-confirmation-module h1,
 .booking-confirmation-module h2,
 .booking-confirmation-module h3,
@@ -403,14 +405,76 @@ html.has-product-sticky-buy-bar #site-footer {
 .booking-confirmation-module h5,
 .booking-confirmation-module h6,
 .booking-confirmation-module p,
-.booking-confirmation-module span,
 .booking-confirmation-module dt,
 .booking-confirmation-module dd,
 .booking-confirmation-module label,
 .booking-confirmation-module li,
-.booking-confirmation-module b,
-.booking-confirmation-module a,
-.booking-confirmation-module svg {
+.booking-confirmation-module b {
+  color: #000000 !important;
+}
+
+/* Primary CTA — always readable on brand / black primary */
+.booking-confirmation-module a.bg-primary,
+.booking-confirmation-module a.bg-primary *,
+.booking-confirmation-module button.bg-primary,
+.booking-confirmation-module button.bg-primary * {
+  color: #ffffff !important;
+}
+
+/* Secondary outline CTA */
+.booking-confirmation-module a.bg-white,
+.booking-confirmation-module a.bg-white * {
+  color: #374151 !important;
+}
+
+/* Cookie consent — lock black/white chrome so CMS tag colors cannot wash out text */
+.cookie-consent-ui {
+  color: #000000;
+}
+
+.cookie-consent-ui .cookie-consent-title,
+.cookie-consent-ui .cookie-consent-title * {
+  color: #000000 !important;
+}
+
+.cookie-consent-ui .cookie-consent-body,
+.cookie-consent-ui .cookie-consent-body * {
+  color: #404040 !important;
+}
+
+.cookie-consent-ui .cookie-consent-muted,
+.cookie-consent-ui .cookie-consent-muted * {
+  color: #525252 !important;
+}
+
+.cookie-consent-ui .cookie-consent-badge {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+  border-color: #d4d4d4 !important;
+}
+
+.cookie-consent-ui .cookie-consent-btn-primary,
+.cookie-consent-ui .cookie-consent-btn-primary * {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+.cookie-consent-ui .cookie-consent-btn-primary:hover {
+  background-color: #262626 !important;
+}
+
+.cookie-consent-ui .cookie-consent-btn-secondary,
+.cookie-consent-ui .cookie-consent-btn-secondary * {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #d4d4d4 !important;
+}
+
+.cookie-consent-ui h2 {
+  color: #000000 !important;
+}
+
+.cookie-consent-ui a {
   color: #000000 !important;
 }
 

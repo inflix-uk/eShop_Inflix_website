@@ -249,12 +249,17 @@ export interface SelectedBookingExtra {
 export interface TimeSlot {
   startTime: string;
   endTime: string;
+  /** false when booked or in the past — still returned so UI can show disabled times */
+  available?: boolean;
+  unavailableReason?: 'booked' | 'past';
 }
 
 export interface AvailableSlotsResponse {
   success: boolean;
   error: string | null;
   slots: TimeSlot[];
+  availableCount?: number;
+  fullyBooked?: boolean;
   package?: {
     id: string;
     name: string;
