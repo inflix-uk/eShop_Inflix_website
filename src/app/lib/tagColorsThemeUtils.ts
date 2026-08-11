@@ -23,7 +23,7 @@ const TAG_KEYS: TagColorKey[] = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span"
 
 const CUSTOM_SELECTORS: Partial<Record<TagColorKey, string>> = {
   bookingCalendarDate: "[data-booking-calendar-date]:not([data-selected]):not(:disabled),[data-booking-slot]:not([data-selected]):not(:disabled)",
-  bookingSelectedDateBg: "[data-booking-calendar-date][data-selected='true']",
+  bookingSelectedDateBg: "[data-booking-calendar-date][data-selected='true']:not(.is-full)",
   bookingSelectedSlotBg: "[data-booking-slot][data-selected='true']",
 };
 
@@ -61,7 +61,7 @@ export function resolveTagColorsFromApi(data: unknown): TagColorsConfig {
 
 /** Exclude chrome that must keep its own Tailwind colors (checkout cards, banners, navbar CTAs). */
 const CUSTOM_COLOR_EXCLUSION =
-  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.blogs-themed *):not(.cookie-consent-ui *):not(.cookie-consent-ui)";
+  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not([data-nav-flyout-panel] *):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.booking-flow-v3):not(.booking-flow-v3 *):not(.blogs-themed *):not(.cookie-consent-ui *):not(.cookie-consent-ui)";
 
 function levelSelectors(tag: TagColorKey): string {
   if (CUSTOM_SELECTORS[tag]) {

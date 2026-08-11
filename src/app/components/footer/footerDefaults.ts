@@ -26,6 +26,12 @@ export const DEFAULT_FOOTER: FooterSettings = {
     creditLabel: "",
     creditUrl: "",
   },
+  sectionCustom: {
+    isEnabled: false,
+    title: "",
+    placement: "after_useful_links",
+    links: [],
+  },
   section4: {
     title: "",
     links: [],

@@ -59,6 +59,20 @@ export interface FooterBottomBar {
   creditUrl?: string;
 }
 
+/** Extra link column with placement relative to the built-in footer columns. */
+export type FooterCustomPlacement =
+  | "after_logo"
+  | "after_useful_links"
+  | "after_customer_care"
+  | "after_newsletter";
+
+export interface FooterSectionCustom {
+  isEnabled?: boolean;
+  title?: string;
+  placement?: FooterCustomPlacement;
+  links?: FooterLink[];
+}
+
 export interface FooterSettings {
   section1: {
     logo?: string | { image?: string; altText?: string; link?: string };
@@ -71,4 +85,5 @@ export interface FooterSettings {
   section5: FooterSection5;
   sectionNewsletter?: FooterSectionNewsletter;
   bottomBar?: FooterBottomBar;
+  sectionCustom?: FooterSectionCustom;
 }

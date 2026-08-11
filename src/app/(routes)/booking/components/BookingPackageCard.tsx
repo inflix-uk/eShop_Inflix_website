@@ -11,6 +11,7 @@ import { formatDuration, normalizeDurationUnit } from "../utils/formatDuration";
 
 type BookingPackageCardProps = {
   pkg: BookingPackage;
+  studioMicCapacity?: number;
 };
 
 function capitalizeWords(value: string): string {
@@ -45,6 +46,25 @@ function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
   const unit = durationLabel ? ` / ${durationLabel}` : "";
 
   return { unit, note };
+}
+
+function micIncludedLabel(includedMics: number, capacity: number): string {
+  const micWord = includedMics === 1 ? "mic" : "mics";
+  if (capacity > 0) {
+    return `${includedMics} ${micWord} included, up to ${capacity}`;
+  }
+  return `${includedMics} ${micWord} included`;
+}
+
+function packageCardSubtitle(
+  pkg: BookingPackage,
+  includedMics: number,
+  studioMicCapacity: number
+): string {
+  const custom = pkg.subtitle?.trim();
+  if (custom) return custom;
+  if (includedMics > 0) return micIncludedLabel(includedMics, studioMicCapacity);
+  return "";
 }
 
 function HighlightBadge({
@@ -82,7 +102,10 @@ function HighlightBadge({
   return <span className={className}>{label}</span>;
 }
 
-export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
+export default function BookingPackageCard({
+  pkg,
+  studioMicCapacity = 5,
+}: BookingPackageCardProps) {
   const router = useRouter();
   const features = Array.isArray(pkg.features)
     ? pkg.features.filter((item) => item.trim().length > 0)
@@ -93,6 +116,8 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
   const packageKey = getPackageUrlKey(pkg);
   const detailsHref = `/booking/details/${packageKey}`;
   const bookHref = `/booking/${packageKey}`;
+  const includedMics = Math.max(0, Number(pkg.includedMics) || 0);
+  const subtitleLine = packageCardSubtitle(pkg, includedMics, studioMicCapacity);
 
   const handleCardClick = () => {
     router.push(detailsHref);
@@ -120,6 +145,10 @@ export default function BookingPackageCard({ pkg }: BookingPackageCardProps) {
           <span className="psm-booking-card__price-note"> · {note}</span>
         ) : null}
       </p>
+
+      {subtitleLine ? (
+        <p className="psm-booking-card__mics">{subtitleLine}</p>
+      ) : null}
 
       {pkg.description?.trim() ? (
         <p className="psm-booking-card__description">{stripHtml(pkg.description)}</p>

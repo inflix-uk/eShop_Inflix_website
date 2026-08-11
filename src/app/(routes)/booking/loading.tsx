@@ -1,5 +1,5 @@
-import FullPageLoading from "@/app/components/FullPageLoading";
+import BookingFlowLoading from "./components/BookingFlowLoading";
 
 export default function BookingLoading() {
-  return <FullPageLoading message="Loading..." />;
+  return <BookingFlowLoading message="Loading booking..." />;
 }

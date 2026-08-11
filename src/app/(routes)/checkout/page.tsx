@@ -211,9 +211,15 @@ export default function CheckoutPage() {
     const selectedExtras = parsed.selectedExtras || [];
     const slotsSubtotal =
       parsed.slotsSubtotal ?? (parsed.packagePrice || 0) * Math.max(slots.length, 1);
+    const editing =
+      Number(parsed.editingSubtotal) ||
+      Number(parsed.selectedEditing?.price) ||
+      0;
     const extrasSubtotal =
       parsed.extrasSubtotal ??
-      selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+      selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0) +
+        (Number(parsed.micSubtotal) || 0) +
+        editing;
     return {
       ...parsed,
       slots,
@@ -221,6 +227,7 @@ export default function CheckoutPage() {
       selectedExtras,
       slotsSubtotal,
       extrasSubtotal,
+      editingSubtotal: parsed.editingSubtotal ?? editing,
       totalPrice: parsed.totalPrice ?? slotsSubtotal + extrasSubtotal,
     };
   };
@@ -234,8 +241,22 @@ export default function CheckoutPage() {
 
   const getBookingTotal = (data: CheckoutBookingData) => {
     if (data.totalPrice != null) return data.totalPrice;
-    const slotsSubtotal = data.packagePrice * Math.max(data.slots?.length || 1, 1);
-    const extrasSubtotal = (data.selectedExtras || []).reduce((sum, e) => sum + (e.price || 0), 0);
+    const hours = Math.max(data.slots?.length || 1, 1);
+    const packagePrice = Number(data.packagePrice) || 0;
+    const slotsSubtotal = data.slotsSubtotal ?? packagePrice * hours;
+    const catalogExtras = (data.selectedExtras || []).reduce(
+      (sum, e) => sum + (Number(e.price) || 0) * hours,
+      0
+    );
+    const mic = Number(data.micSubtotal) || 0;
+    const editing =
+      Number(data.editingSubtotal) ||
+      Number(data.selectedEditing?.price) ||
+      0;
+    const extrasSubtotal =
+      data.extrasSubtotal != null
+        ? Number(data.extrasSubtotal)
+        : catalogExtras + mic + editing;
     return slotsSubtotal + extrasSubtotal;
   };
 
@@ -443,8 +464,24 @@ export default function CheckoutPage() {
       const totalAmount = getBookingTotal(bookingData);
       const selectedExtras = bookingData.selectedExtras || [];
       const bookingPayload = holdIds.length > 1
-        ? { holdIds, customer: customerInfo, notes: "", extras: selectedExtras }
-        : { holdId: holdIds[0], customer: customerInfo, notes: "", extras: selectedExtras };
+        ? {
+            holdIds,
+            customer: customerInfo,
+            notes: "",
+            extras: selectedExtras,
+            extraMics: bookingData.extraMics || 0,
+            guestCount: bookingData.guestCount || 1,
+            editingPackageId: bookingData.selectedEditing?.packageId || undefined,
+          }
+        : {
+            holdId: holdIds[0],
+            customer: customerInfo,
+            notes: "",
+            extras: selectedExtras,
+            extraMics: bookingData.extraMics || 0,
+            guestCount: bookingData.guestCount || 1,
+            editingPackageId: bookingData.selectedEditing?.packageId || undefined,
+          };
 
       const bookingResponse = await fetch(`${API_URL}create/booking`, {
         method: "POST",

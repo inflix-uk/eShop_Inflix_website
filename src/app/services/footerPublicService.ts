@@ -94,6 +94,13 @@ export function mergePartialFooterFromApi(
       ...d.bottomBar,
       ...(s.bottomBar ?? {}),
     },
+    sectionCustom: {
+      ...d.sectionCustom!,
+      ...(s.sectionCustom ?? {}),
+      links: Array.isArray(s.sectionCustom?.links)
+        ? s.sectionCustom.links
+        : d.sectionCustom!.links!,
+    },
   };
 }
 
@@ -115,6 +122,12 @@ export function normalizeFooterApiData(raw: FooterSettings): FooterSettings {
     }
   });
 
+  if (data.sectionCustom?.links) {
+    data.sectionCustom.links = data.sectionCustom.links
+      .filter((link) => link.isActive)
+      .sort((a, b) => a.order - b.order);
+  }
+
   if (data.section5?.paymentMethods?.logos) {
     data.section5.paymentMethods.logos = data.section5.paymentMethods.logos
       .filter((logo) => logo.isActive)
@@ -124,6 +137,14 @@ export function normalizeFooterApiData(raw: FooterSettings): FooterSettings {
   data.bottomBar = {
     ...DEFAULT_FOOTER.bottomBar,
     ...(data.bottomBar ?? {}),
+  };
+
+  data.sectionCustom = {
+    ...DEFAULT_FOOTER.sectionCustom,
+    ...(data.sectionCustom ?? {}),
+    links: Array.isArray(data.sectionCustom?.links)
+      ? data.sectionCustom.links
+      : DEFAULT_FOOTER.sectionCustom?.links ?? [],
   };
 
   return data;
