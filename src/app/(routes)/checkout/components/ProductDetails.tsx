@@ -65,6 +65,17 @@ export interface CheckoutBookingData {
   selectedExtras?: CheckoutBookingExtra[];
   slotsSubtotal?: number;
   extrasSubtotal?: number;
+  guestCount?: number;
+  extraMics?: number;
+  micSubtotal?: number;
+  selectedEditing?: {
+    packageId: string;
+    title: string;
+    price: number;
+    description?: string;
+    image?: string;
+  } | null;
+  editingSubtotal?: number;
 }
 
 interface ProductDetailsProps {
@@ -164,12 +175,20 @@ const ProductDetails: FC<ProductDetailsProps> = ({
     ? [{ date: bookingData.date, startTime: bookingData.startTime, endTime: bookingData.endTime || bookingData.startTime }]
     : [];
   const selectedExtras = bookingData?.selectedExtras || [];
+  const bookingHours = Math.max(bookingSlots.length, 0);
   const slotsSubtotal =
     bookingData?.slotsSubtotal ??
-    (bookingData?.packagePrice ?? 0) * Math.max(bookingSlots.length, 1);
+    (bookingData?.packagePrice ?? 0) * Math.max(bookingHours, 1);
   const extrasSubtotal =
     bookingData?.extrasSubtotal ??
-    selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+    selectedExtras.reduce(
+      (sum, extra) => sum + (extra.price || 0) * bookingHours,
+      0
+    ) +
+      (Number(bookingData?.micSubtotal) || 0) +
+      (Number(bookingData?.editingSubtotal) ||
+        Number(bookingData?.selectedEditing?.price) ||
+        0);
   const bookingAmount =
     bookingData?.totalPrice ?? slotsSubtotal + extrasSubtotal;
   const combinedSubtotal = numericTotalSalePrice + bookingAmount;
@@ -299,15 +318,60 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Extras</p>
                       <ul className="space-y-1">
-                        {selectedExtras.map((extra) => (
+                        {selectedExtras.map((extra) => {
+                          const line =
+                            (extra.price || 0) * Math.max(bookingHours, 0);
+                          return (
                           <li key={`${extra.index}-${extra.title}`} className="text-sm text-gray-700 flex justify-between gap-2">
-                            <span>{extra.title}</span>
-                            <span className="font-medium">£{extra.price.toFixed(2)}</span>
+                            <span>
+                              {extra.title}
+                              {bookingHours > 0 ? (
+                                <span className="block text-xs text-gray-500">
+                                  £{(extra.price || 0).toFixed(2)}/hr × {bookingHours} hr
+                                  {bookingHours === 1 ? "" : "s"}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="font-medium">£{line.toFixed(2)}</span>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
+                  {(bookingData.guestCount || bookingData.extraMics || bookingData.selectedEditing) ? (
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                      {bookingData.guestCount ? (
+                        <p className="text-sm text-gray-700">
+                          Guests: <span className="font-medium">{bookingData.guestCount}</span>
+                        </p>
+                      ) : null}
+                      {bookingData.extraMics && bookingData.extraMics > 0 ? (
+                        <p className="text-sm text-gray-700 flex justify-between gap-2">
+                          <span>
+                            Extra microphone{bookingData.extraMics === 1 ? "" : "s"} ×{" "}
+                            {bookingData.extraMics}
+                          </span>
+                          {bookingData.micSubtotal != null ? (
+                            <span className="font-medium">
+                              £{Number(bookingData.micSubtotal).toFixed(2)}
+                            </span>
+                          ) : null}
+                        </p>
+                      ) : null}
+                      {bookingData.selectedEditing ? (
+                        <p className="text-sm text-gray-700 flex justify-between gap-2">
+                          <span>
+                            {bookingData.selectedEditing.title}
+                            <span className="block text-xs text-gray-500">Per episode</span>
+                          </span>
+                          <span className="font-medium">
+                            £{Number(bookingData.selectedEditing.price || 0).toFixed(2)}
+                          </span>
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 {onRemoveBooking && (

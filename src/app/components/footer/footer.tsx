@@ -9,6 +9,7 @@ import type {
   FooterLink,
   FooterSection2,
   FooterSettings,
+  FooterCustomPlacement,
   SocialMediaItem,
 } from "./footerTypes";
 import { DEFAULT_FOOTER } from "./footerDefaults";
@@ -16,6 +17,50 @@ import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import { openConsentSettings } from "@/app/lib/cookieConsent";
 
 const FOOTER_PUBLIC_PATH = "/footer/settings/public";
+
+type FooterColumnKey =
+  | "section1"
+  | "section2"
+  | "section3"
+  | "sectionNewsletter"
+  | "sectionCustom";
+
+const BASE_FOOTER_COLUMNS: FooterColumnKey[] = [
+  "section1",
+  "section2",
+  "section3",
+  "sectionNewsletter",
+];
+
+const PLACEMENT_AFTER: Record<FooterCustomPlacement, FooterColumnKey> = {
+  after_logo: "section1",
+  after_useful_links: "section2",
+  after_customer_care: "section3",
+  after_newsletter: "sectionNewsletter",
+};
+
+function buildFooterColumnOrder(
+  placement: FooterCustomPlacement | undefined,
+  includeCustom: boolean
+): FooterColumnKey[] {
+  const columns = [...BASE_FOOTER_COLUMNS];
+  if (!includeCustom) return columns;
+
+  const afterKey =
+    PLACEMENT_AFTER[placement ?? "after_useful_links"] ?? "section2";
+  const insertAt = columns.indexOf(afterKey);
+  const index = insertAt >= 0 ? insertAt + 1 : columns.length;
+  columns.splice(index, 0, "sectionCustom");
+  return columns;
+}
+
+const GRID_COLS_MD: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+  5: "md:grid-cols-5",
+};
 
 // Social media SVG components for fallback
 const SocialMediaIcons: Record<string, JSX.Element> = {
@@ -290,6 +335,12 @@ const Footer: React.FC<FooterProps> = ({
         }
       });
 
+      if (data.sectionCustom?.links) {
+        data.sectionCustom.links = data.sectionCustom.links
+          .filter((link) => link.isActive)
+          .sort((a, b) => a.order - b.order);
+      }
+
       if (data.section5?.paymentMethods?.logos) {
         data.section5.paymentMethods.logos = data.section5.paymentMethods.logos
           .filter((logo) => logo.isActive)
@@ -339,6 +390,13 @@ const Footer: React.FC<FooterProps> = ({
         ...DEFAULT_FOOTER.bottomBar,
         ...(data.bottomBar ?? {}),
       },
+      sectionCustom: {
+        ...DEFAULT_FOOTER.sectionCustom,
+        ...(data.sectionCustom ?? {}),
+        links: Array.isArray(data.sectionCustom?.links)
+          ? data.sectionCustom.links
+          : DEFAULT_FOOTER.sectionCustom?.links ?? [],
+      },
     };
   }, [footerData]);
 
@@ -375,6 +433,9 @@ const Footer: React.FC<FooterProps> = ({
           footer.sectionNewsletter?.description?.trim() ||
           footer.sectionNewsletter?.buttonLabel?.trim()
       );
+    const hasCustom =
+      footer.sectionCustom?.isEnabled === true &&
+      Boolean(footer.sectionCustom?.title?.trim());
     const hasBottomBar =
       Boolean(bottomBarDisplay.before.trim()) || Boolean(bottomBarDisplay.label.trim());
 
@@ -383,6 +444,7 @@ const Footer: React.FC<FooterProps> = ({
       hasSection2 ||
       hasSection3 ||
       hasNewsletter ||
+      hasCustom ||
       hasBottomBar
     );
   }, [footer, bottomBarDisplay]);
@@ -503,6 +565,7 @@ const Footer: React.FC<FooterProps> = ({
 
   const section2Links = footer.section2?.links || [];
   const section3Links = footer.section3?.links || [];
+  const sectionCustomLinks = footer.sectionCustom?.links || [];
   const socialMedia = footer.section1?.socialMedia || [];
   const newsletterDefaults = DEFAULT_FOOTER.sectionNewsletter!;
   const sectionNewsletter = footer.sectionNewsletter;
@@ -525,6 +588,161 @@ const Footer: React.FC<FooterProps> = ({
   const showFooterNewsletter =
     sectionNewsletter?.isEnabled === true &&
     Boolean(newsletterHeading || newsletterDescription || newsletterButtonLabel);
+  const showCustomSection =
+    footer.sectionCustom?.isEnabled === true &&
+    Boolean(footer.sectionCustom?.title?.trim());
+
+  const orderedColumns = buildFooterColumnOrder(
+    footer.sectionCustom?.placement,
+    showCustomSection
+  ).filter((key) => {
+    if (key === "section1") return true;
+    if (key === "section2") return Boolean(footer.section2?.title);
+    if (key === "section3") return Boolean(footer.section3?.title);
+    if (key === "sectionNewsletter") return showFooterNewsletter;
+    if (key === "sectionCustom") return showCustomSection;
+    return false;
+  });
+
+  const gridColsClass =
+    GRID_COLS_MD[Math.min(Math.max(orderedColumns.length, 1), 5)] ||
+    "md:grid-cols-4";
+
+  const renderFooterColumn = (key: FooterColumnKey) => {
+    switch (key) {
+      case "section1":
+        return (
+          <section
+            key="section1"
+            aria-labelledby="footer-logo"
+            className={`${footerCol} items-center md:items-start max-md:mt-0 md:-mt-4 max-md:pt-3 max-md:pb-3`}
+          >
+            <Link
+              id="footer-logo"
+              href={logoLink}
+              className="block shrink-0 leading-none"
+            >
+              {logoUrl && !imageErrors.has(logoUrl) ? (
+                <Image
+                  src={logoUrl}
+                  alt={logoAltText}
+                  width={180}
+                  height={80}
+                  className="block h-auto w-full max-w-full object-contain object-center md:object-left"
+                  sizes="(max-width: 768px) 100vw, 320px"
+                  loading="lazy"
+                  onError={() => {
+                    if (logoUrl) handleImageError(logoUrl);
+                  }}
+                  unoptimized={logoUrl.startsWith("http://localhost")}
+                />
+              ) : null}
+            </Link>
+
+            {footer.section1?.description?.trim() ? (
+              <p
+                className="max-w-xs mt-4 pb-4 sm:pb-0 whitespace-pre-line text-center text-sm leading-snug text-gray-400 md:text-left"
+                id="footer-description"
+              >
+                {footer.section1.description.trim()}
+              </p>
+            ) : null}
+
+            {socialMedia.length > 0 && (
+              <section className="flex w-full min-w-0 flex-col items-center md:items-start gap-2">
+                <h3 id="social-links" className={footerColTitle}>
+                  Follow Us
+                </h3>
+                <ul
+                  className="flex flex-wrap justify-center md:justify-start gap-1.5"
+                  role="list"
+                >
+                  {socialMedia.map((social, index) =>
+                    renderSocialIcon(social, index)
+                  )}
+                </ul>
+              </section>
+            )}
+          </section>
+        );
+      case "section2":
+        return (
+          <section
+            key="section2"
+            aria-labelledby="useful-links"
+            className={`${footerCol} pb-4`}
+          >
+            <h3 id="useful-links" className={footerColTitle}>
+              {footer.section2.title}
+            </h3>
+            {hasActiveLinks(section2Links) && (
+              <ul className={footerLinkStack} role="list">
+                {section2Links.map((link, index) => (
+                  <li key={index}>{renderLink(link, index)}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      case "section3":
+        return (
+          <section
+            key="section3"
+            aria-labelledby="customer-care"
+            className={`${footerCol} pb-4`}
+          >
+            <h3 id="customer-care" className={footerColTitle}>
+              {footer.section3.title}
+            </h3>
+            {hasActiveLinks(section3Links) && (
+              <ul className={footerLinkStack} role="list">
+                {section3Links.map((link, index) => (
+                  <li key={index}>{renderLink(link, index)}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      case "sectionNewsletter":
+        return (
+          <section
+            key="sectionNewsletter"
+            aria-labelledby="footer-newsletter-heading"
+            className={`${footerCol} min-w-0 max-w-full overflow-hidden md:col-span-1`}
+          >
+            <NewsletterSignupWidget
+              heading={newsletterHeading}
+              description={newsletterDescription}
+              placeholder={newsletterPlaceholder}
+              buttonLabel={newsletterButtonLabel}
+              imageUrl={newsletterImageUrl}
+              subscribeMode="footer_cms"
+            />
+          </section>
+        );
+      case "sectionCustom":
+        return (
+          <section
+            key="sectionCustom"
+            aria-labelledby="footer-custom-links"
+            className={`${footerCol} pb-4`}
+          >
+            <h3 id="footer-custom-links" className={footerColTitle}>
+              {footer.sectionCustom?.title}
+            </h3>
+            {hasActiveLinks(sectionCustomLinks) && (
+              <ul className={footerLinkStack} role="list">
+                {sectionCustomLinks.map((link, index) => (
+                  <li key={index}>{renderLink(link, index)}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      default:
+        return null;
+    }
+  };
 
   if (
     isLoading &&
@@ -546,107 +764,10 @@ const Footer: React.FC<FooterProps> = ({
     >
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-5 sm:px-6 md:pb-0 md:pt-6 lg:px-8">
           <div
-            className="grid grid-cols-1 items-start gap-3 md:grid-cols-4 md:gap-4"
+            className={`grid grid-cols-1 items-start gap-3 ${gridColsClass} md:gap-4`}
             aria-label="Footer Sections"
           >
-            <section
-              aria-labelledby="footer-logo"
-              className={`${footerCol} items-center md:items-start max-md:mt-0 md:-mt-4 max-md:pt-3 max-md:pb-3`}
-            >
-              <Link
-                id="footer-logo"
-                href={logoLink}
-                // aria-label="Go to our store Home"
-                className="block shrink-0 leading-none"
-              >
-                {logoUrl && !imageErrors.has(logoUrl) ? (
-                  <Image
-                    src={logoUrl}
-                    alt={logoAltText}
-                    width={180}
-                    height={80}
-                    className="block h-auto w-full max-w-full object-contain object-center md:object-left"
-                    sizes="(max-width: 768px) 100vw, 320px"
-                    loading="lazy"
-                    onError={() => {
-                      if (logoUrl) handleImageError(logoUrl);
-                    }}
-                    unoptimized={logoUrl.startsWith("http://localhost")}
-                  />
-                ) : null}
-              </Link>
-
-              {footer.section1?.description?.trim() ? (
-                <p
-                  className="max-w-xs mt-4 pb-4 sm:pb-0 whitespace-pre-line text-center text-sm leading-snug text-gray-400 md:text-left"
-                  id="footer-description"
-                >
-                  {footer.section1.description.trim()}
-                </p>
-              ) : null}
-
-              {socialMedia.length > 0 && (
-                <section
-                  // aria-labelledby="social-links"
-                  className="flex w-full min-w-0 flex-col items-center md:items-start gap-2"
-                >
-                  <h3 id="social-links" className={footerColTitle}>
-                    Follow Us
-                  </h3>
-                  <ul className="flex flex-wrap justify-center md:justify-start gap-1.5" role="list">
-                    {socialMedia.map((social, index) =>
-                      renderSocialIcon(social, index)
-                    )}
-                  </ul>
-                </section>
-              )}
-            </section>
-
-            {footer.section2?.title && (
-              <section aria-labelledby="useful-links" className={`${footerCol} pb-4`}>
-                <h3 id="useful-links" className={footerColTitle}>
-                  {footer.section2.title}
-                </h3>
-                {hasActiveLinks(section2Links) && (
-                  <ul className={footerLinkStack} role="list">
-                    {section2Links.map((link, index) => (
-                      <li key={index}>{renderLink(link, index)}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {footer.section3?.title && (
-              <section aria-labelledby="customer-care" className={`${footerCol} pb-4`}>
-                <h3 id="customer-care" className={footerColTitle}>
-                  {footer.section3.title}
-                </h3>
-                {hasActiveLinks(section3Links) && (
-                  <ul className={footerLinkStack} role="list">
-                    {section3Links.map((link, index) => (
-                      <li key={index}>{renderLink(link, index)}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {showFooterNewsletter && (
-              <section
-                aria-labelledby="footer-newsletter-heading"
-                className={`${footerCol} min-w-0 max-w-full overflow-hidden md:col-span-1`}
-              >
-                <NewsletterSignupWidget
-                  heading={newsletterHeading}
-                  description={newsletterDescription}
-                  placeholder={newsletterPlaceholder}
-                  buttonLabel={newsletterButtonLabel}
-                  imageUrl={newsletterImageUrl}
-                  subscribeMode="footer_cms"
-                />
-              </section>
-            )}
+            {orderedColumns.map((key) => renderFooterColumn(key))}
 
             {/* Hot Selling Gadgets */}
             {/* {footer.section4?.title && (

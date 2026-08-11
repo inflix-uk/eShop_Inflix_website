@@ -550,12 +550,15 @@ function NavLinkItemMobileAccordion({
   linkClassName,
   fallbackIcon = DEFAULT_NAVBAR_FLATICON,
   onNavigate,
+  tone = "light",
 }: {
   link: NavbarLinkItem;
   i: number;
   linkClassName: string;
   fallbackIcon?: string;
   onNavigate?: () => void;
+  /** Dark drawer (podcast) vs light drawer (default). */
+  tone?: "light" | "dark";
 }) {
   const children = getDropdownChildren(link);
   const [open, setOpen] = useState(false);
@@ -563,6 +566,7 @@ function NavLinkItemMobileAccordion({
   const showAria = isIconOnlyLink(link) || (isIconLabelLink(link) && !String(link?.label || "").trim());
   const aria = navLinkAriaLabel(link);
   const submenuLabel = String(link.label || "Category").trim() || "Category";
+  const isDark = tone === "dark";
 
   return (
     <div className="relative">
@@ -579,7 +583,11 @@ function NavLinkItemMobileAccordion({
 
         <button
           type="button"
-          className="inline-flex shrink-0 items-center justify-center self-stretch rounded-md px-2.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary"
+          className={`inline-flex shrink-0 items-center justify-center self-stretch rounded-md px-2.5 transition focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary ${
+            isDark
+              ? "text-white/50 hover:bg-white/10 hover:text-[#c2fc12]"
+              : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          }`}
           aria-expanded={open}
           aria-controls={subId}
           aria-label={open ? `Hide ${submenuLabel} sublinks` : `Show ${submenuLabel} sublinks`}
@@ -600,14 +608,20 @@ function NavLinkItemMobileAccordion({
         id={subId}
         role="region"
         aria-label={`${String(link.label || "Category").trim()} sublinks`}
-        className={`ml-2 mt-2 flex flex-col gap-1.5 py-1 pl-3 ${open ? "" : "hidden"}`}
+        className={`ml-2 mt-2 flex flex-col gap-1.5 border-l py-1 pl-3 ${
+          open ? "" : "hidden"
+        } ${isDark ? "border-white/15" : "border-slate-200"}`}
       >
         {children.map((child, childIndex) => (
           <a
             key={child.id || `${link.id || i}-child-${childIndex}`}
             href={resolveHref(child.url)}
             onClick={onNavigate}
-            className="py-2 text-[15px] font-medium text-slate-700 transition hover:text-slate-900"
+            className={
+              isDark
+                ? "py-2 text-[15px] font-medium text-white/80 transition hover:text-[#c2fc12]"
+                : "py-2 text-[15px] font-medium text-slate-700 transition hover:text-slate-900"
+            }
           >
             {child.label}
           </a>
@@ -629,6 +643,8 @@ function NavLinkItemNode({
   bodyPortalFlyout = false,
   compact = false,
   nowrap = false,
+  drawerTone = "light",
+  flyoutTone = "light",
 }: {
   link: NavbarLinkItem;
   i: number;
@@ -646,6 +662,10 @@ function NavLinkItemNode({
   compact?: boolean;
   /** Keep label on one line (retail-two-row links bar). */
   nowrap?: boolean;
+  /** Mobile accordion colors for dark drawers (podcast). */
+  drawerTone?: "light" | "dark";
+  /** Desktop hover flyout surface (podcast uses dark + green text). */
+  flyoutTone?: "light" | "dark";
 }) {
   const flyoutTriggerGap = compact ? "gap-1" : "gap-4";
   const flyoutRowClass = nowrap
@@ -735,15 +755,26 @@ function NavLinkItemNode({
     });
   };
 
-  const flyoutLinkClass =
-    "group/item flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-800 transition-all duration-200 hover:bg-slate-100 hover:text-slate-950 hover:translate-x-1";
+  const flyoutIsDark = flyoutTone === "dark";
+  const flyoutLinkClass = flyoutIsDark
+    ? "group/item flex items-center justify-between px-4 py-3 text-sm font-medium text-[color:var(--psm-green,#c2fc12)] transition-all duration-200 hover:bg-white/5 hover:text-[color:var(--psm-cream,#f1eee6)] hover:translate-x-1"
+    : "group/item flex items-center justify-between px-4 py-3 text-sm font-medium text-neutral-950 transition-all duration-200 hover:bg-slate-100 hover:text-black hover:translate-x-1";
+  const flyoutTextColor = flyoutIsDark
+    ? "var(--psm-green, #c2fc12)"
+    : "#0a0a0a";
 
   const flyoutInner = (
     <div
       data-nav-flyout-panel
-      className={`min-w-[220px] w-full overflow-hidden rounded-md border border-slate-200/90 p-2 shadow-[0_16px_48px_rgba(15,23,42,0.18)] ${
-        bodyPortalFlyout ? "bg-white backdrop-blur-xl" : "bg-white/95 backdrop-blur-xl"
+      data-nav-flyout-tone={flyoutTone}
+      className={`min-w-[220px] w-full overflow-hidden rounded-md p-2 backdrop-blur-xl ${
+        flyoutIsDark
+          ? "border border-white/10 bg-[#161a16]/95 shadow-[0_16px_48px_rgba(0,0,0,0.45)]"
+          : bodyPortalFlyout
+            ? "border border-slate-200/90 bg-white shadow-[0_16px_48px_rgba(15,23,42,0.18)]"
+            : "border border-slate-200/90 bg-white/95 shadow-[0_16px_48px_rgba(15,23,42,0.18)]"
       }`}
+      style={{ color: flyoutTextColor }}
     >
       {children.map((child, childIndex) => (
         <a
@@ -751,13 +782,19 @@ function NavLinkItemNode({
           href={resolveHref(child.url)}
           onClick={onNavigate}
           className={flyoutLinkClass}
+          style={{ color: flyoutTextColor }}
         >
-          <span>{child.label}</span>
+          <span data-navbar-btn-text style={{ color: "inherit" }}>
+            {child.label}
+          </span>
           <svg
-            className="h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100"
+            className={`h-4 w-4 opacity-0 transition-all duration-200 group-hover/item:translate-x-1 group-hover/item:opacity-100 ${
+              flyoutIsDark ? "text-[color:var(--psm-cream,#f1eee6)]" : ""
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            style={{ color: "inherit" }}
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
@@ -789,6 +826,7 @@ function NavLinkItemNode({
         linkClassName={linkClassName}
         fallbackIcon={fallbackIcon}
         onNavigate={onNavigate}
+        tone={drawerTone}
       />
     );
   }
@@ -3418,7 +3456,6 @@ function NavbarPodcast({
   content: NavbarWidgetContent;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
   const showPrimaryButton = content?.showPrimaryButton !== false;
   const showSecondaryButton = content?.showSecondaryButton === true;
   const hasPrimaryIcon = Boolean(content?.primaryButtonIcon?.trim());
@@ -3431,15 +3468,6 @@ function NavbarPodcast({
   const podcastBarColor = String(content?.navbarBgColor || "").trim() || "#0a0f0a";
   const linkTextColor = content?.menuLinkTextColor?.trim() || "#e5e7eb";
   const linkHoverColor = content?.menuLinkHoverColor?.trim() || "#c2fc12";
-  const activeBorderColor = "#C2FC12";
-
-  const isLinkActive = (linkUrl?: string) => {
-    if (!linkUrl) return false;
-    const resolved = resolveHref(linkUrl);
-    if (!resolved || !pathname) return false;
-    if (resolved === "/" || resolved === "") return pathname === "/";
-    return pathname === resolved || pathname.startsWith(resolved + "/");
-  };
 
   return (
     <>
@@ -3477,33 +3505,25 @@ function NavbarPodcast({
             <nav
               className="flex items-center gap-0.5 lg:gap-1"
               aria-label="Primary"
+              style={
+                {
+                  ["--podcast-nav-link" as string]: linkTextColor,
+                  ["--podcast-nav-link-hover" as string]: linkHoverColor,
+                } as React.CSSProperties
+              }
             >
-              {links.map((link, i) => {
-                const isActive = isLinkActive(link.url);
-                return (
-                  <a
-                    key={link.id || i}
-                    href={resolveHref(link.url)}
-                    data-nav-link="1"
-                    className="relative px-2.5 py-1.5 text-[13px] font-normal transition-colors duration-200 lg:px-3 lg:text-sm"
-                    style={{ color: isActive ? activeBorderColor : linkTextColor }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) e.currentTarget.style.color = linkHoverColor;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) e.currentTarget.style.color = linkTextColor;
-                    }}
-                  >
-                    <span data-navbar-btn-text>{link.label}</span>
-                    {isActive ? (
-                      <span
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-[calc(100%-20px)] rounded-full"
-                        style={{ backgroundColor: activeBorderColor }}
-                      />
-                    ) : null}
-                  </a>
-                );
-              })}
+              {links.map((link, i) => (
+                <NavLinkItemNode
+                  key={link.id || i}
+                  link={link}
+                  i={i}
+                  fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                  bodyPortalFlyout
+                  flyoutTone="dark"
+                  compact
+                  linkClassName="relative inline-flex items-center px-2.5 py-1.5 text-[13px] font-normal transition-colors duration-200 lg:px-3 lg:text-sm text-[color:var(--podcast-nav-link,#e5e7eb)] hover:text-[color:var(--podcast-nav-link-hover,#c2fc12)]"
+                />
+              ))}
             </nav>
 
             {/* CTA Buttons */}
@@ -3550,25 +3570,18 @@ function NavbarPodcast({
       >
         <section>
           <nav className="nav-mobile-dark-drawer flex flex-col gap-1">
-            {links.map((link, i) => {
-              const isActive = isLinkActive(link.url);
-              return (
-                <a
-                  key={link.id || i}
-                  href={resolveHref(link.url)}
-                  className={`relative flex w-full min-w-0 items-center px-4 py-3 text-base font-normal leading-snug transition rounded-lg ${isActive ? "text-[#C2FC12] bg-white/5" : "text-white/90 hover:text-[#c2fc12] hover:bg-white/5"}`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <span data-navbar-btn-text>{link.label}</span>
-                  {isActive ? (
-                    <span
-                      className="absolute left-0 top-1/2 -translate-y-1/2 h-[60%] w-[3px] rounded-full"
-                      style={{ backgroundColor: activeBorderColor }}
-                    />
-                  ) : null}
-                </a>
-              );
-            })}
+            {links.map((link, i) => (
+              <NavLinkItemNode
+                key={link.id || i}
+                link={link}
+                i={i}
+                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+                touchExpandable
+                drawerTone="dark"
+                onNavigate={() => setMobileOpen(false)}
+                linkClassName="relative flex w-full min-w-0 items-center px-4 py-3 text-base font-normal leading-snug transition rounded-lg text-white/90 hover:text-[#c2fc12] hover:bg-white/5"
+              />
+            ))}
           </nav>
         </section>
         {(showSecondaryButton || showPrimaryButton) ? (
@@ -3737,6 +3750,28 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
   } as CSSProperties;
   const linkColorStyle = (
     <style jsx global>{`
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]),
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) a,
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) span,
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) svg {
+        color: #0a0a0a !important;
+      }
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) a:hover,
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) a:hover span,
+      [data-nav-flyout-panel]:not([data-nav-flyout-tone="dark"]) a:hover svg {
+        color: #000000 !important;
+      }
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"],
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] a,
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] span,
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] svg {
+        color: var(--psm-green, #c2fc12) !important;
+      }
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] a:hover,
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] a:hover span,
+      [data-nav-flyout-panel][data-nav-flyout-tone="dark"] a:hover svg {
+        color: var(--psm-cream, #f1eee6) !important;
+      }
       @media (max-width: 767px) {
         .navbar-widget-link-colors nav.nav-mobile-dark-drawer a[data-nav-link="1"] {
           color: #e2e8f0 !important;

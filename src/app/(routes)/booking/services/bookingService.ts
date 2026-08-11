@@ -14,16 +14,26 @@ export interface BookingSettings {
   slotIntervalDisplayUnit?: "minutes" | "hours";
   holdDurationDisplayUnit?: "minutes" | "hours";
   minAdvanceDisplayUnit?: "minutes" | "hours";
+  /** Total mics available in the studio (guest ceiling). */
+  studioMicCapacity?: number;
+  /** £ per extra mic per booked hour. */
+  extraMicPricePerHour?: number;
 }
 
 export interface BookingPackage {
   _id: string;
   name: string;
   slug: string | null;
-  type: 'service' | 'consultation' | 'studio';
+  type: 'service' | 'consultation' | 'studio' | 'editing';
   durationMinutes: number;
   durationDisplayUnit?: "minutes" | "hours";
   price: number;
+  /** Microphones included with this package. */
+  includedMics?: number;
+  /** Custom line under price on booking cards. */
+  subtitle?: string;
+  /** Max guest chips on the booking flow (1–9). */
+  maxGuests?: number;
   description: string;
   detailPage: string;
   detailPageHtml?: string;
@@ -36,7 +46,42 @@ export interface BookingPackage {
   highlightBadgeText?: string;
   highlightBadgeUrl?: string;
   bundleBenefits?: string;
+  whatHappensNext?: BookingWhatHappensNext;
   extras?: BookingPackageExtra[];
+}
+
+export interface BookingWhatHappensNext {
+  heading: string;
+  listStyle: 'numbered' | 'bullets';
+  items: string[];
+}
+
+export const DEFAULT_WHAT_HAPPENS_NEXT: BookingWhatHappensNext = {
+  heading: 'What happens next',
+  listStyle: 'numbered',
+  items: [
+    'Confirmation and calendar invite by email straight away.',
+    'Free parking at the back of the studio — no app, no permit.',
+    'Arrive 5 minutes early. The room is already rigged and tested.',
+    'Leave with your raw files. Free reschedule up to 72 hrs before.',
+  ],
+};
+
+export function resolveWhatHappensNext(raw: unknown): BookingWhatHappensNext {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const itemsSrc = Array.isArray(src.items) ? src.items : [];
+  const items = itemsSrc
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0)
+    .slice(0, 20);
+  return {
+    heading:
+      typeof src.heading === 'string' && src.heading.trim()
+        ? src.heading.trim()
+        : DEFAULT_WHAT_HAPPENS_NEXT.heading,
+    listStyle: src.listStyle === 'bullets' ? 'bullets' : 'numbered',
+    items: items.length > 0 ? items : [...DEFAULT_WHAT_HAPPENS_NEXT.items],
+  };
 }
 
 export interface BookingPackageExtra {
@@ -44,6 +89,8 @@ export interface BookingPackageExtra {
   title: string;
   price: number;
   description?: string;
+  /** When true, booking UI shows +/- quantity instead of Add toggle. */
+  quantityEnabled?: boolean;
 }
 
 /** SEO slug from package title (hyphenated, lowercase). */
@@ -244,6 +291,18 @@ export interface SelectedBookingExtra {
   price: number;
   image?: string;
   description?: string;
+  /** Selected quantity (1 for toggle extras; 1–9 when quantityEnabled). */
+  quantity?: number;
+  quantityEnabled?: boolean;
+}
+
+/** Flat per-episode editing add-on (from packages with type "editing"). */
+export interface SelectedEditingAddOn {
+  packageId: string;
+  title: string;
+  price: number;
+  description?: string;
+  image?: string;
 }
 
 export interface TimeSlot {
@@ -274,6 +333,21 @@ export interface AvailableSlotsResponse {
   blocked?: boolean;
   reason?: string;
   noAvailability?: boolean;
+}
+
+export type DayAvailabilityStatus = "good" | "low" | "full" | "closed" | "past";
+
+export interface MonthAvailabilityDay {
+  status: DayAvailabilityStatus;
+  availableCount: number;
+  totalCount: number;
+}
+
+export interface MonthAvailabilityResponse {
+  success: boolean;
+  error: string | null;
+  month?: string;
+  days: Record<string, MonthAvailabilityDay>;
 }
 
 export interface SlotHold {
@@ -311,6 +385,11 @@ export interface StoredBookingData {
   selectedExtras?: SelectedBookingExtra[];
   slotsSubtotal?: number;
   extrasSubtotal?: number;
+  guestCount?: number;
+  extraMics?: number;
+  micSubtotal?: number;
+  selectedEditing?: SelectedEditingAddOn | null;
+  editingSubtotal?: number;
 }
 
 export interface CustomerInfo {
@@ -423,6 +502,26 @@ export class BookingService {
         dayOfWeek: 0,
         timezone: 'Europe/London',
       };
+    }
+  }
+
+  async getMonthAvailability(
+    packageId: string,
+    month: string
+  ): Promise<MonthAvailabilityResponse> {
+    try {
+      const response = await axios.get(`${API_URL}get/booking/month-availability`, {
+        params: { packageId, month },
+      });
+      return {
+        success: Boolean(response.data?.success ?? true),
+        error: response.data?.error || null,
+        month: response.data?.month || month,
+        days: response.data?.days || {},
+      };
+    } catch (error) {
+      console.error('Error fetching month availability:', error);
+      return { success: false, error: 'Failed to fetch month availability', days: {} };
     }
   }
 
@@ -637,6 +736,7 @@ export class BookingService {
       service: 'Service',
       consultation: 'Consultation',
       studio: 'Studio Session',
+      editing: 'Editing',
     };
     return labels[type] || type;
   }
@@ -681,19 +781,54 @@ export class BookingService {
   computeBookingTotal(
     packagePrice: number,
     slotCount: number,
-    selectedExtras: SelectedBookingExtra[] = []
+    selectedExtras: SelectedBookingExtra[] = [],
+    micSubtotal = 0,
+    editingSubtotal = 0
   ) {
-    const slotsSubtotal = packagePrice * slotCount;
-    const extrasSubtotal = selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+    const hours = Math.max(0, Number(slotCount) || 0);
+    const slotsSubtotal = packagePrice * hours;
+    // Package extras are hourly rates — × quantity × booked hours.
+    const extrasSubtotal = selectedExtras.reduce((sum, extra) => {
+      const unit = Math.max(0, Number(extra.price) || 0);
+      const qty = Math.max(1, Math.floor(Number(extra.quantity) || 1));
+      return sum + unit * qty * hours;
+    }, 0);
+    const mics = Math.max(0, Number(micSubtotal) || 0);
+    const editing = Math.max(0, Number(editingSubtotal) || 0);
     return {
       slotsSubtotal,
-      extrasSubtotal,
-      totalPrice: slotsSubtotal + extrasSubtotal,
+      extrasSubtotal: Math.round(extrasSubtotal * 100) / 100,
+      micSubtotal: mics,
+      editingSubtotal: editing,
+      totalPrice: Math.round((slotsSubtotal + extrasSubtotal + mics + editing) * 100) / 100,
     };
+  }
+
+  /** Unit price × quantity × booked hours for a catalog extra. */
+  computeHourlyExtraCost(unitPrice: number, hours: number, quantity = 1): number {
+    const unit = Math.max(0, Number(unitPrice) || 0);
+    const hrs = Math.max(0, Number(hours) || 0);
+    const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+    return Math.round(unit * qty * hrs * 100) / 100;
+  }
+
+  computeExtraMicCost(extraMics: number, pricePerHour: number, hours: number): number {
+    const n = Math.max(0, Math.floor(Number(extraMics) || 0));
+    const rate = Math.max(0, Number(pricePerHour) || 0);
+    const hrs = Math.max(0, Number(hours) || 0);
+    return Math.round(n * rate * hrs * 100) / 100;
   }
 }
 
 export const bookingService = BookingService.init();
+
+/** True when a package is an editing add-on (not a standalone bookable service). */
+export function isEditingPackage(pkg: Pick<BookingPackage, 'type' | 'slug' | 'name'>): boolean {
+  if (pkg.type === 'editing') return true;
+  const slug = String(pkg.slug || '').toLowerCase();
+  const name = String(pkg.name || '').toLowerCase();
+  return slug.includes('editing') || /editing/.test(name);
+}
 
 /** Lightweight check for storefronts where booking is disabled or not configured. */
 export async function fetchBookingEnabled(

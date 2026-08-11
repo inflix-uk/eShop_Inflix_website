@@ -94,17 +94,30 @@ const RegisterForm: FC<RegisterFormProps> = ({
         mode: "checkout",
       });
 
-      if (response.status === 201) {
+      // 201 = new subscribe; 200 = already subscribed (idempotent)
+      if (response.status === 201 || response.status === 200) {
         hasSubscribedRef.current = true;
-        setSuccess("You have successfully subscribed!");
-        setShowThankYou(true);
+        if (response.status === 201) {
+          setSuccess("You have successfully subscribed!");
+          setShowThankYou(true);
+        }
         return true;
       }
 
       setError("Something went wrong. Please try again.");
       return false;
     } catch (err: any) {
-      setError("Error: " + err.message);
+      const status = err?.response?.status;
+      const message = err?.response?.data?.message || "";
+      // Legacy backends may still return 400 for already-subscribed.
+      if (
+        status === 400 &&
+        /already subscribed/i.test(String(message))
+      ) {
+        hasSubscribedRef.current = true;
+        return true;
+      }
+      setError("Error: " + (message || err.message));
       console.error("Error while submitting:", err);
       return false;
     }

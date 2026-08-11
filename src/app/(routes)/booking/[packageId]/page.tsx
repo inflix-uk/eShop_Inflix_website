@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -13,18 +13,36 @@ import {
   SlotHold,
   SelectedBookingSlot,
   SelectedBookingExtra,
+  SelectedEditingAddOn,
   StoredBookingData,
+  getPackageUrlKey,
+  isEditingPackage,
+  resolveWhatHappensNext,
+  DEFAULT_WHAT_HAPPENS_NEXT,
+  type BookingWhatHappensNext,
+  type DayAvailabilityStatus,
+  type MonthAvailabilityDay,
 } from "../services/bookingService";
 import {
-  DEFAULT_BOOKING_MODULE_UI,
+  bookingModuleRootStyle,
   resolveBookingModuleUi,
   type BookingModuleUi,
 } from "@/app/lib/bookingModuleThemeUtils";
 import { formatDuration } from "../utils/formatDuration";
+import BookingFlowLoading from "../components/BookingFlowLoading";
+import "./booking-flow.css";
+import "../components/booking-package-cards.css";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
+const DURATION_OPTIONS = [
+  { hrs: 1, label: "1 hr" },
+  { hrs: 2, label: "2 hrs" },
+  { hrs: 3, label: "3 hrs" },
+  { hrs: 4, label: "Half day" },
+  { hrs: 6, label: "6 hrs" },
+] as const;
 
 function toDateStr(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -39,14 +57,36 @@ function slotKey(date: string, startTime: string) {
   return `${date}|${startTime}`;
 }
 
-function toSelectedExtra(extra: BookingPackageExtra, index: number): SelectedBookingExtra {
+const EXTRA_QTY_MAX = 9;
+
+function toSelectedExtra(
+  extra: BookingPackageExtra,
+  index: number,
+  quantity = 1
+): SelectedBookingExtra {
   return {
     index,
     title: extra.title,
     price: extra.price || 0,
     image: extra.image,
     description: extra.description,
+    quantity: Math.max(1, Math.floor(quantity) || 1),
+    quantityEnabled: Boolean(extra.quantityEnabled),
   };
+}
+
+function stripHtmlText(html: string): string {
+  return String(html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function editingIconPath(index: number): string {
+  // 0 Standard (list), 1 Advanced (equal lines), 2+ Premium (plus)
+  if (index === 0) return "M4 6h12M4 12h8M4 18h4";
+  if (index === 1) return "M4 7h16M4 12h16M4 17h16";
+  return "M12 5v14M5 12h14";
 }
 
 function normalizeStoredBooking(parsed: StoredBookingData): StoredBookingData | null {
@@ -107,6 +147,108 @@ function mergeReservedSlots(slots: TimeSlot[], date: string, reserved: SelectedB
   return merged.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+function slotHour(startTime: string): number {
+  const h = parseInt(String(startTime).slice(0, 2), 10);
+  return Number.isFinite(h) ? h : 0;
+}
+
+function slotPeriod(startTime: string): "Morning" | "Afternoon" | "Evening" {
+  const h = slotHour(startTime);
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  return "Evening";
+}
+
+function findContiguousRun(slots: TimeSlot[], count: number): TimeSlot[] | null {
+  if (count < 1 || slots.length < count) return null;
+  for (let i = 0; i + count <= slots.length; i++) {
+    let ok = true;
+    for (let j = i; j < i + count; j++) {
+      if (slots[j].available === false) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return slots.slice(i, i + count);
+  }
+  return null;
+}
+
+function groupRuns(times: string[]): Array<{ start: string; end: string }> {
+  if (!times.length) return [];
+  const sorted = [...times].sort((a, b) => a.localeCompare(b));
+  const runs: Array<{ start: string; end: string }> = [];
+  let runStart = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    // treat HH:MM as sequential hours when possible
+    const [ph, pm] = prev.split(":").map(Number);
+    const [ch, cm] = cur.split(":").map(Number);
+    const prevMins = ph * 60 + (pm || 0);
+    const curMins = ch * 60 + (cm || 0);
+    if (curMins - prevMins <= 60) {
+      prev = cur;
+      continue;
+    }
+    runs.push({ start: runStart, end: prev });
+    runStart = cur;
+    prev = cur;
+  }
+  runs.push({ start: runStart, end: prev });
+  return runs;
+}
+
+/**
+ * Same `type` can contain multiple product families (e.g. studio hire vs hour bundles).
+ * Keep only the contiguous sortOrder cluster that includes the open package.
+ */
+function getRelatedPackageCluster(
+  packages: BookingPackage[],
+  current: BookingPackage
+): BookingPackage[] {
+  const sameType = packages
+    .filter((p) => p.type === current.type && p.isActive !== false)
+    .slice()
+    .sort((a, b) => {
+      const ao = Number(a.sortOrder ?? 0);
+      const bo = Number(b.sortOrder ?? 0);
+      if (ao !== bo) return ao - bo;
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+
+  if (!sameType.length) return [current];
+  if (sameType.length === 1) return sameType;
+
+  const clusters: BookingPackage[][] = [];
+  let cluster: BookingPackage[] = [];
+  for (const p of sameType) {
+    if (!cluster.length) {
+      cluster = [p];
+      continue;
+    }
+    const prev = cluster[cluster.length - 1];
+    const gap = Number(p.sortOrder ?? 0) - Number(prev.sortOrder ?? 0);
+    if (gap > 1) {
+      clusters.push(cluster);
+      cluster = [p];
+    } else {
+      cluster.push(p);
+    }
+  }
+  if (cluster.length) clusters.push(cluster);
+
+  const match = clusters.find((c) => c.some((p) => p._id === current._id));
+  return match?.length ? match : [current];
+}
+
+function addOneHourLabel(startTime: string, endTime?: string): string {
+  if (endTime) return `${startTime}–${endTime}`;
+  const h = slotHour(startTime);
+  const m = String(startTime).slice(3, 5) || "00";
+  return `${startTime}–${String((h + 1) % 24).padStart(2, "0")}:${m}`;
+}
+
 export default function BookingFlowPage() {
   const params = useParams();
   const router = useRouter();
@@ -118,6 +260,7 @@ export default function BookingFlowPage() {
   const [submitting, setSubmitting] = useState(false);
   const [settings, setSettings] = useState<BookingSettings | null>(null);
   const [pkg, setPkg] = useState<BookingPackage | null>(null);
+  const [siblingPackages, setSiblingPackages] = useState<BookingPackage[]>([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsMessage, setSlotsMessage] = useState<string | null>(null);
@@ -127,6 +270,24 @@ export default function BookingFlowPage() {
   const [activeHolds, setActiveHolds] = useState<SlotHold[]>([]);
   const [holdExpiry, setHoldExpiry] = useState<Date | null>(null);
   const [remainingTime, setRemainingTime] = useState<string | null>(null);
+  const [durationHrs, setDurationHrs] = useState<number | null>(null);
+  const [durationHint, setDurationHint] = useState<string | null>(null);
+  const [guestCount, setGuestCount] = useState(1);
+  const [extraMics, setExtraMics] = useState(0);
+  const [monthAvailability, setMonthAvailability] = useState<
+    Record<string, MonthAvailabilityDay>
+  >({});
+  const [nextAvailableDate, setNextAvailableDate] = useState<string | null>(null);
+  const pkgTrackRef = useRef<HTMLDivElement | null>(null);
+  const [pkgOverflow, setPkgOverflow] = useState(false);
+  const [pkgCanPrev, setPkgCanPrev] = useState(false);
+  const [pkgCanNext, setPkgCanNext] = useState(false);
+  const [pkgAutoPaused, setPkgAutoPaused] = useState(false);
+  const [extrasPage, setExtrasPage] = useState(0);
+  const [extrasAnim, setExtrasAnim] = useState<"next" | "prev" | "idle">("idle");
+  const [extraQtyHintIndex, setExtraQtyHintIndex] = useState<number | null>(null);
+  const [editingPackages, setEditingPackages] = useState<BookingPackage[]>([]);
+  const [selectedEditing, setSelectedEditing] = useState<SelectedEditingAddOn | null>(null);
   const [sessionId] = useState(() => {
     if (typeof window === "undefined") return bookingService.generateSessionId();
     try {
@@ -151,15 +312,171 @@ export default function BookingFlowPage() {
     ? activeHolds.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime, holdId: h.holdId }))
     : selectedSlots;
 
+  const includedMics = Math.max(0, Number(pkg?.includedMics) || 0);
+  const studioMicCapacity = Math.max(1, Number(settings?.studioMicCapacity) || 5);
+  const extraMicPricePerHour = Math.max(0, Number(settings?.extraMicPricePerHour) || 15);
+  const maxGuests = Math.min(
+    9,
+    Math.max(1, Number(pkg?.maxGuests) || studioMicCapacity || 5)
+  );
+  // Extra mics may cover every guest beyond included — ceiling follows package maxGuests
+  // (not only settings.studioMicCapacity, which can be lower than maxGuests).
+  const micCapacityCeiling = Math.max(studioMicCapacity, maxGuests);
+  const maxExtraMics = Math.max(0, micCapacityCeiling - includedMics);
+  const micsNeeded = Math.max(0, guestCount - includedMics);
+  const micsShort = Math.max(0, micsNeeded - extraMics);
+  const micFeatureEnabled = pkg?.type === "studio" || includedMics > 0;
+  const guestOptions = useMemo(
+    () => Array.from({ length: maxGuests }, (_, i) => i + 1),
+    [maxGuests]
+  );
+
+  const whatHappensNext: BookingWhatHappensNext = useMemo(
+    () => resolveWhatHappensNext(pkg?.whatHappensNext ?? DEFAULT_WHAT_HAPPENS_NEXT),
+    [pkg?.whatHappensNext]
+  );
+
+  const hoursBooked = Math.max(displaySlots.length, 0);
+  const editingSubtotal = Math.max(0, Number(selectedEditing?.price) || 0);
+  const micSubtotal = useMemo(
+    () => bookingService.computeExtraMicCost(extraMics, extraMicPricePerHour, hoursBooked || 0),
+    [extraMics, extraMicPricePerHour, hoursBooked]
+  );
+
   const pricing = useMemo(
-    () => bookingService.computeBookingTotal(pkg?.price || 0, displaySlots.length, selectedExtras),
-    [pkg?.price, displaySlots.length, selectedExtras]
+    () =>
+      bookingService.computeBookingTotal(
+        pkg?.price || 0,
+        displaySlots.length,
+        selectedExtras,
+        micSubtotal,
+        editingSubtotal
+      ),
+    [pkg?.price, displaySlots.length, selectedExtras, micSubtotal, editingSubtotal]
   );
 
   const packageExtras = pkg?.extras?.filter((e) => e.title?.trim()) || [];
+  const EXTRAS_PER_PAGE = 4;
+  const extrasPageCount = Math.max(1, Math.ceil(packageExtras.length / EXTRAS_PER_PAGE));
+  const safeExtrasPage = Math.min(extrasPage, extrasPageCount - 1);
+  const visibleExtras = packageExtras
+    .map((extra, index) => ({ extra, index }))
+    .slice(safeExtrasPage * EXTRAS_PER_PAGE, safeExtrasPage * EXTRAS_PER_PAGE + EXTRAS_PER_PAGE);
+  const extrasHasPager = packageExtras.length > EXTRAS_PER_PAGE;
+
+  useEffect(() => {
+    setExtrasPage(0);
+    setExtrasAnim("idle");
+  }, [packageKey, packageExtras.length]);
+
+  useEffect(() => {
+    setExtraMics((prev) => Math.min(prev, maxExtraMics));
+    setGuestCount((prev) => Math.min(Math.max(1, prev), maxGuests));
+  }, [packageKey, includedMics, maxExtraMics, maxGuests]);
+
+  const loadMonthAvailability = async (
+    mongoPackageId: string = resolvedPackageId,
+    year = viewMonth.year,
+    month = viewMonth.month
+  ) => {
+    if (!mongoPackageId) return;
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    try {
+      const res = await bookingService.getMonthAvailability(mongoPackageId, monthKey);
+      setMonthAvailability((prev) => ({ ...prev, ...(res.days || {}) }));
+    } catch {
+      /* keep previous map */
+    }
+  };
+
+  const refreshNextAvailable = async (mongoPackageId: string = resolvedPackageId) => {
+    if (!mongoPackageId || !settings) {
+      setNextAvailableDate(null);
+      return null;
+    }
+    const min = bookingService.getDateInTimezone(timezone);
+    const max = bookingService.addDaysToDateStr(
+      min,
+      settings.maxAdvanceBookingDays || 60
+    );
+    let cursor = min.slice(0, 7);
+    const maxMonth = max.slice(0, 7);
+
+    for (let i = 0; i < 8; i++) {
+      try {
+        const res = await bookingService.getMonthAvailability(mongoPackageId, cursor);
+        setMonthAvailability((prev) => ({ ...prev, ...(res.days || {}) }));
+        const hit = Object.entries(res.days || {})
+          .filter(([, info]) => info.status === "good" || info.status === "low")
+          .map(([d]) => d)
+          .sort()
+          .find((d) => d >= min && d <= max);
+        if (hit) {
+          setNextAvailableDate(hit);
+          return hit;
+        }
+      } catch {
+        /* try next month */
+      }
+      const [y, m] = cursor.split("-").map(Number);
+      const nextM = m === 12 ? 1 : m + 1;
+      const nextY = m === 12 ? y + 1 : y;
+      cursor = `${nextY}-${String(nextM).padStart(2, "0")}`;
+      if (cursor > maxMonth) break;
+    }
+    setNextAvailableDate(null);
+    return null;
+  };
+
+  useEffect(() => {
+    if (!resolvedPackageId) return;
+    setMonthAvailability({});
+    setNextAvailableDate(null);
+  }, [resolvedPackageId]);
+
+  useEffect(() => {
+    if (!resolvedPackageId) return;
+    loadMonthAvailability(resolvedPackageId, viewMonth.year, viewMonth.month);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedPackageId, viewMonth.year, viewMonth.month]);
+
+  useEffect(() => {
+    if (!resolvedPackageId || !settings) return;
+    refreshNextAvailable(resolvedPackageId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedPackageId, settings?.timezone, settings?.maxAdvanceBookingDays]);
+
+  const setExtraMicsClamped = (n: number) => {
+    setExtraMics(Math.max(0, Math.min(maxExtraMics, Math.floor(n))));
+  };
+
+  const goExtrasPage = (dir: -1 | 1) => {
+    if (!extrasHasPager || submitting) return;
+    const next = safeExtrasPage + dir;
+    if (next < 0 || next >= extrasPageCount) return;
+    setExtrasAnim(dir === 1 ? "next" : "prev");
+    setExtrasPage(next);
+  };
 
   const getMinDate = () => bookingService.getDateInTimezone(timezone);
   const getMaxDate = () => bookingService.addDaysToDateStr(getMinDate(), settings?.maxAdvanceBookingDays || 60);
+  const todayStr = getMinDate();
+
+  const activeStep =
+    hasActiveHold
+      ? 3
+      : selectedSlots.length > 0 ||
+          selectedExtras.length > 0 ||
+          extraMics > 0 ||
+          Boolean(selectedEditing)
+        ? 2
+        : 1;
+
+  const isFullyBookedMessage =
+    !!slotsMessage &&
+    (/fully booked/i.test(slotsMessage) ||
+      /no availability/i.test(slotsMessage) ||
+      /no slots available/i.test(slotsMessage));
 
   useEffect(() => { loadInitialData(); }, [packageKey]);
 
@@ -178,6 +495,132 @@ export default function BookingFlowPage() {
     };
     fetchBookingUi();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!pkg?.type) {
+        setSiblingPackages([]);
+        return;
+      }
+      try {
+        const currentIsEditing = isEditingPackage(pkg);
+        if (currentIsEditing) {
+          // Editing tiers switch among themselves (Standard / Advanced / Premium).
+          let editingPkgs = await bookingService.getPackages("editing");
+          if (!editingPkgs.length) {
+            const all = await bookingService.getPackages();
+            editingPkgs = all.filter(isEditingPackage);
+          }
+          if (!cancelled) {
+            setSiblingPackages(
+              editingPkgs
+                .filter((p) => p.isActive !== false)
+                .slice()
+                .sort(
+                  (a, b) =>
+                    (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+                    a.price - b.price ||
+                    String(a.name).localeCompare(String(b.name))
+                )
+            );
+          }
+          return;
+        }
+
+        // Studio/service: same type only — never mix in editing add-on packages.
+        const packages = await bookingService.getPackages(pkg.type);
+        if (!cancelled) {
+          setSiblingPackages(
+            packages.filter((p) => p.isActive !== false && !isEditingPackage(p))
+          );
+        }
+      } catch {
+        if (!cancelled) setSiblingPackages([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pkg?.type, pkg?._id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Editing add-ons are separate catalog packages, shown on studio bookings.
+      if (pkg?.type !== "studio") {
+        setEditingPackages([]);
+        setSelectedEditing(null);
+        return;
+      }
+      try {
+        let packages = await bookingService.getPackages("editing");
+        if (!packages.length) {
+          // Legacy: editing tiers may still be type=service with *-editing slugs.
+          const all = await bookingService.getPackages();
+          packages = all.filter(isEditingPackage);
+        }
+        if (!cancelled) {
+          setEditingPackages(
+            packages
+              .filter((p) => p.isActive !== false)
+              .slice()
+              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.price - b.price)
+          );
+        }
+      } catch {
+        if (!cancelled) setEditingPackages([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pkg?.type, packageKey]);
+
+  const updatePkgScrollState = () => {
+    const el = pkgTrackRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const overflow = max > 4;
+    setPkgOverflow(overflow);
+    setPkgCanPrev(el.scrollLeft > 4);
+    setPkgCanNext(el.scrollLeft < max - 4);
+  };
+
+  const scrollPkgBy = (dir: -1 | 1) => {
+    const el = pkgTrackRef.current;
+    if (!el) return;
+    const step = Math.max(160, Math.floor(el.clientWidth * 0.7));
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    const el = pkgTrackRef.current;
+    if (!el) return;
+    updatePkgScrollState();
+    const onScroll = () => updatePkgScrollState();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => updatePkgScrollState()) : null;
+    ro?.observe(el);
+    window.addEventListener("resize", updatePkgScrollState);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro?.disconnect();
+      window.removeEventListener("resize", updatePkgScrollState);
+    };
+  }, [siblingPackages, pkg?._id, loading]);
+
+  useEffect(() => {
+    if (!pkgOverflow || pkgAutoPaused || loading || submitting) return;
+    const id = window.setInterval(() => {
+      const el = pkgTrackRef.current;
+      if (!el) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 4) return;
+      if (el.scrollLeft >= max - 8) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        el.scrollBy({ left: Math.max(160, Math.floor(el.clientWidth * 0.55)), behavior: "smooth" });
+      }
+    }, 3800);
+    return () => window.clearInterval(id);
+  }, [pkgOverflow, pkgAutoPaused, loading, submitting, siblingPackages.length]);
 
   useEffect(() => {
     if (!holdExpiry) { setRemainingTime(null); return; }
@@ -217,16 +660,19 @@ export default function BookingFlowPage() {
 
       if (!packageData) { toast.error("Package not found"); router.push("/booking"); return; }
 
-      const todayStr = getMinDate();
+      const todayMin = getMinDate();
       const stored = getStoredBookingForPackage(packageData._id);
-      let initialDate = todayStr;
+      let initialDate = todayMin;
       let restored: SelectedBookingSlot[] = [];
 
       if (stored) {
         restored = stored.slots;
-        initialDate = stored.slots[0]?.date || todayStr;
+        initialDate = stored.slots[0]?.date || todayMin;
         setSelectedSlots(restored);
         if (stored.selectedExtras?.length) setSelectedExtras(stored.selectedExtras);
+        if (stored.guestCount) setGuestCount(Math.max(1, Number(stored.guestCount) || 1));
+        if (stored.extraMics) setExtraMics(Math.max(0, Number(stored.extraMics) || 0));
+        if (stored.selectedEditing?.packageId) setSelectedEditing(stored.selectedEditing);
         setActiveHolds(
           stored.slots.filter((s) => s.holdId).map((s) => ({
             holdId: s.holdId!,
@@ -343,8 +789,57 @@ export default function BookingFlowPage() {
   const selectDate = (dateStr: string) => {
     if (!isDateSelectable(dateStr) || submitting) return;
     setSelectedDate(dateStr);
+    setDurationHrs(null);
+    setDurationHint(null);
     loadSlots(dateStr);
   };
+
+  const jumpToDate = (dateStr: string) => {
+    if (!dateStr || submitting) return;
+    const { year, month } = parseDateStr(dateStr);
+    setViewMonth({ year, month });
+    selectDate(dateStr);
+  };
+
+  const formatLongDate = (dateStr: string) =>
+    new Date(`${dateStr}T12:00:00`).toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+  const formatJumpLabel = (dateStr: string) =>
+    new Date(`${dateStr}T12:00:00`).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+    });
+
+  /** Next open day after the selected (fully booked) date, else global next available. */
+  const jumpTargetDate = useMemo(() => {
+    const min = getMinDate();
+    const max = getMaxDate();
+    const after = selectedDate || min;
+    const fromMap = Object.entries(monthAvailability)
+      .filter(([, info]) => info.status === "good" || info.status === "low")
+      .map(([d]) => d)
+      .sort()
+      .find((d) => d > after && d >= min && d <= max);
+    return fromMap || (nextAvailableDate && nextAvailableDate > after ? nextAvailableDate : nextAvailableDate);
+  }, [monthAvailability, selectedDate, nextAvailableDate, timezone, settings?.maxAdvanceBookingDays]);
+
+  const busyThroughLabel = useMemo(() => {
+    if (!jumpTargetDate) return null;
+    const [y, m, d] = jumpTargetDate.split("-").map(Number);
+    const prev = new Date(Date.UTC(y, m - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    const through = prev.toISOString().split("T")[0];
+    return new Date(`${through}T12:00:00`).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+    });
+  }, [jumpTargetDate]);
+
+  const nextAvailableLabel = nextAvailableDate ? formatLongDate(nextAvailableDate) : null;
 
   const handleSlotSelect = (slot: TimeSlot) => {
     if (!selectedDate || submitting || hasActiveHold) return;
@@ -362,6 +857,30 @@ export default function BookingFlowPage() {
     setSelectedSlots((prev) => [...prev, candidate]);
   };
 
+  const handleSlotSelectFromUi = (slot: TimeSlot) => {
+    setDurationHrs(null);
+    setDurationHint(null);
+    handleSlotSelect(slot);
+  };
+
+  const applyDurationChip = (hrs: number) => {
+    if (!selectedDate || submitting || hasActiveHold) return;
+    setDurationHrs(hrs);
+    const run = findContiguousRun(availableSlots, hrs);
+    if (!run) {
+      setDurationHint(`No clear ${hrs}-hour block today. Pick slots individually, or try another date.`);
+      setSelectedSlots((prev) => prev.filter((s) => s.date !== selectedDate));
+      return;
+    }
+    setDurationHint(null);
+    const mapped = run.map((s) => ({
+      date: selectedDate,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+    setSelectedSlots((prev) => [...prev.filter((s) => s.date !== selectedDate), ...mapped]);
+  };
+
   const removeSelectedSlot = (date: string, startTime: string) => {
     if (hasActiveHold) return;
     setSelectedSlots((prev) => prev.filter((s) => !(s.date === date && s.startTime === startTime)));
@@ -369,23 +888,109 @@ export default function BookingFlowPage() {
 
   const isExtraSelected = (index: number) => selectedExtras.some((e) => e.index === index);
 
+  const extraQtyMax = Math.max(0, Math.min(EXTRA_QTY_MAX, guestCount));
+
+  const getExtraQuantity = (index: number) =>
+    Math.max(0, selectedExtras.find((e) => e.index === index)?.quantity || 0);
+
+  const setExtraQuantity = (extra: BookingPackageExtra, index: number, rawQty: number) => {
+    if (submitting) return;
+    const parsed = Number.isFinite(Number(rawQty)) ? Math.floor(Number(rawQty)) : 0;
+    const next = Math.max(0, Math.min(extraQtyMax, parsed));
+    setSelectedExtras((prev) => {
+      if (next <= 0) return prev.filter((e) => e.index !== index);
+      const exists = prev.some((e) => e.index === index);
+      if (exists) {
+        return prev.map((e) =>
+          e.index === index ? { ...e, quantity: next, quantityEnabled: true } : e
+        );
+      }
+      return [...prev, toSelectedExtra(extra, index, next)];
+    });
+  };
+
+  useEffect(() => {
+    setSelectedExtras((prev) => {
+      let changed = false;
+      const next: SelectedBookingExtra[] = [];
+      for (const e of prev) {
+        if (!e.quantityEnabled) {
+          next.push(e);
+          continue;
+        }
+        const qty = Math.max(0, Math.floor(Number(e.quantity) || 0));
+        if (qty <= 0 || extraQtyMax <= 0) {
+          changed = true;
+          continue;
+        }
+        if (qty > extraQtyMax) {
+          changed = true;
+          next.push({ ...e, quantity: extraQtyMax });
+        } else {
+          next.push(e);
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [extraQtyMax]);
+
+  useEffect(() => {
+    setExtraQtyHintIndex(null);
+  }, [guestCount, packageKey]);
+
+  const tryIncreaseExtraQty = (
+    extra: BookingPackageExtra,
+    index: number,
+    qty: number
+  ) => {
+    if (submitting) return;
+    if (qty >= extraQtyMax) {
+      setExtraQtyHintIndex(index);
+      return;
+    }
+    setExtraQtyHintIndex(null);
+    setExtraQuantity(extra, index, qty + 1);
+  };
+
+  const tryDecreaseExtraQty = (
+    extra: BookingPackageExtra,
+    index: number,
+    qty: number
+  ) => {
+    if (submitting) return;
+    setExtraQtyHintIndex((prev) => (prev === index ? null : prev));
+    setExtraQuantity(extra, index, Math.max(0, qty - 1));
+  };
+
   const toggleExtra = (extra: BookingPackageExtra, index: number) => {
     if (submitting) return;
     if (isExtraSelected(index)) {
       setSelectedExtras((prev) => prev.filter((e) => e.index !== index));
       return;
     }
-    setSelectedExtras((prev) => [...prev, toSelectedExtra(extra, index)]);
+    setSelectedExtras((prev) => [...prev, toSelectedExtra(extra, index, 1)]);
   };
 
   const saveBookingToStorage = (
     holds: SlotHold[],
     slots: SelectedBookingSlot[],
     expiresAt: string,
-    extras: SelectedBookingExtra[] = selectedExtras
+    extras: SelectedBookingExtra[] = selectedExtras,
+    mics: number = extraMics,
+    guests: number = guestCount,
+    editing: SelectedEditingAddOn | null = selectedEditing
   ) => {
     const holdIds = holds.map((h) => h.holdId);
-    const totals = bookingService.computeBookingTotal(pkg?.price || 0, slots.length, extras);
+    const hours = slots.length;
+    const micCost = bookingService.computeExtraMicCost(mics, extraMicPricePerHour, hours);
+    const editCost = Math.max(0, Number(editing?.price) || 0);
+    const totals = bookingService.computeBookingTotal(
+      pkg?.price || 0,
+      slots.length,
+      extras,
+      micCost,
+      editCost
+    );
     const data: StoredBookingData = {
       holdId: holdIds[0],
       holdIds,
@@ -402,10 +1007,45 @@ export default function BookingFlowPage() {
       sessionId,
       selectedExtras: extras,
       slotsSubtotal: totals.slotsSubtotal,
-      extrasSubtotal: totals.extrasSubtotal,
+      extrasSubtotal: totals.extrasSubtotal + totals.micSubtotal + totals.editingSubtotal,
+      micSubtotal: totals.micSubtotal,
+      guestCount: guests,
+      extraMics: mics,
+      selectedEditing: editing,
+      editingSubtotal: totals.editingSubtotal,
       totalPrice: totals.totalPrice,
     };
     localStorage.setItem("bookingData", JSON.stringify(data));
+  };
+
+  const toggleEditing = (editPkg: BookingPackage) => {
+    if (submitting) return;
+    setSelectedEditing((prev) => {
+      const next =
+        prev?.packageId === editPkg._id
+          ? null
+          : ({
+              packageId: editPkg._id,
+              title: editPkg.name,
+              price: Number(editPkg.price) || 0,
+              description: stripHtmlText(editPkg.description || "") || undefined,
+              image: editPkg.image,
+            } as SelectedEditingAddOn);
+      if (hasActiveHold && holdExpiry) {
+        queueMicrotask(() => {
+          saveBookingToStorage(
+            activeHolds,
+            displaySlots,
+            holdExpiry.toISOString(),
+            selectedExtras,
+            extraMics,
+            guestCount,
+            next
+          );
+        });
+      }
+      return next;
+    });
   };
 
   const handleContinueToCheckout = () => {
@@ -442,6 +1082,10 @@ export default function BookingFlowPage() {
         setSelectedSlots(withHolds);
         setHoldExpiry(new Date(expiresAt));
         saveBookingToStorage(result.holds, withHolds, expiresAt, selectedExtras);
+        if (resolvedPackageId) {
+          loadMonthAvailability(resolvedPackageId, viewMonth.year, viewMonth.month);
+          refreshNextAvailable(resolvedPackageId);
+        }
         toast.success(`${result.holds.length} slot(s) reserved!`);
         setProgress(90);
         router.push("/checkout");
@@ -472,8 +1116,72 @@ export default function BookingFlowPage() {
 
   const monthLabel = new Date(viewMonth.year, viewMonth.month, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const selectedDateLabel = selectedDate
-    ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", month: "long", day: "numeric" })
+    ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
     : "";
+  const summaryWhenLabel = displaySlots[0]?.date
+    ? new Date(`${displaySlots[0].date}T12:00:00`).toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : selectedDate
+      ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "Choose a date";
+
+  const slotsOnSelectedDate = displaySlots
+    .filter((s) => s.date === selectedDate)
+    .slice()
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const pickedRuns = groupRuns(slotsOnSelectedDate.map((s) => s.startTime));
+  const pickedRangeText = pickedRuns
+    .map((r) => {
+      const endSlot = slotsOnSelectedDate.find((s) => s.startTime === r.end);
+      return `${r.start}–${endSlot?.endTime || addOneHourLabel(r.end).split("–")[1]}`;
+    })
+    .join(", ");
+
+  const slotsByPeriod = useMemo(() => {
+    const groups: Record<"Morning" | "Afternoon" | "Evening", TimeSlot[]> = {
+      Morning: [],
+      Afternoon: [],
+      Evening: [],
+    };
+    for (const slot of availableSlots) {
+      groups[slotPeriod(slot.startTime)].push(slot);
+    }
+    return groups;
+  }, [availableSlots]);
+
+  const primaryCta = (() => {
+    if (hasActiveHold) {
+      return {
+        label: submitting ? "Continuing..." : "Continue to Checkout",
+        disabled: submitting,
+        onClick: handleContinueToCheckout,
+      };
+    }
+    if (selectedSlots.length > 0) {
+      return {
+        label: submitting
+          ? "Reserving..."
+          : `Reserve ${selectedSlots.length} Slot${selectedSlots.length > 1 ? "s" : ""} & Continue`,
+        disabled: submitting,
+        onClick: handleConfirmSlots,
+      };
+    }
+    return {
+      label: "Choose your times",
+      disabled: true,
+      onClick: () => {},
+    };
+  })();
 
   const busyMessage = loading
     ? "Loading booking details..."
@@ -483,343 +1191,938 @@ export default function BookingFlowPage() {
         : "Reserving your slots..."
       : "";
 
+  const packageSwitcher = useMemo(() => {
+    if (!pkg) return [];
+    if (isEditingPackage(pkg)) {
+      const editing = siblingPackages
+        .filter((p) => isEditingPackage(p) && p.isActive !== false)
+        .slice()
+        .sort(
+          (a, b) =>
+            (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+            a.price - b.price ||
+            String(a.name).localeCompare(String(b.name))
+        );
+      if (!editing.some((p) => p._id === pkg._id)) {
+        return [pkg, ...editing].sort(
+          (a, b) =>
+            (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+            a.price - b.price ||
+            String(a.name).localeCompare(String(b.name))
+        );
+      }
+      return editing.length ? editing : [pkg];
+    }
+    return getRelatedPackageCluster(siblingPackages, pkg);
+  }, [siblingPackages, pkg]);
+
+  const rateLine =
+    displaySlots.length > 0
+      ? `${bookingService.formatPrice(pricing.totalPrice / displaySlots.length)} per hour · ${displaySlots.length} ${
+          displaySlots.length === 1 ? "hr" : "hrs"
+        } total`
+      : "\u00a0";
+
   if (loading || submitting) {
     return (
       <>
-        <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-        <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-bodyBg"
-          role="status"
-          aria-busy="true"
-        >
-          <div className="text-center px-4">
-            <div className="relative w-20 h-20 mx-auto mb-4">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-200" />
-              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-            </div>
-            <p className="text-gray-500 animate-pulse">{busyMessage}</p>
-          </div>
-        </div>
+        <LoadingBar color="#C2FC12" progress={progress} onLoaderFinished={() => setProgress(0)} />
+        <BookingFlowLoading
+          message={busyMessage}
+          style={bookingModuleRootStyle(bookingUi)}
+        />
       </>
     );
   }
 
   return (
     <>
-      <LoadingBar color="#046d38" progress={progress} onLoaderFinished={() => setProgress(0)} />
-      <main className="bg-bodyBg py-8 sm:py-12 pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => router.push("/booking")}
-            disabled={submitting}
-            className="group inline-flex items-center gap-1.5 mb-8 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <svg
-              className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-700 transition-colors"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-              aria-hidden
+      <LoadingBar color="#C2FC12" progress={progress} onLoaderFinished={() => setProgress(0)} />
+      <div
+        className="booking-module-root booking-flow-v3"
+        style={bookingModuleRootStyle(bookingUi)}
+      >
+        <div className="bf-top">
+          <div className="bf-wrap">
+            <button
+              type="button"
+              className="bf-back"
+              onClick={() => router.push("/booking")}
+              disabled={submitting}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Back to Services</span>
-          </button>
+              ‹ Back to Services
+            </button>
+          </div>
+        </div>
 
-          <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
-            <div className="lg:col-span-8">
-              <div className="bg-bookingCardBg border border-gray-200 grid md:grid-cols-[3fr_2fr] md:divide-x">
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-4">
+        <div className="bf-wrap">
+          <div className="bf-phead">
+            <div>
+              <p className="bf-phead-kick bf-mono">
+                {bookingService.getTypeLabel(pkg?.type || "")}
+              </p>
+              <h1>Book the studio</h1>
+            </div>
+          </div>
+
+          {packageSwitcher.length > 0 && (
+            <div
+              className={`bf-pkslider${pkgOverflow ? " bf-pkslider--nav" : ""}`}
+              onMouseEnter={() => setPkgAutoPaused(true)}
+              onMouseLeave={() => setPkgAutoPaused(false)}
+              onFocusCapture={() => setPkgAutoPaused(true)}
+              onBlurCapture={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setPkgAutoPaused(false);
+                }
+              }}
+            >
+              {pkgOverflow && (
+                <button
+                  type="button"
+                  className="bf-pkslider__btn bf-pkslider__btn--prev"
+                  aria-label="Previous packages"
+                  disabled={!pkgCanPrev || submitting}
+                  onClick={() => {
+                    setPkgAutoPaused(true);
+                    scrollPkgBy(-1);
+                  }}
+                >
+                  ‹
+                </button>
+              )}
+              <div
+                className="bf-pkswitch"
+                role="group"
+                aria-label="Choose a package"
+                ref={pkgTrackRef}
+              >
+                {packageSwitcher.map((p) => {
+                  const current =
+                    p._id === pkg?._id ||
+                    getPackageUrlKey(p) === packageKey;
+                  const dur = formatDuration(p.durationMinutes, p.durationDisplayUnit, { short: true });
+                  const customSubtitle = String(p.subtitle || "").trim();
+                  const pMics = Math.max(0, Number(p.includedMics) || 0);
+                  // Prefer package subtitle — do not let description override it.
+                  const subline =
+                    customSubtitle ||
+                    (pMics > 0
+                      ? `${pMics} mic${pMics === 1 ? "" : "s"} included, up to ${studioMicCapacity}`
+                      : "") ||
+                    String(p.description || "")
+                      .replace(/<[^>]*>/g, " ")
+                      .replace(/\s+/g, " ")
+                      .trim()
+                      .slice(0, 48);
+                  return (
                     <button
+                      key={p._id}
                       type="button"
-                      onClick={goPrevMonth}
-                      disabled={!canGoPrevMonth || submitting}
-                      className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
-                      aria-label="Previous month"
+                      className="bf-pk"
+                      aria-pressed={current}
+                      disabled={submitting}
+                      title={p.name}
+                      onClick={() => {
+                        if (current || submitting) return;
+                        router.push(`/booking/${getPackageUrlKey(p)}`);
+                      }}
                     >
-                      ‹
+                      <b>{p.name}</b>
+                      <span className="bf-pk__sub" data-bf-pk-sub="">
+                        {subline || (dur ? `${dur} session` : "Studio package")}
+                      </span>
+                      <u className="bf-pk__price">
+                        {bookingService.formatPrice(p.price)}
+                        {dur ? ` / ${dur}` : ""}
+                      </u>
                     </button>
-                    <h2 className="text-sm font-semibold text-center">{monthLabel}</h2>
-                    <button
-                      type="button"
-                      onClick={goNextMonth}
-                      disabled={!canGoNextMonth || submitting}
-                      className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
-                      aria-label="Next month"
-                    >
-                      ›
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 mb-1">
-                    {WEEKDAYS.map((d, i) => <div key={i} className="h-8 flex items-center justify-center text-xs text-gray-400">{d}</div>)}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {calendarDays.map((cell, i) => {
-                      if (!cell) return <div key={`e-${i}`} className="h-9" />;
-                      const selectable = isDateSelectable(cell.dateStr);
-                      const isSelected = selectedDate === cell.dateStr;
-                      const hasDot = displaySlots.some((s) => s.date === cell.dateStr);
-                      return (
+                  );
+                })}
+              </div>
+              {pkgOverflow && (
+                <button
+                  type="button"
+                  className="bf-pkslider__btn bf-pkslider__btn--next"
+                  aria-label="Next packages"
+                  disabled={!pkgCanNext || submitting}
+                  onClick={() => {
+                    setPkgAutoPaused(true);
+                    scrollPkgBy(1);
+                  }}
+                >
+                  ›
+                </button>
+              )}
+            </div>
+          )}
+
+          <p className="bf-steps-label">Booking progress</p>
+          <ol className="bf-steps" aria-label="Booking progress">
+            <li
+              className={`bf-stp${activeStep === 1 ? " is-on" : ""}${activeStep > 1 ? " is-done" : ""}`}
+              aria-current={activeStep === 1 ? "step" : undefined}
+            >
+              <b aria-hidden="true">{activeStep > 1 ? "✓" : "1"}</b>
+              <span>Date &amp; time</span>
+            </li>
+            <li className={`bf-stp-line${activeStep > 1 ? " is-done" : ""}`} aria-hidden="true" />
+            <li
+              className={`bf-stp${activeStep === 2 ? " is-on" : ""}${activeStep > 2 ? " is-done" : ""}`}
+              aria-current={activeStep === 2 ? "step" : undefined}
+            >
+              <b aria-hidden="true">{activeStep > 2 ? "✓" : "2"}</b>
+              <span>Extras</span>
+            </li>
+            <li className={`bf-stp-line${activeStep > 2 ? " is-done" : ""}`} aria-hidden="true" />
+            <li
+              className={`bf-stp${activeStep === 3 ? " is-on" : ""}`}
+              aria-current={activeStep === 3 ? "step" : undefined}
+            >
+              <b aria-hidden="true">3</b>
+              <span>Details &amp; pay</span>
+            </li>
+          </ol>
+
+          <div className="bf-grid">
+            <main>
+              <div className="bf-card">
+                <div className="bf-card-h">
+                  <h2>Choose your date &amp; time</h2>
+                  <span className="bf-mono">{timezone.replace(/_/g, " ")}</span>
+                </div>
+
+                <div className="bf-ctrl">
+                  <div className="bf-crow">
+                    <span className="bf-mono bf-clab">How long</span>
+                    <div className="bf-copts">
+                      {DURATION_OPTIONS.map((opt) => (
                         <button
-                          key={cell.dateStr}
+                          key={opt.hrs}
                           type="button"
-                          data-booking-calendar-date=""
-                          data-selected={isSelected ? "true" : undefined}
-                          onClick={() => selectDate(cell.dateStr)}
-                          disabled={!selectable || submitting}
-                          className={`relative h-9 w-full rounded-md text-sm transition-colors ${
-                            isSelected
-                              ? "font-semibold"
-                              : selectable
-                                ? ""
-                                : "text-gray-300 cursor-not-allowed"
-                          }`}
+                          className="bf-chip"
+                          aria-pressed={durationHrs === opt.hrs}
+                          disabled={submitting || hasActiveHold || !selectedDate || slotsLoading}
+                          onClick={() => applyDurationChip(opt.hrs)}
                         >
-                          {cell.day}
-                          {hasDot && !isSelected && (
-                            <span
-                              className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                              style={{ backgroundColor: bookingUi.buttonBgColor }}
-                            />
-                          )}
+                          {opt.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
+                    <span className="bf-cnote">Book from 1 hour</span>
+                  </div>
+
+                  <div className="bf-crow">
+                    <span className="bf-mono bf-clab">Guests</span>
+                    <div className="bf-copts">
+                      {guestOptions.map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          className="bf-chip"
+                          aria-pressed={guestCount === n}
+                          disabled={submitting}
+                          onClick={() => setGuestCount(n)}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="bf-cnote">
+                      {micFeatureEnabled ? (
+                        <>
+                          {pkg?.name} includes <b>{includedMics}</b> microphone
+                          {includedMics === 1 ? "" : "s"}. The studio has{" "}
+                          <b>{maxGuests}</b> in total.
+                        </>
+                      ) : (
+                        <>
+                          Room set for <b>{guestCount}</b>{" "}
+                          {guestCount === 1 ? "person" : "people"}
+                        </>
+                      )}
+                    </span>
                   </div>
                 </div>
 
-                <div className="p-5 border-t md:border-t-0">
-                  {selectedDate ? (
-                    <>
-                      <h3 className="text-sm font-semibold">{selectedDateLabel}</h3>
-                      <p className="text-[10px] text-gray-500 uppercase mb-4">Time zone: {timezone.replace(/_/g, " ")}</p>
-                      {!hasActiveHold && <p className="text-xs text-gray-500 mb-3">Select multiple slots. Change dates to add more.</p>}
-                      {slotsLoading ? <p className="text-sm text-gray-500 py-8 text-center">Loading times...</p>
-                        : availableSlots.length === 0 && slotsMessage ? (
-                          <p className="text-sm text-gray-500 py-8 text-center">{slotsMessage}</p>
-                        ) : availableSlots.length > 0 ? (
-                          <>
-                            {slotsMessage && (
-                              <p className="text-sm font-medium text-gray-700 mb-3 text-center">{slotsMessage}</p>
+                {micFeatureEnabled && micsShort > 0 && (
+                  <div className="bf-hint bf-hint--mic" role="status">
+                    <span>
+                      <b>{guestCount} guests selected.</b> {pkg?.name} includes{" "}
+                      {includedMics} microphone{includedMics === 1 ? "" : "s"}, so you need{" "}
+                      <b>{micsShort}</b> more at £{extraMicPricePerHour.toFixed(0)}/hr.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExtraMicsClamped(micsNeeded)}
+                      disabled={submitting || maxExtraMics <= 0}
+                    >
+                      Add {micsShort} mic{micsShort === 1 ? "" : "s"}
+                    </button>
+                  </div>
+                )}
+
+                {durationHint && (
+                  <div className="bf-hint" role="status">
+                    <b>{durationHint}</b>
+                  </div>
+                )}
+
+                <div className="bf-cal-wrap">
+                  <div className="bf-cal">
+                    <div className="bf-cal-nav">
+                      <button
+                        type="button"
+                        onClick={goPrevMonth}
+                        disabled={!canGoPrevMonth || submitting}
+                        aria-label="Previous month"
+                      >
+                        ‹
+                      </button>
+                      <b>{monthLabel}</b>
+                      <button
+                        type="button"
+                        onClick={goNextMonth}
+                        disabled={!canGoNextMonth || submitting}
+                        aria-label="Next month"
+                      >
+                        ›
+                      </button>
+                    </div>
+                    <div className="bf-cal-dow" aria-hidden="true">
+                      {WEEKDAYS.map((d, i) => (
+                        <i key={`${d}-${i}`}>{d}</i>
+                      ))}
+                    </div>
+                    <div className="bf-cal-days" role="group" aria-label={`Choose a date in ${monthLabel}`}>
+                      {calendarDays.map((cell, i) => {
+                        if (!cell) return <div key={`e-${i}`} />;
+                        const selectable = isDateSelectable(cell.dateStr);
+                        const isSelected = selectedDate === cell.dateStr;
+                        const dayInfo = monthAvailability[cell.dateStr];
+                        const status: DayAvailabilityStatus | null =
+                          selectable && dayInfo?.status && dayInfo.status !== "past"
+                            ? dayInfo.status
+                            : null;
+                        const showDot =
+                          status === "good" || status === "low" || status === "full";
+                        const isToday = cell.dateStr === todayStr;
+                        const availWord =
+                          status === "full"
+                            ? "fully booked"
+                            : status === "low"
+                              ? "filling up"
+                              : status === "good"
+                                ? "good availability"
+                                : status === "closed"
+                                  ? "closed"
+                                  : "";
+                        return (
+                          <button
+                            key={cell.dateStr}
+                            type="button"
+                            className={`bf-day${status === "full" ? " is-full" : ""}`}
+                            data-booking-calendar-date=""
+                            data-selected={isSelected ? "true" : undefined}
+                            data-avail={showDot ? status : undefined}
+                            aria-pressed={isSelected}
+                            aria-label={
+                              availWord
+                                ? `${cell.dateStr}, ${availWord}`
+                                : cell.dateStr
+                            }
+                            onClick={() => selectDate(cell.dateStr)}
+                            disabled={!selectable || submitting}
+                            style={
+                              isToday && !isSelected
+                                ? { boxShadow: "inset 0 0 0 1px rgba(194,252,18,0.45)" }
+                                : undefined
+                            }
+                          >
+                            <span>{cell.day}</span>
+                            {showDot && (
+                              <span
+                                className={`bf-dot${
+                                  status === "low"
+                                    ? " low"
+                                    : status === "full"
+                                      ? " full"
+                                      : ""
+                                }`}
+                                aria-hidden="true"
+                              />
                             )}
-                            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-                              {availableSlots.map((slot) => {
-                                const isUnavailable = slot.available === false;
-                                const selected = selectedSlots.some(
-                                  (s) => s.date === selectedDate && s.startTime === slot.startTime
-                                );
-                                const booked = slot.unavailableReason === "booked";
-                                return (
-                                  <button
-                                    key={slot.startTime}
-                                    type="button"
-                                    data-booking-slot={isUnavailable ? undefined : ""}
-                                    data-selected={selected ? "true" : undefined}
-                                    onClick={() => handleSlotSelect(slot)}
-                                    disabled={submitting || hasActiveHold || isUnavailable}
-                                    title={
-                                      booked
-                                        ? "Fully booked"
-                                        : slot.unavailableReason === "past"
-                                          ? "This time has passed"
-                                          : undefined
-                                    }
-                                    className={`py-2.5 text-sm font-medium border rounded-md transition-colors ${
-                                      isUnavailable
-                                        ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                                        : selected
-                                          ? "font-semibold"
-                                          : "border-gray-300"
-                                    } ${hasActiveHold && !isUnavailable ? "opacity-50" : ""}`}
-                                  >
-                                    <span className={booked ? "line-through decoration-gray-400" : undefined}>
-                                      {bookingService.formatTime(slot.startTime)}
-                                    </span>
-                                    {booked && (
-                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-500 no-underline">
-                                        Booked
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        ) : slotsMessage ? (
-                          <p className="text-sm text-gray-500 py-8 text-center">{slotsMessage}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="bf-callegend">
+                      <span><i />Good availability</span>
+                      <span><i className="low" />Filling up</span>
+                      <span><i className="full" />Fully booked</span>
+                    </div>
+                    <div className="bf-nextav" role="status">
+                      {nextAvailableLabel ? (
+                        <>
+                          Next available: <b>{nextAvailableLabel}</b>
+                        </>
+                      ) : (
+                        <>No availability in the next few months.</>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bf-slots">
+                    <div className="bf-slots-h">
+                      <b>{selectedDateLabel || "Select a date"}</b>
+                      <span>
+                        {isFullyBookedMessage
+                          ? "No hours available on this date"
+                          : "Tap one or more slots · each is 1 hour"}
+                      </span>
+                    </div>
+
+                    {!selectedDate ? (
+                      <p className="bf-picked none">Select a date to see available times.</p>
+                    ) : slotsLoading ? (
+                      <p className="bf-picked none">Loading times...</p>
+                    ) : isFullyBookedMessage && availableSlots.filter((s) => s.available !== false).length === 0 ? (
+                      <div className="bf-booked">
+                        <span className="bf-tag bf-mono">Fully booked</span>
+                        <h4>{selectedDateLabel} is taken</h4>
+                        <p>
+                          {busyThroughLabel
+                            ? `Every hour is booked. We are busy through ${busyThroughLabel}.`
+                            : slotsMessage ||
+                              "Every hour is booked on this date. Try another day."}
+                        </p>
+                        {jumpTargetDate ? (
+                          <button
+                            type="button"
+                            className="bf-booked-jump"
+                            disabled={submitting}
+                            onClick={() => jumpToDate(jumpTargetDate)}
+                          >
+                            Jump to {formatJumpLabel(jumpTargetDate)}
+                          </button>
                         ) : null}
-                    </>
-                  ) : <p className="text-sm text-gray-400 text-center py-10">Select a date</p>}
+                      </div>
+                    ) : availableSlots.length > 0 ? (
+                      <>
+                        {(["Morning", "Afternoon", "Evening"] as const).map((period) => {
+                          const group = slotsByPeriod[period];
+                          if (!group.length) return null;
+                          return (
+                            <div key={period} className="bf-sgrp">
+                              <p>{period}</p>
+                              <div className="bf-slot-grid">
+                                {group.map((slot) => {
+                                  const isUnavailable = slot.available === false;
+                                  const selected = selectedSlots.some(
+                                    (s) => s.date === selectedDate && s.startTime === slot.startTime
+                                  );
+                                  const booked = slot.unavailableReason === "booked";
+                                  return (
+                                    <button
+                                      key={slot.startTime}
+                                      type="button"
+                                      className={`bf-slot${booked || isUnavailable ? " is-booked" : ""}`}
+                                      data-booking-slot={isUnavailable ? undefined : ""}
+                                      data-selected={selected ? "true" : undefined}
+                                      aria-pressed={selected}
+                                      onClick={() => handleSlotSelectFromUi(slot)}
+                                      disabled={submitting || hasActiveHold || isUnavailable}
+                                      title={
+                                        booked
+                                          ? "Fully booked"
+                                          : slot.unavailableReason === "past"
+                                            ? "This time has passed"
+                                            : undefined
+                                      }
+                                    >
+                                      {slot.startTime}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {slotsOnSelectedDate.length === 0 ? (
+                          <div className="bf-picked none">
+                            No times chosen yet — tap the slots you want.
+                          </div>
+                        ) : (
+                          <div className="bf-picked">
+                            <b>
+                              {slotsOnSelectedDate.length}{" "}
+                              {slotsOnSelectedDate.length === 1 ? "hr" : "hrs"}
+                            </b>
+                            {" · "}
+                            {pickedRangeText}
+                            <em>
+                              {pickedRuns.length > 1
+                                ? `${pickedRuns.length} separate blocks on this day`
+                                : "One continuous block"}
+                            </em>
+                          </div>
+                        )}
+                      </>
+                    ) : slotsMessage ? (
+                      <div className="bf-booked">
+                        <span className="bf-tag bf-mono">
+                          {/fully booked/i.test(slotsMessage) ? "Fully booked" : "Unavailable"}
+                        </span>
+                        <h4>
+                          {/fully booked/i.test(slotsMessage)
+                            ? `${selectedDateLabel} is taken`
+                            : selectedDateLabel}
+                        </h4>
+                        <p>
+                          {/fully booked/i.test(slotsMessage) && busyThroughLabel
+                            ? `Every hour is booked. We are busy through ${busyThroughLabel}.`
+                            : slotsMessage}
+                        </p>
+                        {/fully booked/i.test(slotsMessage) && jumpTargetDate ? (
+                          <button
+                            type="button"
+                            className="bf-booked-jump"
+                            disabled={submitting}
+                            onClick={() => jumpToDate(jumpTargetDate)}
+                          >
+                            Jump to {formatJumpLabel(jumpTargetDate)}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
               {packageExtras.length > 0 && (
-                <div className="mt-6">
-                  <div className="mb-5">
-                    <h2 className="text-lg font-bold text-gray-900">Extras</h2>
-                    <p className="text-sm text-gray-500 mt-1">Optional add-ons for your booking</p>
+                <div className="bf-card">
+                  <div className="bf-card-h">
+                    <h2>Extras</h2>
+                    <span
+                      className={`bf-mono${extrasHasPager ? " bf-extras-count" : ""}`}
+                    >
+                      {extrasHasPager
+                        ? `${safeExtrasPage * EXTRAS_PER_PAGE + 1}–${Math.min(
+                            (safeExtrasPage + 1) * EXTRAS_PER_PAGE,
+                            packageExtras.length
+                          )} of ${packageExtras.length}`
+                        : "Optional"}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-3">
-                    {packageExtras.map((extra, index) => {
-                      const selected = isExtraSelected(index);
-                      const imageUrl = bookingService.resolveImageUrl(extra.image);
-                      return (
-                        <div
-                          key={`${extra.title}-${index}`}
-                          className={`bg-bookingCardBg border overflow-hidden flex flex-row items-stretch ${selected ? "border-primary" : "border-gray-200"}`}
-                        >
-                          {imageUrl && (
-                            <div className="w-24 sm:w-28 shrink-0 self-stretch bg-gray-100 border-r border-gray-100">
-                              <img
-                                src={imageUrl}
-                                alt={extra.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="p-3 sm:p-4 flex items-center flex-1 min-w-0 gap-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-                                {extra.title}
-                              </h3>
-                              {extra.description && (
-                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                                  {extra.description}
-                                </p>
+                  <div className="bf-extras-viewport" aria-live="polite">
+                    <div
+                      key={safeExtrasPage}
+                      className={`bf-extras-page${
+                        extrasAnim === "next"
+                          ? " bf-extras-page--next"
+                          : extrasAnim === "prev"
+                            ? " bf-extras-page--prev"
+                            : ""
+                      }`}
+                    >
+                      {visibleExtras.map(({ extra, index }) => {
+                        const selected = isExtraSelected(index);
+                        const imageUrl = bookingService.resolveImageUrl(extra.image);
+                        const quantityEnabled = Boolean(extra.quantityEnabled);
+                        const qty = getExtraQuantity(index);
+                        return (
+                          <div key={`${extra.title}-${index}`} className="bf-xrow">
+                            <div className={`bf-xthumb${imageUrl ? "" : " ico"}`}>
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={extra.title} />
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                                  <path d="M12 3v18M3 12h18" />
+                                </svg>
                               )}
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-sm font-bold text-primary whitespace-nowrap">
-                                {bookingService.formatPrice(extra.price || 0)}
-                              </span>
+                            <div className="bf-xinfo">
+                              <b>{extra.title}</b>
+                              {extra.description ? <span>{extra.description}</span> : null}
+                            </div>
+                            <div className="bf-xprice">
+                              +{bookingService.formatPrice(extra.price || 0)}
+                              <small>{quantityEnabled ? "each, per hour" : "per hour"}</small>
+                            </div>
+                            {quantityEnabled ? (
+                              <div className="bf-xqty-wrap">
+                                <div className="bf-xqty" role="group" aria-label={`${extra.title} quantity`}>
+                                  <button
+                                    type="button"
+                                    className="bf-xqty__btn"
+                                    aria-label={`Decrease ${extra.title}`}
+                                    disabled={submitting || qty <= 0}
+                                    onClick={() => tryDecreaseExtraQty(extra, index, qty)}
+                                  >
+                                    −
+                                  </button>
+                                  <span className="bf-xqty__val" aria-live="polite">
+                                    {Math.max(0, qty)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="bf-xqty__btn"
+                                    aria-label={`Increase ${extra.title}`}
+                                    disabled={submitting || extraQtyMax <= 0}
+                                    onClick={() => tryIncreaseExtraQty(extra, index, qty)}
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                {(qty >= extraQtyMax || extraQtyHintIndex === index) &&
+                                extraQtyMax > 0 ? (
+                                  <p className="bf-xqty-hint" role="status">
+                                    Max {extraQtyMax} — based on guests selected
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => toggleExtra(extra, index)}
+                                className="bf-xadd"
+                                aria-pressed={selected}
                                 disabled={submitting}
-                                className="px-4 py-2 text-xs font-semibold disabled:opacity-60"
-                                style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}
+                                onClick={() => toggleExtra(extra, index)}
                               >
-                                {selected ? "Remove" : "Add"}
+                                {selected ? "Added" : "Add"}
                               </button>
-                            </div>
+                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
+                  {extrasHasPager && (
+                    <div className="bf-extras-nav">
+                      <button
+                        type="button"
+                        className="bf-extras-nav__btn"
+                        aria-label="Previous extras"
+                        disabled={submitting || safeExtrasPage <= 0}
+                        onClick={() => goExtrasPage(-1)}
+                      >
+                        ‹ Prev
+                      </button>
+                      <span className="bf-extras-nav__dots" aria-hidden="true">
+                        {Array.from({ length: extrasPageCount }).map((_, i) => (
+                          <i key={i} className={i === safeExtrasPage ? "is-on" : undefined} />
+                        ))}
+                      </span>
+                      <button
+                        type="button"
+                        className="bf-extras-nav__btn"
+                        aria-label="Next extras"
+                        disabled={submitting || safeExtrasPage >= extrasPageCount - 1}
+                        onClick={() => goExtrasPage(1)}
+                      >
+                        Next ›
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
 
-            <div className="lg:col-span-4">
-              <div className="sticky top-24 bg-bookingCardBg booking-card-themed border border-bookingCardDivider p-5">
-                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5">
-                  {bookingService.getTypeLabel(pkg?.type || "")}
-                </span>
-                <h3 className="text-lg font-bold mt-2">{pkg?.name}</h3>
-                <p className="text-sm text-bookingCardMuted">
-                  {formatDuration(pkg?.durationMinutes, pkg?.durationDisplayUnit)} per slot
-                </p>
-
-                {displaySlots.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-bookingCardDivider">
-                    <p className="text-xs font-semibold text-bookingCardMuted uppercase mb-2">Selected ({displaySlots.length})</p>
-                    <ul className="space-y-2 max-h-40 overflow-y-auto">
-                      {displaySlots.map((slot) => (
-                        <li key={slotKey(slot.date, slot.startTime)} className="flex justify-between text-sm booking-card-surface px-3 py-2">
-                          <div>
-                            <p className="font-medium">{bookingService.formatDate(slot.date)}</p>
-                            <p className="text-xs text-bookingCardMuted">{bookingService.formatTime(slot.startTime)} – {bookingService.formatTime(slot.endTime)}</p>
-                          </div>
-                          {!hasActiveHold && (
-                            <button type="button" onClick={() => removeSelectedSlot(slot.date, slot.startTime)} className="text-bookingCardMuted hover:text-red-500">×</button>
+              {editingPackages.length > 0 && (
+                <div className="bf-card">
+                  <div className="bf-card-h">
+                    <h2>Add editing now?</h2>
+                    <span className="bf-mono">Optional · per episode</span>
+                  </div>
+                  {editingPackages.map((editPkg, index) => {
+                    const selected = selectedEditing?.packageId === editPkg._id;
+                    const imageUrl = bookingService.resolveImageUrl(editPkg.image);
+                    const desc = stripHtmlText(editPkg.description || "");
+                    return (
+                      <div key={editPkg._id} className="bf-xrow">
+                        <div className={`bf-xthumb${imageUrl ? "" : " ico"}`}>
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={editPkg.name} />
+                          ) : (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                              <path d={editingIconPath(index)} />
+                            </svg>
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                        </div>
+                        <div className="bf-xinfo">
+                          <b>{editPkg.name}</b>
+                          {desc ? <span>{desc}</span> : null}
+                        </div>
+                        <div className="bf-xprice">
+                          +{bookingService.formatPrice(editPkg.price || 0)}
+                          <small>per episode</small>
+                        </div>
+                        <button
+                          type="button"
+                          className="bf-xadd"
+                          aria-pressed={selected}
+                          disabled={submitting}
+                          onClick={() => toggleEditing(editPkg)}
+                        >
+                          {selected ? "Added" : "Add"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </main>
 
-                {selectedExtras.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-bookingCardDivider">
-                    <p className="text-xs font-semibold text-bookingCardMuted uppercase mb-2">Extras ({selectedExtras.length})</p>
-                    <ul className="space-y-2">
-                      {selectedExtras.map((extra) => (
-                        <li key={`${extra.index}-${extra.title}`} className="flex justify-between text-sm">
-                          <span>{extra.title}</span>
-                          <span className="font-medium">{bookingService.formatPrice(extra.price)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+            <aside>
+              <div className="bf-sum">
+                <div className="bf-sum-h">
+                  <p className="bf-mono">Your booking</p>
+                  <b>{pkg?.name}</b>
+                  <span>{summaryWhenLabel}</span>
+                </div>
 
-                <div className="mt-4 pt-4 border-t border-bookingCardDivider space-y-2">
-                  {displaySlots.length > 0 && (
-                    <div className="flex justify-between text-sm text-bookingCardMuted">
-                      <span>
-                        Slots ({displaySlots.length} × {bookingService.formatPrice(pkg?.price || 0)})
+                <div className="bf-sum-b" aria-live="polite">
+                  {displaySlots.length === 0 ? (
+                    <div className="bf-sline empty">
+                      <span className="l">
+                        {isFullyBookedMessage
+                          ? "That date is fully booked — pick another"
+                          : "Choose your times to begin"}
                       </span>
-                      <span>{bookingService.formatPrice(pricing.slotsSubtotal)}</span>
                     </div>
+                  ) : (
+                    <>
+                      <div className="bf-sline">
+                        <span className="l">
+                          {pkg?.name}
+                          <em>
+                            {displaySlots.length}{" "}
+                            {displaySlots.length === 1 ? "hr booked" : "hrs booked"}
+                          </em>
+                        </span>
+                        <span className="v">{bookingService.formatPrice(pricing.slotsSubtotal)}</span>
+                      </div>
+
+                      <div className="bf-hrlist">
+                        {displaySlots
+                          .slice()
+                          .sort((a, b) =>
+                            a.date === b.date
+                              ? a.startTime.localeCompare(b.startTime)
+                              : a.date.localeCompare(b.date)
+                          )
+                          .map((slot) => (
+                            <div key={slotKey(slot.date, slot.startTime)} className="bf-hrline">
+                              <span className="bt" aria-hidden="true" />
+                              <span className="tt">
+                                {addOneHourLabel(slot.startTime, slot.endTime)}
+                              </span>
+                              {!hasActiveHold && (
+                                <button
+                                  type="button"
+                                  className="bf-srm"
+                                  aria-label={`Remove ${slot.startTime}`}
+                                  onClick={() => removeSelectedSlot(slot.date, slot.startTime)}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+
+                      {extraMics > 0 && (
+                        <div className="bf-sline added">
+                          <span className="l">
+                            Extra microphone{extraMics === 1 ? "" : "s"}
+                            <em>
+                              {extraMics} × {bookingService.formatPrice(extraMicPricePerHour)} per
+                              hour × {hoursBooked}
+                              {hoursBooked === 1 ? " hr" : " hrs"}
+                            </em>
+                          </span>
+                          <span className="v">
+                            {bookingService.formatPrice(micSubtotal)}
+                          </span>
+                          <button
+                            type="button"
+                            className="bf-srm"
+                            aria-label="Remove extra microphones"
+                            disabled={submitting}
+                            onClick={() => setExtraMicsClamped(0)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="bf-sline">
+                        <span className="l">
+                          Guests
+                          <em>
+                            Room set for {guestCount}{" "}
+                            {guestCount === 1 ? "person" : "people"}
+                          </em>
+                        </span>
+                        <span className="v">{guestCount}</span>
+                      </div>
+                    </>
                   )}
-                  {pricing.extrasSubtotal > 0 && (
-                    <div className="flex justify-between text-sm text-bookingCardMuted">
-                      <span>Extras</span>
-                      <span>{bookingService.formatPrice(pricing.extrasSubtotal)}</span>
+
+                  {selectedExtras.map((extra) => {
+                    const hrs = Math.max(hoursBooked, 0);
+                    const qty = Math.max(1, Math.floor(Number(extra.quantity) || 1));
+                    const lineTotal = bookingService.computeHourlyExtraCost(
+                      extra.price,
+                      hrs,
+                      qty
+                    );
+                    return (
+                      <div key={`${extra.index}-${extra.title}`} className="bf-sline added">
+                        <span className="l">
+                          {extra.title}
+                          <em>
+                            {qty > 1 ? `${qty} × ` : ""}
+                            {bookingService.formatPrice(extra.price)} per hour
+                            {hrs > 0
+                              ? ` × ${hrs}${hrs === 1 ? " hr" : " hrs"} booked`
+                              : ""}
+                          </em>
+                        </span>
+                        <span className="v">
+                          {bookingService.formatPrice(lineTotal)}
+                        </span>
+                        <button
+                          type="button"
+                          className="bf-srm"
+                          aria-label={`Remove ${extra.title}`}
+                          disabled={submitting}
+                          onClick={() => {
+                            const match = packageExtras[extra.index];
+                            if (match?.quantityEnabled) {
+                              setExtraQuantity(match, extra.index, 0);
+                              return;
+                            }
+                            if (match) toggleExtra(match, extra.index);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {selectedEditing ? (
+                    <div className="bf-sline added">
+                      <span className="l">
+                        {selectedEditing.title}
+                        <em>{bookingService.formatPrice(selectedEditing.price)} per episode</em>
+                      </span>
+                      <span className="v">
+                        {bookingService.formatPrice(selectedEditing.price)}
+                      </span>
+                      <button
+                        type="button"
+                        className="bf-srm"
+                        aria-label={`Remove ${selectedEditing.title}`}
+                        disabled={submitting}
+                        onClick={() => {
+                          setSelectedEditing(null);
+                          if (hasActiveHold && holdExpiry) {
+                            saveBookingToStorage(
+                              activeHolds,
+                              displaySlots,
+                              holdExpiry.toISOString(),
+                              selectedExtras,
+                              extraMics,
+                              guestCount,
+                              null
+                            );
+                          }
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center pt-2 border-t border-bookingCardDivider">
-                    <span className="font-medium">Total</span>
-                    <span className="text-2xl font-bold">{bookingService.formatPrice(pricing.totalPrice)}</span>
-                  </div>
+                  ) : null}
                 </div>
 
                 {remainingTime && (
-                  <div
-                    className="mt-4 p-3 text-sm booking-hold-banner"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <span className="font-medium">
-                      Reserved — {remainingTime} left
-                    </span>
+                  <div className="bf-hold" role="status" aria-live="polite">
+                    <b>Reserved</b> — {remainingTime} left
                   </div>
                 )}
 
-                {hasActiveHold ? (
-                  <div className="mt-5 space-y-2">
+                <div className="bf-sum-total">
+                  <span className="l">Total</span>
+                  <span className="v" aria-live="polite">
+                    {bookingService.formatPrice(pricing.totalPrice)}
+                  </span>
+                </div>
+                <div className="bf-sum-rate">{rateLine}</div>
+
+                <div className="bf-sum-cta">
+                  <button
+                    type="button"
+                    className="bf-btn"
+                    disabled={primaryCta.disabled}
+                    onClick={primaryCta.onClick}
+                  >
+                    {primaryCta.label}
+                  </button>
+                  {hasActiveHold ? (
                     <button
                       type="button"
-                      onClick={handleContinueToCheckout}
+                      className="bf-btn bf-btn--quiet"
                       disabled={submitting}
-                      className="w-full py-3 text-white font-semibold disabled:opacity-60"
-                      style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}
-                    >
-                      {submitting ? "Continuing..." : "Continue to Checkout"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={async () => { await releaseCurrentHolds(); setSelectedSlots([]); if (selectedDate) loadSlots(selectedDate, []); }}
-                      className="w-full py-2 text-sm text-bookingCardMuted disabled:opacity-50"
+                      onClick={async () => {
+                        await releaseCurrentHolds();
+                        setSelectedSlots([]);
+                        if (selectedDate) loadSlots(selectedDate, []);
+                      }}
                     >
                       Cancel reservation
                     </button>
-                  </div>
-                ) : selectedSlots.length > 0 ? (
-                  <button onClick={handleConfirmSlots} disabled={submitting} className="mt-5 w-full py-3 font-semibold disabled:opacity-60" style={{ backgroundColor: bookingUi.buttonBgColor, color: bookingUi.buttonTextColor }}>
-                    {submitting ? "Reserving..." : `Reserve ${selectedSlots.length} Slot${selectedSlots.length > 1 ? "s" : ""} & Continue`}
-                  </button>
-                ) : null}
+                  ) : null}
+                </div>
+
+                <div
+                  className={`bf-next${
+                    whatHappensNext.listStyle === "bullets" ? " bf-next--bullets" : ""
+                  }`}
+                >
+                  <p>{whatHappensNext.heading || "What happens next"}</p>
+                  {(whatHappensNext.items || []).map((item, index) => (
+                    <div key={`what-next-${index}`}>
+                      <i>
+                        {whatHappensNext.listStyle === "bullets"
+                          ? "•"
+                          : String(index + 1).padStart(2, "0")}
+                      </i>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </aside>
           </div>
         </div>
-      </main>
+
+        <div className="bf-mbar">
+          <div className="t">
+            <span>Total</span>
+            <b>{bookingService.formatPrice(pricing.totalPrice)}</b>
+          </div>
+          <button
+            type="button"
+            className="bf-btn"
+            disabled={primaryCta.disabled}
+            onClick={primaryCta.onClick}
+          >
+            {primaryCta.label}
+          </button>
+        </div>
+      </div>
     </>
   );
 }

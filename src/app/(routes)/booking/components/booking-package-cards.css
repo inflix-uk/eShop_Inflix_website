@@ -199,6 +199,13 @@
   letter-spacing: 0.18em;
 }
 
+.psm-booking-card__mics {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--psm-muted);
+}
+
 .psm-booking-card__description {
   color: var(--psm-muted);
   font-size: 13px;
@@ -208,7 +215,9 @@
 
 /* When no description exists, price needs more bottom margin */
 .psm-booking-card__price:has(+ .psm-booking-card__features),
-.psm-booking-card__price:has(+ .psm-booking-card__cta) {
+.psm-booking-card__price:has(+ .psm-booking-card__cta),
+.psm-booking-card__mics:has(+ .psm-booking-card__features),
+.psm-booking-card__mics:has(+ .psm-booking-card__cta) {
   margin-bottom: 22px;
 }
 

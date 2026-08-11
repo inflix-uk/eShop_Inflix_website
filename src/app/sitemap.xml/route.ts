@@ -7,7 +7,7 @@ import {
 } from "@/lib/sitemapProxy";
 
 /** Pass through backend XML so urlset namespaces (news, xhtml, image, video) are preserved. */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const ctx = resolveSitemapFetchContext();
     if (!ctx) {
@@ -16,10 +16,16 @@ export async function GET() {
       });
     }
 
+    const forceRefresh =
+      process.env.NODE_ENV === "development" ||
+      new URL(request.url).searchParams.has("refresh");
+
     const res = await fetch(`${ctx.apiUrl}/sitemap.xml`, {
       method: "GET",
       headers: sitemapApiHeaders(ctx),
-      next: { revalidate: process.env.NODE_ENV === "development" ? 60 : 3600 },
+      ...(forceRefresh
+        ? { cache: "no-store" as const }
+        : { next: { revalidate: 3600 } }),
     });
 
     if (!res.ok) {
@@ -39,7 +45,9 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": sitemapCacheControl(),
+        "Cache-Control": forceRefresh
+          ? "no-store"
+          : sitemapCacheControl(),
       },
     });
   } catch (error) {
