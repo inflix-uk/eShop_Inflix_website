@@ -3,10 +3,18 @@ import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import { DEFAULT_FOOTER } from "@/app/components/footer/footerDefaults";
 import type {
   FooterSection2,
+  FooterSectionCustom,
   FooterSettings,
 } from "@/app/components/footer/footerTypes";
 
 const FOOTER_PUBLIC_PATH = "/footer/settings/public";
+
+const ALLOWED_CUSTOM_PLACEMENTS = new Set([
+  "after_logo",
+  "after_useful_links",
+  "after_customer_care",
+  "after_newsletter",
+]);
 
 function apiBase(): string {
   return resolveCmsApiBase();
@@ -21,6 +29,44 @@ function rememberFooterSnapshot(snapshot: FooterSettings) {
 
 function footerFallback(): FooterSettings {
   return lastGoodFooterSettings ?? DEFAULT_FOOTER;
+}
+
+/** Normalize legacy single custom section or array into a stable array. */
+export function normalizeCustomSectionsList(
+  raw: FooterSettings["sectionCustom"]
+): FooterSectionCustom[] {
+  const toItem = (
+    item: FooterSectionCustom,
+    index: number
+  ): FooterSectionCustom => ({
+    isEnabled: item?.isEnabled === true,
+    title: typeof item?.title === "string" ? item.title.trim() : "",
+    placement: ALLOWED_CUSTOM_PLACEMENTS.has(String(item?.placement || ""))
+      ? item.placement
+      : "after_useful_links",
+    order: typeof item?.order === "number" ? item.order : index,
+    links: Array.isArray(item?.links)
+      ? item.links
+          .filter((link) => link.isActive !== false)
+          .sort((a, b) => a.order - b.order)
+      : [],
+  });
+
+  if (Array.isArray(raw)) {
+    return raw.map(toItem);
+  }
+
+  if (raw && typeof raw === "object") {
+    const hasContent =
+      raw.isEnabled === true ||
+      Boolean(String(raw.title || "").trim()) ||
+      (Array.isArray(raw.links) && raw.links.length > 0);
+    if (hasContent) {
+      return [toItem(raw, 0)];
+    }
+  }
+
+  return [];
 }
 
 /**
@@ -94,13 +140,9 @@ export function mergePartialFooterFromApi(
       ...d.bottomBar,
       ...(s.bottomBar ?? {}),
     },
-    sectionCustom: {
-      ...d.sectionCustom!,
-      ...(s.sectionCustom ?? {}),
-      links: Array.isArray(s.sectionCustom?.links)
-        ? s.sectionCustom.links
-        : d.sectionCustom!.links!,
-    },
+    sectionCustom: normalizeCustomSectionsList(
+      s.sectionCustom !== undefined ? s.sectionCustom : d.sectionCustom
+    ),
   };
 }
 
@@ -122,12 +164,6 @@ export function normalizeFooterApiData(raw: FooterSettings): FooterSettings {
     }
   });
 
-  if (data.sectionCustom?.links) {
-    data.sectionCustom.links = data.sectionCustom.links
-      .filter((link) => link.isActive)
-      .sort((a, b) => a.order - b.order);
-  }
-
   if (data.section5?.paymentMethods?.logos) {
     data.section5.paymentMethods.logos = data.section5.paymentMethods.logos
       .filter((logo) => logo.isActive)
@@ -139,13 +175,7 @@ export function normalizeFooterApiData(raw: FooterSettings): FooterSettings {
     ...(data.bottomBar ?? {}),
   };
 
-  data.sectionCustom = {
-    ...DEFAULT_FOOTER.sectionCustom,
-    ...(data.sectionCustom ?? {}),
-    links: Array.isArray(data.sectionCustom?.links)
-      ? data.sectionCustom.links
-      : DEFAULT_FOOTER.sectionCustom?.links ?? [],
-  };
+  data.sectionCustom = normalizeCustomSectionsList(data.sectionCustom);
 
   return data;
 }

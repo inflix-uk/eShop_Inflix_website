@@ -9,30 +9,33 @@ import type {
   FooterLink,
   FooterSection2,
   FooterSettings,
+  FooterSectionCustom,
   FooterCustomPlacement,
   SocialMediaItem,
 } from "./footerTypes";
 import { DEFAULT_FOOTER } from "./footerDefaults";
 import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import { openConsentSettings } from "@/app/lib/cookieConsent";
+import { normalizeCustomSectionsList } from "@/app/services/footerPublicService";
 
 const FOOTER_PUBLIC_PATH = "/footer/settings/public";
 
-type FooterColumnKey =
+type FooterBaseColumnKey =
   | "section1"
   | "section2"
   | "section3"
-  | "sectionNewsletter"
-  | "sectionCustom";
+  | "sectionNewsletter";
 
-const BASE_FOOTER_COLUMNS: FooterColumnKey[] = [
+type FooterColumnKey = FooterBaseColumnKey | `custom:${number}`;
+
+const BASE_FOOTER_COLUMNS: FooterBaseColumnKey[] = [
   "section1",
   "section2",
   "section3",
   "sectionNewsletter",
 ];
 
-const PLACEMENT_AFTER: Record<FooterCustomPlacement, FooterColumnKey> = {
+const PLACEMENT_AFTER: Record<FooterCustomPlacement, FooterBaseColumnKey> = {
   after_logo: "section1",
   after_useful_links: "section2",
   after_customer_care: "section3",
@@ -40,27 +43,46 @@ const PLACEMENT_AFTER: Record<FooterCustomPlacement, FooterColumnKey> = {
 };
 
 function buildFooterColumnOrder(
-  placement: FooterCustomPlacement | undefined,
-  includeCustom: boolean
+  customSections: FooterSectionCustom[]
 ): FooterColumnKey[] {
-  const columns = [...BASE_FOOTER_COLUMNS];
-  if (!includeCustom) return columns;
+  const enabled = customSections
+    .map((section, index) => ({ section, index }))
+    .filter(
+      ({ section }) =>
+        section.isEnabled === true && Boolean(section.title?.trim())
+    )
+    .sort(
+      (a, b) =>
+        (a.section.order ?? a.index) - (b.section.order ?? b.index)
+    );
 
-  const afterKey =
-    PLACEMENT_AFTER[placement ?? "after_useful_links"] ?? "section2";
-  const insertAt = columns.indexOf(afterKey);
-  const index = insertAt >= 0 ? insertAt + 1 : columns.length;
-  columns.splice(index, 0, "sectionCustom");
+  const byPlacement = new Map<FooterCustomPlacement, number[]>();
+  for (const { section, index } of enabled) {
+    const placement =
+      (section.placement as FooterCustomPlacement) || "after_useful_links";
+    const list = byPlacement.get(placement) || [];
+    list.push(index);
+    byPlacement.set(placement, list);
+  }
+
+  const columns: FooterColumnKey[] = [];
+  for (const key of BASE_FOOTER_COLUMNS) {
+    columns.push(key);
+    const placementEntry = (
+      Object.entries(PLACEMENT_AFTER) as [
+        FooterCustomPlacement,
+        FooterBaseColumnKey,
+      ][]
+    ).find(([, afterKey]) => afterKey === key);
+    if (!placementEntry) continue;
+    const customIndexes = byPlacement.get(placementEntry[0]) || [];
+    for (const customIndex of customIndexes) {
+      columns.push(`custom:${customIndex}`);
+    }
+  }
   return columns;
 }
 
-const GRID_COLS_MD: Record<number, string> = {
-  1: "md:grid-cols-1",
-  2: "md:grid-cols-2",
-  3: "md:grid-cols-3",
-  4: "md:grid-cols-4",
-  5: "md:grid-cols-5",
-};
 
 // Social media SVG components for fallback
 const SocialMediaIcons: Record<string, JSX.Element> = {
@@ -244,10 +266,10 @@ function footerLogoAltText(
 
 /** One pattern for all main footer columns: tight vertical stack */
 const footerCol =
-  "flex min-w-0 w-full flex-col gap-2 self-start";
+  "flex min-w-0 w-full flex-col gap-1.5 self-start";
 const footerColTitle =
-  "m-0 text-base font-medium leading-tight text-white";
-const footerLinkStack = "flex flex-col gap-1";
+  "m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-white";
+const footerLinkStack = "flex flex-col gap-0.5";
 
 type FooterProps = {
   /** When set (e.g. from FooterShell), skips client fetch and uses ISR-prefetched CMS data. */
@@ -256,12 +278,15 @@ type FooterProps = {
   siteHostIsLocal?: boolean;
   /** Snapshot year from server for copyright line (avoids rare SSR/client boundary mismatches). */
   copyrightYear?: number;
+  /** Navbar variant from DB (e.g. "podcast") for conditional styling. */
+  navbarVariant?: string;
 };
 
 const Footer: React.FC<FooterProps> = ({
   initialFooterSettings,
   siteHostIsLocal = false,
   copyrightYear,
+  navbarVariant,
 }) => {
   const auth = useAuth();
   const [footerData, setFooterData] = useState<FooterSettings | null>(() =>
@@ -335,17 +360,13 @@ const Footer: React.FC<FooterProps> = ({
         }
       });
 
-      if (data.sectionCustom?.links) {
-        data.sectionCustom.links = data.sectionCustom.links
-          .filter((link) => link.isActive)
-          .sort((a, b) => a.order - b.order);
-      }
-
       if (data.section5?.paymentMethods?.logos) {
         data.section5.paymentMethods.logos = data.section5.paymentMethods.logos
           .filter((logo) => logo.isActive)
           .sort((a, b) => a.order - b.order);
       }
+
+      data.sectionCustom = normalizeCustomSectionsList(data.sectionCustom);
 
       setFooterData(data);
 
@@ -390,13 +411,7 @@ const Footer: React.FC<FooterProps> = ({
         ...DEFAULT_FOOTER.bottomBar,
         ...(data.bottomBar ?? {}),
       },
-      sectionCustom: {
-        ...DEFAULT_FOOTER.sectionCustom,
-        ...(data.sectionCustom ?? {}),
-        links: Array.isArray(data.sectionCustom?.links)
-          ? data.sectionCustom.links
-          : DEFAULT_FOOTER.sectionCustom?.links ?? [],
-      },
+      sectionCustom: normalizeCustomSectionsList(data.sectionCustom),
     };
   }, [footerData]);
 
@@ -418,6 +433,11 @@ const Footer: React.FC<FooterProps> = ({
     return { before, label, url, isHttpUrl };
   }, [footer.bottomBar, copyrightYear]);
 
+  const customSections = useMemo(
+    () => normalizeCustomSectionsList(footer.sectionCustom),
+    [footer.sectionCustom]
+  );
+
   const hasFooterContent = useMemo(() => {
     const hasSection1 =
       Boolean(footer.section1?.description?.trim()) ||
@@ -433,9 +453,10 @@ const Footer: React.FC<FooterProps> = ({
           footer.sectionNewsletter?.description?.trim() ||
           footer.sectionNewsletter?.buttonLabel?.trim()
       );
-    const hasCustom =
-      footer.sectionCustom?.isEnabled === true &&
-      Boolean(footer.sectionCustom?.title?.trim());
+    const hasCustom = customSections.some(
+      (section) =>
+        section.isEnabled === true && Boolean(section.title?.trim())
+    );
     const hasBottomBar =
       Boolean(bottomBarDisplay.before.trim()) || Boolean(bottomBarDisplay.label.trim());
 
@@ -447,7 +468,7 @@ const Footer: React.FC<FooterProps> = ({
       hasCustom ||
       hasBottomBar
     );
-  }, [footer, bottomBarDisplay]);
+  }, [footer, bottomBarDisplay, customSections]);
 
   // Handle image error
   const handleImageError = useCallback((imagePath: string) => {
@@ -459,7 +480,7 @@ const Footer: React.FC<FooterProps> = ({
     const href = link.link;
     const isExternal = isExternalUrl(href);
     const className =
-      "hover:text-gray-200 inline-block py-0.5 text-sm leading-snug";
+      "text-gray-400 hover:text-white transition-colors text-[13px] leading-normal py-px";
     const props = {
       className,
       ...(link.ariaLabel && { "aria-label": link.ariaLabel }),
@@ -490,15 +511,12 @@ const Footer: React.FC<FooterProps> = ({
       const iconName = social.name;
 
       return (
-        <li
-          key={index}
-          className="text-center hover:scale-105 duration-300"
-        >
+        <li key={index} className="text-center">
           <a
             href={social.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-gray-200 inline-block rounded py-0.5 text-sm leading-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2"
+            className="inline-flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#212121] [&>img]:h-5 [&>img]:w-5 [&>svg]:h-5 [&>svg]:w-5"
             // Source of footer social aria labels:
             // - Preferred: CMS/admin-provided `social.ariaLabel`
             // - Fallback: generic text below (keep brand-neutral, avoid hardcoded store names)
@@ -508,14 +526,15 @@ const Footer: React.FC<FooterProps> = ({
               <Image
                 src={iconUrl}
                 alt={iconName}
-                width={28}
-                height={28}
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain"
                 onError={() => iconUrl && handleImageError(iconUrl)}
               />
             ) : (
               SocialMediaIcons[iconName] ||
               SocialMediaIcons[iconName.split(" ")[0]] || (
-                <span>{iconName}</span>
+                <span className="text-xs">{iconName}</span>
               )
             )}
           </a>
@@ -565,7 +584,6 @@ const Footer: React.FC<FooterProps> = ({
 
   const section2Links = footer.section2?.links || [];
   const section3Links = footer.section3?.links || [];
-  const sectionCustomLinks = footer.sectionCustom?.links || [];
   const socialMedia = footer.section1?.socialMedia || [];
   const newsletterDefaults = DEFAULT_FOOTER.sectionNewsletter!;
   const sectionNewsletter = footer.sectionNewsletter;
@@ -583,53 +601,88 @@ const Footer: React.FC<FooterProps> = ({
     sectionNewsletter?.buttonLabel?.trim() ||
     newsletterDefaults.buttonLabel ||
     "";
-  const newsletterImageUrl =
-    sectionNewsletter?.imageUrl?.trim() || newsletterDefaults.imageUrl || "";
   const showFooterNewsletter =
     sectionNewsletter?.isEnabled === true &&
     Boolean(newsletterHeading || newsletterDescription || newsletterButtonLabel);
-  const showCustomSection =
-    footer.sectionCustom?.isEnabled === true &&
-    Boolean(footer.sectionCustom?.title?.trim());
 
-  const orderedColumns = buildFooterColumnOrder(
-    footer.sectionCustom?.placement,
-    showCustomSection
-  ).filter((key) => {
+  const orderedColumns = buildFooterColumnOrder(customSections).filter((key) => {
     if (key === "section1") return true;
     if (key === "section2") return Boolean(footer.section2?.title);
     if (key === "section3") return Boolean(footer.section3?.title);
     if (key === "sectionNewsletter") return showFooterNewsletter;
-    if (key === "sectionCustom") return showCustomSection;
+    if (key.startsWith("custom:")) {
+      const index = Number(key.slice("custom:".length));
+      const section = customSections[index];
+      return (
+        section?.isEnabled === true && Boolean(section?.title?.trim())
+      );
+    }
     return false;
   });
 
-  const gridColsClass =
-    GRID_COLS_MD[Math.min(Math.max(orderedColumns.length, 1), 5)] ||
-    "md:grid-cols-4";
+  const colCount = orderedColumns.length;
+  const gridColsClasses: Record<number, string> = {
+    1: "lg:grid-cols-1",
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+    5: "lg:grid-cols-5",
+    6: "lg:grid-cols-6",
+    7: "lg:grid-cols-7",
+    8: "lg:grid-cols-8",
+  };
+  const gridColsClass = gridColsClasses[Math.min(colCount, 8)] || "lg:grid-cols-4";
 
   const renderFooterColumn = (key: FooterColumnKey) => {
+    if (key.startsWith("custom:")) {
+      const index = Number(key.slice("custom:".length));
+      const customSection = customSections[index];
+      if (!customSection) return null;
+      const links = customSection.links || [];
+      return (
+        <section
+          key={key}
+          aria-labelledby={`footer-custom-links-${index}`}
+          className={footerCol}
+        >
+          <h3
+            id={`footer-custom-links-${index}`}
+            className={footerColTitle}
+          >
+            {customSection.title}
+          </h3>
+          {hasActiveLinks(links) && (
+            <ul className={footerLinkStack} role="list">
+              {links.map((link, linkIndex) => (
+                <li key={linkIndex}>{renderLink(link, linkIndex)}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      );
+    }
+
     switch (key) {
       case "section1":
         return (
           <section
             key="section1"
             aria-labelledby="footer-logo"
-            className={`${footerCol} items-center md:items-start max-md:mt-0 md:-mt-4 max-md:pt-3 max-md:pb-3`}
+            className="flex min-w-0 w-full flex-col gap-0 self-start items-center sm:items-start"
           >
             <Link
               id="footer-logo"
               href={logoLink}
-              className="block shrink-0 leading-none"
+              className="block w-fit shrink-0 leading-none"
             >
               {logoUrl && !imageErrors.has(logoUrl) ? (
                 <Image
                   src={logoUrl}
                   alt={logoAltText}
-                  width={180}
-                  height={80}
-                  className="block h-auto w-full max-w-full object-contain object-center md:object-left"
-                  sizes="(max-width: 768px) 100vw, 320px"
+                  width={170}
+                  height={68}
+                  className="block h-auto w-[170px] object-contain object-center sm:object-left"
+                  sizes="170px"
                   loading="lazy"
                   onError={() => {
                     if (logoUrl) handleImageError(logoUrl);
@@ -641,7 +694,7 @@ const Footer: React.FC<FooterProps> = ({
 
             {footer.section1?.description?.trim() ? (
               <p
-                className="max-w-xs mt-4 pb-4 sm:pb-0 whitespace-pre-line text-center text-sm leading-snug text-gray-400 md:text-left"
+                className="max-w-[170px] mt-2 whitespace-pre-line text-center text-xs leading-snug text-gray-400 sm:text-left"
                 id="footer-description"
               >
                 {footer.section1.description.trim()}
@@ -649,19 +702,22 @@ const Footer: React.FC<FooterProps> = ({
             ) : null}
 
             {socialMedia.length > 0 && (
-              <section className="flex w-full min-w-0 flex-col items-center md:items-start gap-2">
-                <h3 id="social-links" className={footerColTitle}>
+              <div className="flex min-w-0 flex-col items-center sm:items-start gap-0.5 mt-2">
+                <span
+                  className="text-[11px] font-medium uppercase tracking-wide"
+                  style={{ color: navbarVariant?.toLowerCase() === "podcast" ? "#c2fc12" : "#9ca3af" }}
+                >
                   Follow Us
-                </h3>
+                </span>
                 <ul
-                  className="flex flex-wrap justify-center md:justify-start gap-1.5"
+                  className="flex flex-wrap justify-center sm:justify-start gap-1.5"
                   role="list"
                 >
                   {socialMedia.map((social, index) =>
                     renderSocialIcon(social, index)
                   )}
                 </ul>
-              </section>
+              </div>
             )}
           </section>
         );
@@ -670,7 +726,7 @@ const Footer: React.FC<FooterProps> = ({
           <section
             key="section2"
             aria-labelledby="useful-links"
-            className={`${footerCol} pb-4`}
+            className={footerCol}
           >
             <h3 id="useful-links" className={footerColTitle}>
               {footer.section2.title}
@@ -689,7 +745,7 @@ const Footer: React.FC<FooterProps> = ({
           <section
             key="section3"
             aria-labelledby="customer-care"
-            className={`${footerCol} pb-4`}
+            className={footerCol}
           >
             <h3 id="customer-care" className={footerColTitle}>
               {footer.section3.title}
@@ -708,35 +764,16 @@ const Footer: React.FC<FooterProps> = ({
           <section
             key="sectionNewsletter"
             aria-labelledby="footer-newsletter-heading"
-            className={`${footerCol} min-w-0 max-w-full overflow-hidden md:col-span-1`}
+            className={`${footerCol} min-w-0 max-w-full overflow-hidden`}
           >
             <NewsletterSignupWidget
               heading={newsletterHeading}
               description={newsletterDescription}
               placeholder={newsletterPlaceholder}
               buttonLabel={newsletterButtonLabel}
-              imageUrl={newsletterImageUrl}
               subscribeMode="footer_cms"
+              navbarVariant={navbarVariant}
             />
-          </section>
-        );
-      case "sectionCustom":
-        return (
-          <section
-            key="sectionCustom"
-            aria-labelledby="footer-custom-links"
-            className={`${footerCol} pb-4`}
-          >
-            <h3 id="footer-custom-links" className={footerColTitle}>
-              {footer.sectionCustom?.title}
-            </h3>
-            {hasActiveLinks(sectionCustomLinks) && (
-              <ul className={footerLinkStack} role="list">
-                {sectionCustomLinks.map((link, index) => (
-                  <li key={index}>{renderLink(link, index)}</li>
-                ))}
-              </ul>
-            )}
           </section>
         );
       default:
@@ -762,9 +799,9 @@ const Footer: React.FC<FooterProps> = ({
       className="bg-[#212121] py-5 text-gray-400 md:py-6"
       aria-label="Footer"
     >
-      <div className="mx-auto max-w-7xl px-4 pb-6 pt-5 sm:px-6 md:pb-0 md:pt-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 md:pb-0 md:pt-5 lg:px-8">
           <div
-            className={`grid grid-cols-1 items-start gap-3 ${gridColsClass} md:gap-4`}
+            className={`grid grid-cols-1 items-start gap-y-6 lg:gap-x-6 xl:gap-x-8 ${gridColsClass}`}
             aria-label="Footer Sections"
           >
             {orderedColumns.map((key) => renderFooterColumn(key))}
@@ -890,9 +927,10 @@ const Footer: React.FC<FooterProps> = ({
             </div> */}
           </div>
       </div>
-      <div className="mt-4 border-t border-gray-700 pt-3">
-        <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
-          <p className="text-center text-gray-400 text-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="border-t border-gray-700 pt-4 pb-2">
+          <div className="flex flex-col items-center justify-center gap-1.5 sm:flex-row sm:gap-3">
+            <p className="text-center text-gray-500 text-xs">
             {bottomBarDisplay.before}
             {bottomBarDisplay.label && bottomBarDisplay.isHttpUrl ? (
               <>
@@ -917,10 +955,11 @@ const Footer: React.FC<FooterProps> = ({
           <button
             type="button"
             onClick={() => openConsentSettings()}
-            className="text-sm text-gray-400 underline transition hover:text-white"
+            className="text-xs text-gray-500 underline transition hover:text-gray-300"
           >
             Cookie settings
           </button>
+          </div>
         </div>
       </div>
     </footer>

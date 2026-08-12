@@ -4,6 +4,7 @@ import React, { useState, useEffect, FC, useCallback } from "react";
 import { TrashIcon } from "@heroicons/react/20/solid";
 import { Coupon, ProductItem } from "../../../../../types";
 import Image from "next/image";
+import Link from "next/link";
 
 function checkoutApiOrigin(): string {
   return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
@@ -681,7 +682,15 @@ const ProductDetails: FC<ProductDetailsProps> = ({
               >
                 <p className="text-black">
                   I have read and accept the{" "}
-                  <b className="text-primary">Terms and Conditions</b>
+                  <Link
+                    href="/terms-and-conditions/"
+                    className="font-bold text-primary hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms and Conditions
+                  </Link>
                 </p>
               </label>
             </div>

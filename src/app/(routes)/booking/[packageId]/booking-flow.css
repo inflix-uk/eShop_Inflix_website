@@ -348,13 +348,70 @@
 }
 
 @media (max-width: 560px) {
-  .booking-flow-v3 .bf-stp span {
-    letter-spacing: 0.08em;
-    font-size: 9px;
+  .booking-flow-v3 .bf-steps {
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: 100%;
+    overflow-x: auto;
+    padding: 8px 0 12px;
   }
+
+  .booking-flow-v3 .bf-stp {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .booking-flow-v3 .bf-stp b {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .booking-flow-v3 .bf-stp span {
+    letter-spacing: 0.06em;
+    font-size: 8px;
+    white-space: nowrap;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .booking-flow-v3 .bf-stp-line {
-    margin: 0 8px;
-    max-width: 28px;
+    margin: 0 4px;
+    min-width: 12px;
+    max-width: 20px;
+    align-self: flex-start;
+    margin-top: 13px;
+  }
+
+  .booking-flow-v3 .bf-steps-label {
+    text-align: center;
+  }
+}
+
+@media (max-width: 400px) {
+  .booking-flow-v3 .bf-steps {
+    justify-content: space-between;
+    padding: 8px 4px 12px;
+  }
+
+  .booking-flow-v3 .bf-stp {
+    min-width: 60px;
+  }
+
+  .booking-flow-v3 .bf-stp span {
+    font-size: 7px;
+    letter-spacing: 0.04em;
+    max-width: 60px;
+  }
+
+  .booking-flow-v3 .bf-stp-line {
+    min-width: 8px;
+    max-width: 14px;
+    margin: 0 2px;
   }
 }
 
@@ -1576,5 +1633,357 @@
   .booking-flow-v3 .bf-chip,
   .booking-flow-v3 .bf-pk {
     transition: none;
+  }
+}
+
+/* ========================================
+   MOBILE RESPONSIVE FIXES (Calendar to Footer)
+   ======================================== */
+
+/* Mobile: Stack extras/editing rows vertically and center */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-xrow {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    padding: 18px 16px;
+  }
+
+  .booking-flow-v3 .bf-xthumb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .booking-flow-v3 .bf-xinfo {
+    width: 100%;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-xinfo b {
+    font-size: 15px;
+  }
+
+  .booking-flow-v3 .bf-xinfo span {
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .booking-flow-v3 .bf-xprice {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-xprice small {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-xadd {
+    width: 100%;
+    max-width: 200px;
+    padding: 12px 20px;
+  }
+
+  .booking-flow-v3 .bf-xqty-wrap {
+    align-items: center;
+    width: 100%;
+  }
+
+  .booking-flow-v3 .bf-xqty {
+    min-width: 120px;
+  }
+
+  .booking-flow-v3 .bf-xqty-hint {
+    text-align: center;
+  }
+}
+
+/* Mobile: Summary card improvements */
+@media (max-width: 1020px) {
+  .booking-flow-v3 .bf-sum {
+    position: relative;
+    top: 0;
+    margin: 22px auto 0;
+    max-width: 100%;
+  }
+
+  .booking-flow-v3 .bf-sum-h {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sum-h .bf-mono {
+    display: block;
+  }
+
+  .booking-flow-v3 .bf-sum-h b {
+    margin-top: 10px;
+  }
+
+  .booking-flow-v3 .bf-sum-total {
+    justify-content: center;
+    gap: 16px;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sum-rate {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sline {
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sline .l {
+    width: 100%;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sline .v {
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .booking-flow-v3 .bf-sline.empty .l {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sline.added {
+    margin: 8px 0;
+    padding: 12px 16px;
+    border-left: none;
+    border-top: 2px solid var(--bf-green);
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sline.added .l,
+  .booking-flow-v3 .bf-sline.added .v {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-srm {
+    margin: 8px auto 0;
+  }
+
+  .booking-flow-v3 .bf-hrlist {
+    border-left: none;
+    padding-left: 0;
+    margin: 8px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .booking-flow-v3 .bf-hrline {
+    justify-content: center;
+  }
+
+  .booking-flow-v3 .bf-hold {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-next {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-next div {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .booking-flow-v3 .bf-next > p {
+    text-align: center;
+  }
+}
+
+/* Mobile: Card header alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-card-h {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 16px 18px;
+  }
+
+  .booking-flow-v3 .bf-card-h h2 {
+    font-size: 18px;
+  }
+
+  .booking-flow-v3 .bf-extras-nav {
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .booking-flow-v3 .bf-extras-nav__btn {
+    width: 100%;
+    max-width: 160px;
+  }
+
+  .booking-flow-v3 .bf-extras-nav__dots {
+    order: -1;
+  }
+}
+
+/* Mobile: Slots section alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-slots {
+    padding: 18px 16px;
+  }
+
+  .booking-flow-v3 .bf-slots-h {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-slots-h b {
+    font-size: 15px;
+  }
+
+  .booking-flow-v3 .bf-sgrp {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-sgrp p {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-slot-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .booking-flow-v3 .bf-booked {
+    padding: 20px 12px 10px;
+  }
+
+  .booking-flow-v3 .bf-booked h4 {
+    font-size: 18px;
+  }
+
+  .booking-flow-v3 .bf-booked p {
+    font-size: 12px;
+  }
+
+  .booking-flow-v3 .bf-booked-jump {
+    width: 100%;
+    max-width: 220px;
+  }
+
+  .booking-flow-v3 .bf-picked {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-nextav {
+    text-align: center;
+  }
+}
+
+/* Mobile: Calendar legend alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-callegend {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .booking-flow-v3 .bf-cal {
+    padding: 16px;
+  }
+
+  .booking-flow-v3 .bf-cal-nav b {
+    font-size: 14px;
+  }
+}
+
+/* Mobile: Control rows alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-crow {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
+  .booking-flow-v3 .bf-clab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-copts {
+    justify-content: center;
+  }
+
+  .booking-flow-v3 .bf-cnote {
+    text-align: center;
+    margin-left: 0;
+  }
+
+  .booking-flow-v3 .bf-hint {
+    margin: 0 16px 16px;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-hint--mic {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .booking-flow-v3 .bf-hint--mic span {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-hint--mic button {
+    margin-top: 8px;
+  }
+}
+
+/* Mobile: Page header alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-phead {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-phead-kick {
+    justify-content: center;
+  }
+
+  .booking-flow-v3 .bf-phead h1 {
+    text-align: center;
+  }
+}
+
+/* Mobile: Back button alignment */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-top .bf-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .booking-flow-v3 .bf-back {
+    justify-content: center;
+  }
+}
+
+/* Mobile: Bottom bar improvements */
+@media (max-width: 600px) {
+  .booking-flow-v3 .bf-mbar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px 18px;
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-mbar .t {
+    text-align: center;
+  }
+
+  .booking-flow-v3 .bf-mbar .bf-btn {
+    width: 100%;
   }
 }

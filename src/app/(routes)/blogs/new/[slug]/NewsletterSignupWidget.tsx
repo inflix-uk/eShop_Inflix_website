@@ -26,6 +26,8 @@ export type NewsletterWidgetProps = {
   buttonLabel?: string;
   imageUrl?: string;
   subscribeMode?: string;
+  /** Navbar variant from DB (e.g. "podcast") for conditional button styling. */
+  navbarVariant?: string;
 };
 
 export default function NewsletterSignupWidget({
@@ -35,8 +37,10 @@ export default function NewsletterSignupWidget({
   buttonLabel = "Subscribe",
   imageUrl = "",
   subscribeMode = "content_widget",
+  navbarVariant,
 }: NewsletterWidgetProps) {
   const isFooterEmbed = subscribeMode === "footer_cms";
+  const isPodcastSite = navbarVariant?.toLowerCase() === "podcast";
   const placeholder = resolveNewsletterPlaceholder(placeholderProp);
   const auth = useAuth();
   const emailFieldId = useId();
@@ -141,90 +145,80 @@ export default function NewsletterSignupWidget({
 
   if (isFooterEmbed) {
     return (
-      <div className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-lg backdrop-blur-sm sm:p-4">
-        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-          {src ? (
-            <div className="relative mx-auto w-full max-w-[11rem] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/20 sm:mx-0 sm:w-24 md:w-28">
-              <img
-                src={src}
-                alt=""
-                loading="lazy"
-                className="aspect-[4/3] h-auto w-full object-cover sm:aspect-auto sm:min-h-[5.5rem]"
-              />
-            </div>
-          ) : null}
+      <div className="w-full min-w-0 max-w-full">
+        <h3
+          id="footer-newsletter-heading"
+          className="m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-white"
+        >
+          {heading}
+        </h3>
+        {description ? (
+          <p className="mb-2.5 text-[13px] leading-relaxed text-gray-400">
+            {description}
+          </p>
+        ) : null}
 
-          <div className="min-w-0 w-full flex-1">
-            <h3
-              id="footer-newsletter-heading"
-              className="text-base font-semibold tracking-tight text-white sm:text-lg"
-            >
-              {heading}
-            </h3>
-            {description ? (
-              <p className="mt-1.5 break-words text-sm leading-relaxed text-white/70">
-                {description}
-              </p>
-            ) : null}
+        <form
+          onSubmit={onSubmit}
+          className="flex w-full min-w-0 flex-col gap-1.5"
+          noValidate
+        >
+          <label htmlFor={emailFieldId} className="sr-only">
+            Email address
+          </label>
+          <input
+            id={emailFieldId}
+            type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={placeholder}
+            disabled={status === "loading"}
+            aria-invalid={status === "error"}
+            aria-describedby={message ? messageId : undefined}
+            className="h-9 w-full min-w-0 max-w-full rounded-md border border-gray-600 bg-gray-800 px-2.5 text-[13px] text-white outline-none transition placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary/40 disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="inline-flex h-9 w-full min-w-0 max-w-full items-center justify-center rounded-md px-3 text-[13px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-55 hover:opacity-90"
+            style={{
+              backgroundColor: isPodcastSite ? "#c2fc12" : "#ffffff",
+              color: isPodcastSite ? "#0a0f0a" : "#111827",
+            }}
+          >
+            {status === "loading" ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="size-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900"
+                  aria-hidden
+                />
+                <span className="sr-only">Loading</span>
+              </span>
+            ) : (
+              buttonLabel
+            )}
+          </button>
+        </form>
 
-            <form
-              onSubmit={onSubmit}
-              className="mt-3 flex w-full min-w-0 flex-col gap-2"
-              noValidate
-            >
-              <label htmlFor={emailFieldId} className="sr-only">
-                Email address
-              </label>
-              <input
-                id={emailFieldId}
-                type="email"
-                name="email"
-                autoComplete="email"
-                inputMode="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={placeholder}
-                disabled={status === "loading"}
-                aria-invalid={status === "error"}
-                aria-describedby={message ? messageId : undefined}
-                className="h-11 w-full min-w-0 max-w-full rounded-xl border border-white/15 bg-black/25 px-3 text-sm text-white shadow-inner outline-none transition placeholder:text-white/40 focus:border-primary focus:ring-2 focus:ring-primary/35 disabled:opacity-60"
-              />
-              <button
-                type="submit"
-                disabled={status === "loading"}
-                className="inline-flex h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-md transition hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-55"
-              >
-                {status === "loading" ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-                      aria-hidden
-                    />
-                    <span className="sr-only">Loading</span>
-                    <span aria-hidden>Please wait</span>
-                  </span>
-                ) : (
-                  buttonLabel
-                )}
-              </button>
-            </form>
-
-            <div
-              id={messageId}
-              role="status"
-              aria-live="polite"
-              className={`mt-3 min-h-[1.25rem] text-sm ${
-                status === "success"
-                  ? "text-emerald-300"
-                  : status === "error"
-                    ? "text-red-300"
-                    : "text-transparent"
-              }`}
-            >
-              {message || "\u00a0"}
-            </div>
+        {message ? (
+          <div
+            id={messageId}
+            role="status"
+            aria-live="polite"
+            className={`mt-2 text-xs ${
+              status === "success"
+                ? "text-emerald-400"
+                : status === "error"
+                  ? "text-red-400"
+                  : ""
+            }`}
+          >
+            {message}
           </div>
-        </div>
+        ) : null}
       </div>
     );
   }
