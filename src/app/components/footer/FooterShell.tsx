@@ -1,5 +1,6 @@
 import FooterWrapper from "@/app/components/footer/FooterWrapper";
 import { getFooterSettingsCached } from "@/app/services/footerPublicService";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 function hostLooksLocal(host: string): boolean {
   const h = host.toLowerCase().split(":")[0] ?? "";
@@ -36,13 +37,17 @@ function inferSiteHostIsLocalFromEnv(): boolean {
 export default async function FooterShell() {
   const siteHostIsLocal = inferSiteHostIsLocalFromEnv();
   const copyrightYear = new Date().getFullYear();
-  const initialFooterSettings = await getFooterSettingsCached();
+  const [initialFooterSettings, navbarConfig] = await Promise.all([
+    getFooterSettingsCached(),
+    getNavbarVariantTestPublicServer(),
+  ]);
 
   return (
     <FooterWrapper
       initialFooterSettings={initialFooterSettings}
       siteHostIsLocal={siteHostIsLocal}
       copyrightYear={copyrightYear}
+      navbarVariant={navbarConfig?.variant}
     />
   );
 }

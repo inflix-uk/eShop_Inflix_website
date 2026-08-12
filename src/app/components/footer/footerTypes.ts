@@ -70,6 +70,7 @@ export interface FooterSectionCustom {
   isEnabled?: boolean;
   title?: string;
   placement?: FooterCustomPlacement;
+  order?: number;
   links?: FooterLink[];
 }
 
@@ -85,5 +86,6 @@ export interface FooterSettings {
   section5: FooterSection5;
   sectionNewsletter?: FooterSectionNewsletter;
   bottomBar?: FooterBottomBar;
-  sectionCustom?: FooterSectionCustom;
+  /** Multiple custom link columns. Legacy single-object shape is normalized client-side. */
+  sectionCustom?: FooterSectionCustom[] | FooterSectionCustom;
 }

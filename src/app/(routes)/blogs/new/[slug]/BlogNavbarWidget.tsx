@@ -631,7 +631,9 @@ function NavLinkItemMobileAccordion({
   );
 }
 
-const NAV_FLYOUT_HOVER_CLOSE_MS = 180;
+const NAV_FLYOUT_HOVER_CLOSE_MS = 260;
+/** Invisible bridge between trigger and portaled panel (px). */
+const NAV_FLYOUT_HOVER_BRIDGE_PX = 14;
 
 function NavLinkItemNode({
   link,
@@ -686,7 +688,14 @@ function NavLinkItemNode({
   const [flyoutOpen, setFlyoutOpen] = useState(false);
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLAnchorElement>(null);
-  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0, minWidth: 220, overlap: 10 });
+  const triggerWrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [flyoutPos, setFlyoutPos] = useState({
+    top: 0,
+    left: 0,
+    minWidth: 220,
+    overlap: NAV_FLYOUT_HOVER_BRIDGE_PX,
+  });
 
   const clearHoverClose = () => {
     if (hoverCloseTimer.current != null) {
@@ -695,15 +704,31 @@ function NavLinkItemNode({
     }
   };
 
-  const scheduleHoverClose = () => {
-    clearHoverClose();
-    hoverCloseTimer.current = setTimeout(() => setFlyoutOpen(false), NAV_FLYOUT_HOVER_CLOSE_MS);
-  };
+  /** True when pointer is still over trigger or portaled panel (works even if mouseenter never fired). */
+  const isPointerOverFlyout = useCallback(() => {
+    try {
+      if (triggerWrapRef.current?.matches(":hover")) return true;
+      if (panelRef.current?.matches(":hover")) return true;
+    } catch {
+      /* older engines without :hover matching on detached nodes */
+    }
+    return false;
+  }, []);
 
-  const openFlyout = () => {
+  const scheduleHoverClose = useCallback(() => {
+    clearHoverClose();
+    hoverCloseTimer.current = setTimeout(() => {
+      // Portal can mount under the cursor and fire mouseleave on the trigger without
+      // mouseenter on the panel — only close when the pointer has actually left both.
+      if (isPointerOverFlyout()) return;
+      setFlyoutOpen(false);
+    }, NAV_FLYOUT_HOVER_CLOSE_MS);
+  }, [isPointerOverFlyout]);
+
+  const openFlyout = useCallback(() => {
     clearHoverClose();
     setFlyoutOpen(true);
-  };
+  }, []);
 
   const updateFlyoutPosition = useCallback(() => {
     const el = triggerRef.current;
@@ -711,7 +736,7 @@ function NavLinkItemNode({
     const r = el.getBoundingClientRect();
     const minWidth = Math.max(220, r.width);
     const margin = 8;
-    const overlap = 10;
+    const overlap = NAV_FLYOUT_HOVER_BRIDGE_PX;
     let left = r.left;
     if (left + minWidth > window.innerWidth - margin) {
       left = Math.max(margin, window.innerWidth - margin - minWidth);
@@ -722,6 +747,8 @@ function NavLinkItemNode({
   useLayoutEffect(() => {
     if (!bodyPortalFlyout || !flyoutOpen) return;
     updateFlyoutPosition();
+    // After portal paints, cancel a spurious close if the panel appeared under the cursor.
+    if (isPointerOverFlyout()) clearHoverClose();
     const sync = () => updateFlyoutPosition();
     window.addEventListener("scroll", sync, true);
     window.addEventListener("resize", sync);
@@ -729,7 +756,7 @@ function NavLinkItemNode({
       window.removeEventListener("scroll", sync, true);
       window.removeEventListener("resize", sync);
     };
-  }, [bodyPortalFlyout, flyoutOpen, updateFlyoutPosition]);
+  }, [bodyPortalFlyout, flyoutOpen, updateFlyoutPosition, isPointerOverFlyout]);
 
   useEffect(() => {
     return () => clearHoverClose();
@@ -747,7 +774,7 @@ function NavLinkItemNode({
   const onTriggerBlur = (e: FocusEvent<HTMLAnchorElement>) => {
     if (!bodyPortalFlyout) return;
     requestAnimationFrame(() => {
-      const panel = document.getElementById(flyoutPanelId);
+      const panel = panelRef.current || document.getElementById(flyoutPanelId);
       const next = e.relatedTarget as Node | null;
       if (next && (panel?.contains(next) || triggerRef.current?.contains(next))) return;
       if (panel?.contains(document.activeElement)) return;
@@ -835,6 +862,7 @@ function NavLinkItemNode({
     return (
       <div
         key={link.id || i}
+        ref={triggerWrapRef}
         className="relative"
         onMouseEnter={() => {
           openFlyout();
@@ -875,6 +903,7 @@ function NavLinkItemNode({
           typeof document !== "undefined" &&
           createPortal(
             <div
+              ref={panelRef}
               id={flyoutPanelId}
               role="menu"
               className="fixed z-[9990]"
@@ -884,7 +913,7 @@ function NavLinkItemNode({
                 minWidth: flyoutPos.minWidth,
                 paddingTop: flyoutPos.overlap,
               }}
-              onMouseEnter={clearHoverClose}
+              onMouseEnter={openFlyout}
               onMouseLeave={scheduleHoverClose}
             >
               {flyoutInner}
