@@ -42,10 +42,14 @@ export interface CheckoutBookingSlot {
 
 export interface CheckoutBookingExtra {
   index: number;
-  title: string;
+  /** Amount charged per unit — already discounted when a discount is active. */
   price: number;
+  title: string;
   image?: string;
   description?: string;
+  /** List price to show crossed out — absent when there is no discount. */
+  originalPrice?: number;
+  discountPercent?: number;
 }
 
 export interface CheckoutBookingData {
@@ -56,6 +60,8 @@ export interface CheckoutBookingData {
   packageType: string;
   packagePrice: number;
   packageDuration: number;
+  /** 'fixed' charges packagePrice once for the whole booking; 'hourly' charges it per hour. */
+  pricingMode?: "hourly" | "fixed";
   date?: string;
   startTime?: string;
   endTime?: string;
@@ -177,13 +183,16 @@ const ProductDetails: FC<ProductDetailsProps> = ({
     : [];
   const selectedExtras = bookingData?.selectedExtras || [];
   const bookingHours = Math.max(bookingSlots.length, 0);
+  const bookingFixedPrice = bookingData?.pricingMode === "fixed";
+  // Fixed-price packages bill a single unit however many hours were picked.
+  const bookingUnits = bookingFixedPrice ? 1 : bookingHours;
   const slotsSubtotal =
     bookingData?.slotsSubtotal ??
-    (bookingData?.packagePrice ?? 0) * Math.max(bookingHours, 1);
+    (bookingData?.packagePrice ?? 0) * Math.max(bookingUnits, 1);
   const extrasSubtotal =
     bookingData?.extrasSubtotal ??
     selectedExtras.reduce(
-      (sum, extra) => sum + (extra.price || 0) * bookingHours,
+      (sum, extra) => sum + (extra.price || 0) * bookingUnits,
       0
     ) +
       (Number(bookingData?.micSubtotal) || 0) +
@@ -321,15 +330,34 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                       <ul className="space-y-1">
                         {selectedExtras.map((extra) => {
                           const line =
-                            (extra.price || 0) * Math.max(bookingHours, 0);
+                            (extra.price || 0) * Math.max(bookingUnits, 0);
                           return (
                           <li key={`${extra.index}-${extra.title}`} className="text-sm text-gray-700 flex justify-between gap-2">
                             <span>
                               {extra.title}
-                              {bookingHours > 0 ? (
+                              {extra.originalPrice && extra.discountPercent ? (
+                                <span className="ml-2 inline-block rounded-full bg-red-100 px-2 py-0.5 align-middle text-[10px] font-bold text-red-700">
+                                  {extra.discountPercent}% OFF
+                                </span>
+                              ) : null}
+                              {bookingFixedPrice ? (
+                                <span className="block text-xs text-gray-500">
+                                  £{(extra.price || 0).toFixed(2)}
+                                  {extra.originalPrice ? (
+                                    <span className="ml-1 line-through">
+                                      £{extra.originalPrice.toFixed(2)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              ) : bookingHours > 0 ? (
                                 <span className="block text-xs text-gray-500">
                                   £{(extra.price || 0).toFixed(2)}/hr × {bookingHours} hr
                                   {bookingHours === 1 ? "" : "s"}
+                                  {extra.originalPrice ? (
+                                    <span className="ml-1 line-through">
+                                      £{extra.originalPrice.toFixed(2)}/hr
+                                    </span>
+                                  ) : null}
                                 </span>
                               ) : null}
                             </span>
@@ -391,9 +419,9 @@ const ProductDetails: FC<ProductDetailsProps> = ({
               <div className="flex items-center justify-between pt-2">
                 <div className="flex gap-2 items-center">
                   <p className="font-medium text-gray-900">£{bookingAmount.toFixed(2)}</p>
-                  {bookingSlots.length > 1 && (
+                  {bookingFixedPrice ? null : bookingSlots.length > 1 ? (
                     <p className="text-xs text-gray-500">({bookingSlots.length} × £{bookingData.packagePrice.toFixed(2)})</p>
-                  )}
+                  ) : null}
                   {selectedExtras.length > 0 && (
                     <p className="text-xs text-gray-500">+ {selectedExtras.length} extra(s)</p>
                   )}

@@ -209,15 +209,17 @@ export default function CheckoutPage() {
       parsed.holdIds ||
       (parsed.holdId ? [parsed.holdId] : slots.map((s) => s.holdId).filter(Boolean) as string[]);
     const selectedExtras = parsed.selectedExtras || [];
+    // Fixed-price packages bill a single unit however many hours were picked.
+    const units = parsed.pricingMode === "fixed" ? 1 : Math.max(slots.length, 1);
     const slotsSubtotal =
-      parsed.slotsSubtotal ?? (parsed.packagePrice || 0) * Math.max(slots.length, 1);
+      parsed.slotsSubtotal ?? (parsed.packagePrice || 0) * units;
     const editing =
       Number(parsed.editingSubtotal) ||
       Number(parsed.selectedEditing?.price) ||
       0;
     const extrasSubtotal =
       parsed.extrasSubtotal ??
-      selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0) +
+      selectedExtras.reduce((sum, extra) => sum + (extra.price || 0) * units, 0) +
         (Number(parsed.micSubtotal) || 0) +
         editing;
     return {
@@ -242,10 +244,12 @@ export default function CheckoutPage() {
   const getBookingTotal = (data: CheckoutBookingData) => {
     if (data.totalPrice != null) return data.totalPrice;
     const hours = Math.max(data.slots?.length || 1, 1);
+    // Fixed-price packages bill a single unit however many hours were picked.
+    const units = data.pricingMode === "fixed" ? 1 : hours;
     const packagePrice = Number(data.packagePrice) || 0;
-    const slotsSubtotal = data.slotsSubtotal ?? packagePrice * hours;
+    const slotsSubtotal = data.slotsSubtotal ?? packagePrice * units;
     const catalogExtras = (data.selectedExtras || []).reduce(
-      (sum, e) => sum + (Number(e.price) || 0) * hours,
+      (sum, e) => sum + (Number(e.price) || 0) * units,
       0
     );
     const mic = Number(data.micSubtotal) || 0;
