@@ -241,7 +241,13 @@ function BookingConfirmationContent() {
     : booking
     ? [{ bookingNumber: booking.bookingNumber, date: booking.date, startTime: booking.startTime, endTime: booking.endTime, status: booking.status, paymentStatus: booking.paymentStatus }]
     : [];
-  const totalPaid = packagePrice != null ? packagePrice * slotCount : null;
+  // Prefer the server-computed amount — it already accounts for extras and static pricing.
+  const totalPaid =
+    booking?.totalAmount != null
+      ? Number(booking.totalAmount)
+      : packagePrice != null
+        ? packagePrice * slotCount
+        : null;
 
   if (!hasMounted || loading) {
     return <PageLoadingShell progress={progress} />;

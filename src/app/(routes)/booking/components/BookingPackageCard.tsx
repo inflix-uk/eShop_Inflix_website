@@ -6,6 +6,7 @@ import {
   bookingService,
   BookingPackage,
   getPackageUrlKey,
+  isFixedPricePackage,
 } from "../services/bookingService";
 import { formatDuration, normalizeDurationUnit } from "../utils/formatDuration";
 
@@ -36,6 +37,10 @@ function getPriceMeta(pkg: BookingPackage): { unit: string; note: string } {
   } else if (desc.includes("·")) {
     const part = desc.split("·").map((s) => s.trim()).find((s) => s.length > 0);
     if (part && !part.startsWith("£")) note = part;
+  }
+
+  if (isFixedPricePackage(pkg)) {
+    return { unit: "", note };
   }
 
   const durationLabel = formatDuration(

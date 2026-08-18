@@ -17,6 +17,10 @@ import {
   StoredBookingData,
   getPackageUrlKey,
   isEditingPackage,
+  isFixedPricePackage,
+  resolveMaxHours,
+  resolveBillableUnits,
+  resolveExtraPricing,
   resolveWhatHappensNext,
   DEFAULT_WHAT_HAPPENS_NEXT,
   type BookingWhatHappensNext,
@@ -64,15 +68,37 @@ function toSelectedExtra(
   index: number,
   quantity = 1
 ): SelectedBookingExtra {
+  const pricing = resolveExtraPricing(extra);
   return {
     index,
     title: extra.title,
-    price: extra.price || 0,
+    price: pricing.unitPrice,
     image: extra.image,
     description: extra.description,
     quantity: Math.max(1, Math.floor(quantity) || 1),
     quantityEnabled: Boolean(extra.quantityEnabled),
+    originalPrice: pricing.hasDiscount ? pricing.originalPrice : undefined,
+    discountPercent: pricing.hasDiscount ? pricing.discountPercent : undefined,
   };
+}
+
+/**
+ * Re-price extras restored from storage against the live catalog, so a discount
+ * the admin has since changed can never be shown or charged from a stale copy.
+ */
+function repriceStoredExtras(
+  stored: SelectedBookingExtra[],
+  catalog: BookingPackageExtra[] = []
+): SelectedBookingExtra[] {
+  return stored.map((entry) => {
+    const byIndex = catalog[entry.index];
+    const match =
+      byIndex?.title === entry.title
+        ? byIndex
+        : catalog.find((item) => item.title === entry.title);
+    if (!match) return entry;
+    return { ...entry, ...toSelectedExtra(match, entry.index, entry.quantity || 1) };
+  });
 }
 
 function stripHtmlText(html: string): string {
@@ -242,6 +268,16 @@ function getRelatedPackageCluster(
   return match?.length ? match : [current];
 }
 
+/** Compact "Tue, 18 Aug" label used wherever slots are listed per date. */
+function formatSlotDateLabel(date: string): string {
+  if (!date) return "";
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function addOneHourLabel(startTime: string, endTime?: string): string {
   if (endTime) return `${startTime}–${endTime}`;
   const h = slotHour(startTime);
@@ -272,6 +308,7 @@ export default function BookingFlowPage() {
   const [remainingTime, setRemainingTime] = useState<string | null>(null);
   const [durationHrs, setDurationHrs] = useState<number | null>(null);
   const [durationHint, setDurationHint] = useState<string | null>(null);
+  const [hoursLimitHint, setHoursLimitHint] = useState<string | null>(null);
   const [guestCount, setGuestCount] = useState(1);
   const [extraMics, setExtraMics] = useState(0);
   const [monthAvailability, setMonthAvailability] = useState<
@@ -312,6 +349,24 @@ export default function BookingFlowPage() {
     ? activeHolds.map((h) => ({ date: h.date, startTime: h.startTime, endTime: h.endTime, holdId: h.holdId }))
     : selectedSlots;
 
+  /** Selected hours bucketed per date so a multi-day booking reads unambiguously. */
+  const slotDateGroups = useMemo(() => {
+    const byDate = new Map<string, SelectedBookingSlot[]>();
+    for (const slot of displaySlots) {
+      const bucket = byDate.get(slot.date);
+      if (bucket) bucket.push(slot);
+      else byDate.set(slot.date, [slot]);
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, slots]) => ({
+        date,
+        slots: slots.slice().sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      }));
+  }, [displaySlots]);
+
+  const isMultiDayBooking = slotDateGroups.length > 1;
+
   const includedMics = Math.max(0, Number(pkg?.includedMics) || 0);
   const studioMicCapacity = Math.max(1, Number(settings?.studioMicCapacity) || 5);
   const extraMicPricePerHour = Math.max(0, Number(settings?.extraMicPricePerHour) || 15);
@@ -337,10 +392,14 @@ export default function BookingFlowPage() {
   );
 
   const hoursBooked = Math.max(displaySlots.length, 0);
+  const fixedPrice = isFixedPricePackage(pkg);
+  const maxHours = resolveMaxHours(pkg);
+  /** Per-hour rates are multiplied by this — always 1 for fixed-price packages. */
+  const billableUnits = resolveBillableUnits(pkg?.pricingMode, hoursBooked);
   const editingSubtotal = Math.max(0, Number(selectedEditing?.price) || 0);
   const micSubtotal = useMemo(
-    () => bookingService.computeExtraMicCost(extraMics, extraMicPricePerHour, hoursBooked || 0),
-    [extraMics, extraMicPricePerHour, hoursBooked]
+    () => bookingService.computeExtraMicCost(extraMics, extraMicPricePerHour, billableUnits),
+    [extraMics, extraMicPricePerHour, billableUnits]
   );
 
   const pricing = useMemo(
@@ -350,9 +409,10 @@ export default function BookingFlowPage() {
         displaySlots.length,
         selectedExtras,
         micSubtotal,
-        editingSubtotal
+        editingSubtotal,
+        pkg?.pricingMode
       ),
-    [pkg?.price, displaySlots.length, selectedExtras, micSubtotal, editingSubtotal]
+    [pkg?.price, pkg?.pricingMode, displaySlots.length, selectedExtras, micSubtotal, editingSubtotal]
   );
 
   const packageExtras = pkg?.extras?.filter((e) => e.title?.trim()) || [];
@@ -669,7 +729,9 @@ export default function BookingFlowPage() {
         restored = stored.slots;
         initialDate = stored.slots[0]?.date || todayMin;
         setSelectedSlots(restored);
-        if (stored.selectedExtras?.length) setSelectedExtras(stored.selectedExtras);
+        if (stored.selectedExtras?.length) {
+          setSelectedExtras(repriceStoredExtras(stored.selectedExtras, packageData.extras));
+        }
         if (stored.guestCount) setGuestCount(Math.max(1, Number(stored.guestCount) || 1));
         if (stored.extraMics) setExtraMics(Math.max(0, Number(stored.extraMics) || 0));
         if (stored.selectedEditing?.packageId) setSelectedEditing(stored.selectedEditing);
@@ -791,6 +853,7 @@ export default function BookingFlowPage() {
     setSelectedDate(dateStr);
     setDurationHrs(null);
     setDurationHint(null);
+    setHoursLimitHint(null);
     loadSlots(dateStr);
   };
 
@@ -841,12 +904,18 @@ export default function BookingFlowPage() {
 
   const nextAvailableLabel = nextAvailableDate ? formatLongDate(nextAvailableDate) : null;
 
+  const hoursLimitMessage = (requested: number) =>
+    `Hours limit exceeded — ${pkg?.name || "this package"} allows a maximum of ${maxHours} hour${
+      maxHours === 1 ? "" : "s"
+    } per booking. You tried to book ${requested}.`;
+
   const handleSlotSelect = (slot: TimeSlot) => {
     if (!selectedDate || submitting || hasActiveHold) return;
     if (slot.available === false) return;
     const key = slotKey(selectedDate, slot.startTime);
     if (selectedSlots.some((s) => slotKey(s.date, s.startTime) === key)) {
       setSelectedSlots((prev) => prev.filter((s) => slotKey(s.date, s.startTime) !== key));
+      setHoursLimitHint(null);
       return;
     }
     const candidate = { date: selectedDate, startTime: slot.startTime, endTime: slot.endTime };
@@ -854,6 +923,13 @@ export default function BookingFlowPage() {
       toast.warning("This slot overlaps with one you've already selected");
       return;
     }
+    if (maxHours > 0 && selectedSlots.length + 1 > maxHours) {
+      const message = hoursLimitMessage(selectedSlots.length + 1);
+      setHoursLimitHint(message);
+      toast.warning(message);
+      return;
+    }
+    setHoursLimitHint(null);
     setSelectedSlots((prev) => [...prev, candidate]);
   };
 
@@ -865,6 +941,13 @@ export default function BookingFlowPage() {
 
   const applyDurationChip = (hrs: number) => {
     if (!selectedDate || submitting || hasActiveHold) return;
+    if (maxHours > 0 && hrs > maxHours) {
+      const message = hoursLimitMessage(hrs);
+      setHoursLimitHint(message);
+      toast.warning(message);
+      return;
+    }
+    setHoursLimitHint(null);
     setDurationHrs(hrs);
     const run = findContiguousRun(availableSlots, hrs);
     if (!run) {
@@ -981,15 +1064,16 @@ export default function BookingFlowPage() {
     editing: SelectedEditingAddOn | null = selectedEditing
   ) => {
     const holdIds = holds.map((h) => h.holdId);
-    const hours = slots.length;
-    const micCost = bookingService.computeExtraMicCost(mics, extraMicPricePerHour, hours);
+    const units = resolveBillableUnits(pkg?.pricingMode, slots.length);
+    const micCost = bookingService.computeExtraMicCost(mics, extraMicPricePerHour, units);
     const editCost = Math.max(0, Number(editing?.price) || 0);
     const totals = bookingService.computeBookingTotal(
       pkg?.price || 0,
       slots.length,
       extras,
       micCost,
-      editCost
+      editCost,
+      pkg?.pricingMode
     );
     const data: StoredBookingData = {
       holdId: holdIds[0],
@@ -999,6 +1083,7 @@ export default function BookingFlowPage() {
       packageType: pkg?.type,
       packagePrice: pkg?.price,
       packageDuration: pkg?.durationMinutes,
+      pricingMode: pkg?.pricingMode || "hourly",
       date: slots[0]?.date,
       startTime: slots[0]?.startTime,
       endTime: slots[0]?.endTime,
@@ -1067,6 +1152,12 @@ export default function BookingFlowPage() {
 
   const handleConfirmSlots = async () => {
     if (!selectedSlots.length || submitting || hasActiveHold || !resolvedPackageId) return;
+    if (maxHours > 0 && selectedSlots.length > maxHours) {
+      const message = hoursLimitMessage(selectedSlots.length);
+      setHoursLimitHint(message);
+      toast.error(message);
+      return;
+    }
     setSubmitting(true);
     setProgress(40);
     try {
@@ -1118,21 +1209,24 @@ export default function BookingFlowPage() {
   const selectedDateLabel = selectedDate
     ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
     : "";
-  const summaryWhenLabel = displaySlots[0]?.date
-    ? new Date(`${displaySlots[0].date}T12:00:00`).toLocaleDateString("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : selectedDate
-      ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : "Choose a date";
+  const summaryWhenLabel = (() => {
+    if (isMultiDayBooking) {
+      const first = slotDateGroups[0].date;
+      const last = slotDateGroups[slotDateGroups.length - 1].date;
+      const year = new Date(`${last}T12:00:00`).getFullYear();
+      return `${slotDateGroups.length} dates · ${formatSlotDateLabel(first)} – ${formatSlotDateLabel(
+        last
+      )} ${year}`;
+    }
+    const date = displaySlots[0]?.date || selectedDate;
+    if (!date) return "Choose a date";
+    return new Date(`${date}T12:00:00`).toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  })();
 
   const slotsOnSelectedDate = displaySlots
     .filter((s) => s.date === selectedDate)
@@ -1217,11 +1311,15 @@ export default function BookingFlowPage() {
   }, [siblingPackages, pkg]);
 
   const rateLine =
-    displaySlots.length > 0
-      ? `${bookingService.formatPrice(pricing.totalPrice / displaySlots.length)} per hour · ${displaySlots.length} ${
-          displaySlots.length === 1 ? "hr" : "hrs"
-        } total`
-      : "\u00a0";
+    displaySlots.length === 0
+      ? "\u00a0"
+      : fixedPrice
+        ? `${bookingService.formatPrice(pricing.totalPrice)} · ${displaySlots.length} ${
+            displaySlots.length === 1 ? "hr" : "hrs"
+          } total`
+        : `${bookingService.formatPrice(pricing.totalPrice / displaySlots.length)} per hour · ${displaySlots.length} ${
+            displaySlots.length === 1 ? "hr" : "hrs"
+          } total`;
 
   if (loading || submitting) {
     return (
@@ -1334,7 +1432,7 @@ export default function BookingFlowPage() {
                       </span>
                       <u className="bf-pk__price">
                         {bookingService.formatPrice(p.price)}
-                        {dur ? ` / ${dur}` : ""}
+                        {isFixedPricePackage(p) ? "" : dur ? ` / ${dur}` : ""}
                       </u>
                     </button>
                   );
@@ -1396,7 +1494,9 @@ export default function BookingFlowPage() {
                   <div className="bf-crow">
                     <span className="bf-mono bf-clab">How long</span>
                     <div className="bf-copts">
-                      {DURATION_OPTIONS.map((opt) => (
+                      {DURATION_OPTIONS.filter(
+                        (opt) => maxHours <= 0 || opt.hrs <= maxHours
+                      ).map((opt) => (
                         <button
                           key={opt.hrs}
                           type="button"
@@ -1409,7 +1509,11 @@ export default function BookingFlowPage() {
                         </button>
                       ))}
                     </div>
-                    <span className="bf-cnote">Book from 1 hour</span>
+                    <span className="bf-cnote">
+                      {maxHours > 0
+                        ? `Book 1 to ${maxHours} hour${maxHours === 1 ? "" : "s"}`
+                        : "Book from 1 hour"}
+                    </span>
                   </div>
 
                   <div className="bf-crow">
@@ -1450,7 +1554,8 @@ export default function BookingFlowPage() {
                     <span>
                       <b>{guestCount} guests selected.</b> {pkg?.name} includes{" "}
                       {includedMics} microphone{includedMics === 1 ? "" : "s"}, so you need{" "}
-                      <b>{micsShort}</b> more at £{extraMicPricePerHour.toFixed(0)}/hr.
+                      <b>{micsShort}</b> more at £{extraMicPricePerHour.toFixed(0)}
+                      {fixedPrice ? " each" : "/hr"}.
                     </span>
                     <button
                       type="button"
@@ -1465,6 +1570,12 @@ export default function BookingFlowPage() {
                 {durationHint && (
                   <div className="bf-hint" role="status">
                     <b>{durationHint}</b>
+                  </div>
+                )}
+
+                {hoursLimitHint && (
+                  <div className="bf-hint" role="alert">
+                    <b>{hoursLimitHint}</b>
                   </div>
                 )}
 
@@ -1731,6 +1842,7 @@ export default function BookingFlowPage() {
                         const imageUrl = bookingService.resolveImageUrl(extra.image);
                         const quantityEnabled = Boolean(extra.quantityEnabled);
                         const qty = getExtraQuantity(index);
+                        const extraPricing = resolveExtraPricing(extra);
                         return (
                           <div key={`${extra.title}-${index}`} className="bf-xrow">
                             <div className={`bf-xthumb${imageUrl ? "" : " ico"}`}>
@@ -1743,12 +1855,26 @@ export default function BookingFlowPage() {
                               )}
                             </div>
                             <div className="bf-xinfo">
-                              <b>{extra.title}</b>
+                              <b>
+                                {extra.title}
+                                {extraPricing.hasDiscount ? (
+                                  <i className="bf-xoff">{extraPricing.discountPercent}% OFF</i>
+                                ) : null}
+                              </b>
                               {extra.description ? <span>{extra.description}</span> : null}
                             </div>
                             <div className="bf-xprice">
-                              +{bookingService.formatPrice(extra.price || 0)}
-                              <small>{quantityEnabled ? "each, per hour" : "per hour"}</small>
+                              {extraPricing.hasDiscount ? (
+                                <span className="bf-xwas">
+                                  {bookingService.formatPrice(extraPricing.originalPrice)}
+                                </span>
+                              ) : null}
+                              +{bookingService.formatPrice(extraPricing.unitPrice)}
+                              {fixedPrice ? (
+                                quantityEnabled ? <small>each</small> : null
+                              ) : (
+                                <small>{quantityEnabled ? "each, per hour" : "per hour"}</small>
+                              )}
                             </div>
                             {quantityEnabled ? (
                               <div className="bf-xqty-wrap">
@@ -1898,37 +2024,48 @@ export default function BookingFlowPage() {
                           <em>
                             {displaySlots.length}{" "}
                             {displaySlots.length === 1 ? "hr booked" : "hrs booked"}
+                            {isMultiDayBooking
+                              ? ` across ${slotDateGroups.length} dates`
+                              : ""}
                           </em>
                         </span>
                         <span className="v">{bookingService.formatPrice(pricing.slotsSubtotal)}</span>
                       </div>
 
                       <div className="bf-hrlist">
-                        {displaySlots
-                          .slice()
-                          .sort((a, b) =>
-                            a.date === b.date
-                              ? a.startTime.localeCompare(b.startTime)
-                              : a.date.localeCompare(b.date)
-                          )
-                          .map((slot) => (
-                            <div key={slotKey(slot.date, slot.startTime)} className="bf-hrline">
-                              <span className="bt" aria-hidden="true" />
-                              <span className="tt">
-                                {addOneHourLabel(slot.startTime, slot.endTime)}
-                              </span>
-                              {!hasActiveHold && (
-                                <button
-                                  type="button"
-                                  className="bf-srm"
-                                  aria-label={`Remove ${slot.startTime}`}
-                                  onClick={() => removeSelectedSlot(slot.date, slot.startTime)}
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                        {slotDateGroups.map((group) => (
+                          <div key={group.date} className="bf-hrgroup">
+                            {isMultiDayBooking && (
+                              <div className="bf-hrgroup-h">
+                                <span>{formatSlotDateLabel(group.date)}</span>
+                                <em>
+                                  {group.slots.length}{" "}
+                                  {group.slots.length === 1 ? "hr" : "hrs"}
+                                </em>
+                              </div>
+                            )}
+                            {group.slots.map((slot) => (
+                              <div key={slotKey(slot.date, slot.startTime)} className="bf-hrline">
+                                <span className="bt" aria-hidden="true" />
+                                <span className="tt">
+                                  {addOneHourLabel(slot.startTime, slot.endTime)}
+                                </span>
+                                {!hasActiveHold && (
+                                  <button
+                                    type="button"
+                                    className="bf-srm"
+                                    aria-label={`Remove ${formatSlotDateLabel(slot.date)} ${
+                                      slot.startTime
+                                    }`}
+                                    onClick={() => removeSelectedSlot(slot.date, slot.startTime)}
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
                       </div>
 
                       {extraMics > 0 && (
@@ -1936,9 +2073,14 @@ export default function BookingFlowPage() {
                           <span className="l">
                             Extra microphone{extraMics === 1 ? "" : "s"}
                             <em>
-                              {extraMics} × {bookingService.formatPrice(extraMicPricePerHour)} per
-                              hour × {hoursBooked}
-                              {hoursBooked === 1 ? " hr" : " hrs"}
+                              {extraMics} × {bookingService.formatPrice(extraMicPricePerHour)}
+                              {fixedPrice ? null : (
+                                <>
+                                  {" "}
+                                  per hour × {hoursBooked}
+                                  {hoursBooked === 1 ? " hr" : " hrs"}
+                                </>
+                              )}
                             </em>
                           </span>
                           <span className="v">
@@ -1970,11 +2112,10 @@ export default function BookingFlowPage() {
                   )}
 
                   {selectedExtras.map((extra) => {
-                    const hrs = Math.max(hoursBooked, 0);
                     const qty = Math.max(1, Math.floor(Number(extra.quantity) || 1));
                     const lineTotal = bookingService.computeHourlyExtraCost(
                       extra.price,
-                      hrs,
+                      billableUnits,
                       qty
                     );
                     return (
@@ -1983,10 +2124,18 @@ export default function BookingFlowPage() {
                           {extra.title}
                           <em>
                             {qty > 1 ? `${qty} × ` : ""}
-                            {bookingService.formatPrice(extra.price)} per hour
-                            {hrs > 0
-                              ? ` × ${hrs}${hrs === 1 ? " hr" : " hrs"} booked`
-                              : ""}
+                            {bookingService.formatPrice(extra.price)}
+                            {fixedPrice
+                              ? ""
+                              : hoursBooked > 0
+                                ? ` per hour × ${hoursBooked}${hoursBooked === 1 ? " hr" : " hrs"} booked`
+                                : " per hour"}
+                            {extra.originalPrice && extra.discountPercent ? (
+                              <>
+                                {` · ${extra.discountPercent}% off `}
+                                <s>{bookingService.formatPrice(extra.originalPrice)}</s>
+                              </>
+                            ) : null}
                           </em>
                         </span>
                         <span className="v">

@@ -20,6 +20,8 @@ export interface BookingSettings {
   extraMicPricePerHour?: number;
 }
 
+export type BookingPricingMode = "hourly" | "fixed";
+
 export interface BookingPackage {
   _id: string;
   name: string;
@@ -28,6 +30,10 @@ export interface BookingPackage {
   durationMinutes: number;
   durationDisplayUnit?: "minutes" | "hours";
   price: number;
+  /** 'fixed' charges `price` once for the whole booking; 'hourly' charges it per booked hour. */
+  pricingMode?: BookingPricingMode;
+  /** Hours a customer may book in one go. 0 or undefined means no limit. */
+  maxHours?: number;
   /** Microphones included with this package. */
   includedMics?: number;
   /** Custom line under price on booking cards. */
@@ -91,6 +97,42 @@ export interface BookingPackageExtra {
   description?: string;
   /** When true, booking UI shows +/- quantity instead of Add toggle. */
   quantityEnabled?: boolean;
+  /** When true, `discountPrice` is charged and `price` is shown crossed out. */
+  discountEnabled?: boolean;
+  discountPrice?: number;
+}
+
+export interface ExtraPricing {
+  /** Amount actually charged per unit. */
+  unitPrice: number;
+  /** List price to show crossed out — 0 when there is no discount. */
+  originalPrice: number;
+  discountPercent: number;
+  hasDiscount: boolean;
+}
+
+/**
+ * Effective charge for a catalog extra. Mirrors the server-side resolver so the
+ * displayed price always matches what the booking is billed.
+ */
+export function resolveExtraPricing(
+  extra?: Pick<BookingPackageExtra, "price" | "discountEnabled" | "discountPrice"> | null
+): ExtraPricing {
+  const listPrice = Math.max(0, Number(extra?.price) || 0);
+  const discountPrice = Math.max(0, Number(extra?.discountPrice) || 0);
+  const hasDiscount =
+    Boolean(extra?.discountEnabled) && listPrice > 0 && discountPrice < listPrice;
+
+  if (!hasDiscount) {
+    return { unitPrice: listPrice, originalPrice: 0, discountPercent: 0, hasDiscount: false };
+  }
+
+  return {
+    unitPrice: discountPrice,
+    originalPrice: listPrice,
+    discountPercent: Math.round(((listPrice - discountPrice) / listPrice) * 100),
+    hasDiscount: true,
+  };
 }
 
 /** SEO slug from package title (hyphenated, lowercase). */
@@ -287,13 +329,17 @@ export function mergeBookingPageContent(raw: unknown): BookingPageContent {
 
 export interface SelectedBookingExtra {
   index: number;
-  title: string;
+  /** Amount charged per unit — already discounted when a discount is active. */
   price: number;
+  title: string;
   image?: string;
   description?: string;
   /** Selected quantity (1 for toggle extras; 1–9 when quantityEnabled). */
   quantity?: number;
   quantityEnabled?: boolean;
+  /** List price to show crossed out — absent when there is no discount. */
+  originalPrice?: number;
+  discountPercent?: number;
 }
 
 /** Flat per-episode editing add-on (from packages with type "editing"). */
@@ -375,6 +421,7 @@ export interface StoredBookingData {
   packageType?: string;
   packagePrice?: number;
   packageDuration?: number;
+  pricingMode?: BookingPricingMode;
   date?: string;
   startTime?: string;
   endTime?: string;
@@ -410,11 +457,14 @@ export interface Booking {
   status: string;
   paymentStatus: string;
   groupBookingNumber?: string;
+  /** Authoritative amount computed server-side (includes extras and pricing mode). */
+  totalAmount?: number;
   package?: {
     name: string;
     price: number;
     durationMinutes: number;
     durationDisplayUnit?: "minutes" | "hours";
+    pricingMode?: BookingPricingMode;
   };
 }
 
@@ -783,15 +833,17 @@ export class BookingService {
     slotCount: number,
     selectedExtras: SelectedBookingExtra[] = [],
     micSubtotal = 0,
-    editingSubtotal = 0
+    editingSubtotal = 0,
+    pricingMode: BookingPricingMode = "hourly"
   ) {
-    const hours = Math.max(0, Number(slotCount) || 0);
-    const slotsSubtotal = packagePrice * hours;
-    // Package extras are hourly rates — × quantity × booked hours.
+    // Fixed-price packages bill a single unit however many hours are picked.
+    const units = resolveBillableUnits(pricingMode, slotCount);
+    const slotsSubtotal = packagePrice * units;
+    // Package extras are hourly rates — × quantity × billable units.
     const extrasSubtotal = selectedExtras.reduce((sum, extra) => {
       const unit = Math.max(0, Number(extra.price) || 0);
       const qty = Math.max(1, Math.floor(Number(extra.quantity) || 1));
-      return sum + unit * qty * hours;
+      return sum + unit * qty * units;
     }, 0);
     const mics = Math.max(0, Number(micSubtotal) || 0);
     const editing = Math.max(0, Number(editingSubtotal) || 0);
@@ -821,6 +873,34 @@ export class BookingService {
 }
 
 export const bookingService = BookingService.init();
+
+/** True when a package charges one flat price instead of a per-hour rate. */
+export function isFixedPricePackage(
+  pkg?: Pick<BookingPackage, "pricingMode"> | null
+): boolean {
+  return (pkg?.pricingMode || "hourly") === "fixed";
+}
+
+/** Hours cap for a package. 0 means unlimited. */
+export function resolveMaxHours(
+  pkg?: Pick<BookingPackage, "maxHours"> | null
+): number {
+  const hours = Math.floor(Number(pkg?.maxHours) || 0);
+  return hours > 0 ? hours : 0;
+}
+
+/**
+ * Multiplier applied to every per-hour rate (package price, extras, mics).
+ * Hourly packages bill one unit per booked hour; fixed packages bill a single unit.
+ */
+export function resolveBillableUnits(
+  pricingMode: BookingPricingMode | undefined,
+  slotCount: number
+): number {
+  const slots = Math.max(0, Math.floor(Number(slotCount) || 0));
+  if (slots === 0) return 0;
+  return pricingMode === "fixed" ? 1 : slots;
+}
 
 /** True when a package is an editing add-on (not a standalone bookable service). */
 export function isEditingPackage(pkg: Pick<BookingPackage, 'type' | 'slug' | 'name'>): boolean {

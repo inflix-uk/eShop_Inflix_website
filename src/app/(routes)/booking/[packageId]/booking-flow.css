@@ -1176,11 +1176,34 @@
   margin-top: 2px;
 }
 
+/* Admin discount badge on an extra. */
+.booking-flow-v3 .bf-xoff {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bf-green);
+  color: #0b0b0b;
+  font-family: "IBM Plex Mono", monospace;
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .booking-flow-v3 .bf-xprice {
   font-family: "IBM Plex Mono", monospace;
   font-size: 12.5px;
   color: var(--bf-green);
   white-space: nowrap;
+}
+
+.booking-flow-v3 .bf-xwas {
+  margin-right: 6px;
+  color: var(--bf-muted);
+  text-decoration: line-through;
 }
 
 .booking-flow-v3 .bf-xprice small {
@@ -1414,6 +1437,32 @@
   margin: 2px 0 6px 2px;
   padding-left: 11px;
   border-left: 1px solid var(--bf-line-soft);
+}
+
+/* One block of hours per booked date. */
+.booking-flow-v3 .bf-hrgroup + .bf-hrgroup {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bf-line-soft);
+}
+
+.booking-flow-v3 .bf-hrgroup-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bf-green);
+  padding: 2px 0 1px;
+}
+
+.booking-flow-v3 .bf-hrgroup-h em {
+  font-style: normal;
+  color: var(--bf-muted);
+  letter-spacing: 0.1em;
 }
 
 .booking-flow-v3 .bf-hrline {
@@ -1775,6 +1824,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+  }
+
+  .booking-flow-v3 .bf-hrgroup {
+    width: 100%;
+  }
+
+  .booking-flow-v3 .bf-hrgroup-h {
+    justify-content: center;
   }
 
   .booking-flow-v3 .bf-hrline {
