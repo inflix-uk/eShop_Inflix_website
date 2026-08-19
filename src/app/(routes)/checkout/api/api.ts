@@ -27,7 +27,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   success?: boolean;
   status?: number;
-  user: User;
+  user?: User;
   message?: string;
 }
 
@@ -241,8 +241,26 @@ export class CheckoutApi {
   // ============================================================================
 
   async login(data: LoginRequest): Promise<LoginResponse> {
-    const response = await axios.post(`${this.baseUrl}/login`, data);
-    return response.data;
+    const response = await fetch(`${this.baseUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    const payload = (await response.json().catch(() => ({}))) as LoginResponse;
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        message:
+          payload?.message ||
+          (response.status === 429
+            ? 'Too many login attempts. Please try again later.'
+            : 'Invalid email or password'),
+        user: payload?.user,
+      };
+    }
+    return payload;
   }
 
   async register(data: RegisterRequest): Promise<RegisterResponse> {
@@ -293,12 +311,13 @@ export class CheckoutApi {
 
   async getStripeConfig(): Promise<StripeConfigResponse> {
     const response = await fetch(`${this.baseUrl}/config`);
+    const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch Stripe config: ${response.statusText}`);
+    if (!response.ok || !data.publishableKey) {
+      throw new Error(data.error || `Failed to fetch Stripe config: ${response.statusText}`);
     }
 
-    return response.json();
+    return data;
   }
 
   async retrievePaymentDetails(data: RetrievePaymentDetailsRequest): Promise<RetrievePaymentDetailsResponse> {
