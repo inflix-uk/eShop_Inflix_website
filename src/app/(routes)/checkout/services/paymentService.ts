@@ -26,7 +26,7 @@ export class PaymentService {
       const response = await api.getStripeConfig();
       return await loadStripe(response.publishableKey);
     } catch (error) {
-      console.error('Failed to load Stripe:', error);
+      console.warn('Failed to load Stripe:', error instanceof Error ? error.message : error);
       return null;
     }
   }

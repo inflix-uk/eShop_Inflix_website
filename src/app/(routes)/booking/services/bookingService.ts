@@ -34,6 +34,8 @@ export interface BookingPackage {
   pricingMode?: BookingPricingMode;
   /** Hours a customer may book in one go. 0 or undefined means no limit. */
   maxHours?: number;
+  /** Editing packages: working days until delivery. 0 hides the line. */
+  turnaroundDays?: number;
   /** Microphones included with this package. */
   includedMics?: number;
   /** Custom line under price on booking cards. */
@@ -100,6 +102,10 @@ export interface BookingPackageExtra {
   /** When true, `discountPrice` is charged and `price` is shown crossed out. */
   discountEnabled?: boolean;
   discountPrice?: number;
+  /** Shown under the extra price, e.g. "per episode". */
+  unitLabel?: string;
+  /** When true the extra cannot be added and shows "Price TBC". */
+  priceTbc?: boolean;
 }
 
 export interface ExtraPricing {
@@ -133,6 +139,13 @@ export function resolveExtraPricing(
     discountPercent: Math.round(((listPrice - discountPrice) / listPrice) * 100),
     hasDiscount: true,
   };
+}
+
+/** TBC is unused — extras always have a price. Zero-price extras cannot be added. */
+export function isExtraPriceTbc(
+  extra?: Pick<BookingPackageExtra, "price" | "priceTbc" | "discountEnabled" | "discountPrice"> | null
+): boolean {
+  return resolveExtraPricing(extra).unitPrice <= 0;
 }
 
 /** SEO slug from package title (hyphenated, lowercase). */
@@ -340,6 +353,8 @@ export interface SelectedBookingExtra {
   /** List price to show crossed out — absent when there is no discount. */
   originalPrice?: number;
   discountPercent?: number;
+  unitLabel?: string;
+  priceTbc?: boolean;
 }
 
 /** Flat per-episode editing add-on (from packages with type "editing"). */
@@ -437,6 +452,13 @@ export interface StoredBookingData {
   micSubtotal?: number;
   selectedEditing?: SelectedEditingAddOn | null;
   editingSubtotal?: number;
+  /** Editing (queue) bookings have no calendar slot. */
+  kind?: "slot" | "editing";
+  episodeCount?: number;
+  episodeLengthMinutes?: number;
+  fileSource?: "studio" | "link";
+  fileLink?: string;
+  fileLinkLater?: boolean;
 }
 
 export interface CustomerInfo {
@@ -900,6 +922,42 @@ export function resolveBillableUnits(
   const slots = Math.max(0, Math.floor(Number(slotCount) || 0));
   if (slots === 0) return 0;
   return pricingMode === "fixed" ? 1 : slots;
+}
+
+/**
+ * How many times an editing extra is billed.
+ * "per order" / "per reel" stay flat; default is per episode.
+ */
+export function resolveEditingExtraUnits(
+  unitLabel: string | undefined,
+  episodeCount: number,
+  quantity = 1
+): number {
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+  const episodes = Math.max(1, Math.floor(Number(episodeCount) || 1));
+  const label = String(unitLabel || "per episode").toLowerCase();
+  if (label.includes("order") || label.includes("reel")) return qty;
+  return qty * episodes;
+}
+
+export function computeEditingTotal(
+  packagePrice: number,
+  episodeCount: number,
+  selectedExtras: SelectedBookingExtra[] = []
+) {
+  const episodes = Math.max(1, Math.floor(Number(episodeCount) || 1));
+  const price = Math.max(0, Number(packagePrice) || 0);
+  const slotsSubtotal = Math.round(price * episodes * 100) / 100;
+  const extrasSubtotal = selectedExtras.reduce((sum, extra) => {
+    if (isExtraPriceTbc(extra)) return sum;
+    const unit = Math.max(0, Number(extra.price) || 0);
+    return sum + unit * resolveEditingExtraUnits(extra.unitLabel, episodes, extra.quantity);
+  }, 0);
+  return {
+    slotsSubtotal,
+    extrasSubtotal: Math.round(extrasSubtotal * 100) / 100,
+    totalPrice: Math.round((slotsSubtotal + extrasSubtotal) * 100) / 100,
+  };
 }
 
 /** True when a package is an editing add-on (not a standalone bookable service). */

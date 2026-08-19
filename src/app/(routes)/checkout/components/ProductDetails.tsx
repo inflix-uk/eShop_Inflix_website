@@ -47,7 +47,8 @@ export interface CheckoutBookingExtra {
   title: string;
   image?: string;
   description?: string;
-  /** List price to show crossed out — absent when there is no discount. */
+  quantity?: number;
+  unitLabel?: string;
   originalPrice?: number;
   discountPercent?: number;
 }
@@ -67,7 +68,7 @@ export interface CheckoutBookingData {
   endTime?: string;
   slots: CheckoutBookingSlot[];
   holdExpiresAt: string;
-  sessionId: string;
+  sessionId?: string;
   totalPrice: number;
   selectedExtras?: CheckoutBookingExtra[];
   slotsSubtotal?: number;
@@ -83,6 +84,12 @@ export interface CheckoutBookingData {
     image?: string;
   } | null;
   editingSubtotal?: number;
+  kind?: "slot" | "editing";
+  episodeCount?: number;
+  episodeLengthMinutes?: number;
+  fileSource?: "studio" | "link";
+  fileLink?: string;
+  fileLinkLater?: boolean;
 }
 
 interface ProductDetailsProps {
@@ -182,10 +189,11 @@ const ProductDetails: FC<ProductDetailsProps> = ({
     ? [{ date: bookingData.date, startTime: bookingData.startTime, endTime: bookingData.endTime || bookingData.startTime }]
     : [];
   const selectedExtras = bookingData?.selectedExtras || [];
+  const isEditingOrder = bookingData?.kind === "editing";
+  const episodeCount = Math.max(1, Math.floor(Number(bookingData?.episodeCount) || 1));
   const bookingHours = Math.max(bookingSlots.length, 0);
   const bookingFixedPrice = bookingData?.pricingMode === "fixed";
-  // Fixed-price packages bill a single unit however many hours were picked.
-  const bookingUnits = bookingFixedPrice ? 1 : bookingHours;
+  const bookingUnits = isEditingOrder ? episodeCount : bookingFixedPrice ? 1 : bookingHours;
   const slotsSubtotal =
     bookingData?.slotsSubtotal ??
     (bookingData?.packagePrice ?? 0) * Math.max(bookingUnits, 1);
@@ -202,7 +210,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
   const bookingAmount =
     bookingData?.totalPrice ?? slotsSubtotal + extrasSubtotal;
   const combinedSubtotal = numericTotalSalePrice + bookingAmount;
-  const isBookingOnly = !!bookingData && products.length === 0;
+  const isBookingOnly = !!bookingData;
 
   const [isCouponApplied, setIsCouponApplied] = useState<boolean>(false);
   const [discountedPrice, setDiscountedPrice] = useState<number>(
@@ -315,8 +323,22 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                     </p>
                   </h4>
                   <p className="text-xs text-gray-500 mt-1 capitalize">
-                    {bookingData.packageType} • {bookingData.packageDuration} mins per slot
+                    {isEditingOrder
+                      ? `Editing • ${episodeCount} episode${episodeCount === 1 ? "" : "s"} • up to ${bookingData.episodeLengthMinutes || bookingData.packageDuration} min`
+                      : `${bookingData.packageType} • ${bookingData.packageDuration} mins per slot`}
                   </p>
+                  {isEditingOrder ? (
+                    <ul className="mt-2 space-y-1.5">
+                      <li className="text-sm text-gray-700">
+                        Files:{" "}
+                        {bookingData.fileSource === "studio"
+                          ? "Recorded at the studio"
+                          : bookingData.fileLinkLater
+                            ? "Link within 48 hrs"
+                            : bookingData.fileLink || "Link"}
+                      </li>
+                    </ul>
+                  ) : (
                   <ul className="mt-2 space-y-1.5">
                     {bookingSlots.map((slot) => (
                       <li key={`${slot.date}-${slot.startTime}`} className="text-sm text-gray-700">
@@ -324,13 +346,20 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                       </li>
                     ))}
                   </ul>
+                  )}
                   {selectedExtras.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Extras</p>
                       <ul className="space-y-1">
                         {selectedExtras.map((extra) => {
-                          const line =
-                            (extra.price || 0) * Math.max(bookingUnits, 0);
+                          const qty = Math.max(1, Math.floor(Number(extra.quantity) || 1));
+                          const label = String(extra.unitLabel || "per episode").toLowerCase();
+                          const extraUnits = isEditingOrder
+                            ? label.includes("order") || label.includes("reel")
+                              ? qty
+                              : qty * episodeCount
+                            : qty * Math.max(bookingUnits, 0);
+                          const line = (extra.price || 0) * extraUnits;
                           return (
                           <li key={`${extra.index}-${extra.title}`} className="text-sm text-gray-700 flex justify-between gap-2">
                             <span>
@@ -427,7 +456,7 @@ const ProductDetails: FC<ProductDetailsProps> = ({
                   )}
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm">Qty: {bookingSlots.length || 1}</p>
+                    <p className="text-sm">Qty: {isEditingOrder ? episodeCount : bookingSlots.length || 1}</p>
                 </div>
               </div>
             </div>

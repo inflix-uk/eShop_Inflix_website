@@ -372,6 +372,11 @@ export const useCheckout = () => {
 
       const cartData = JSON.parse(localStorage.getItem('cart') || '[]');
 
+      if (localStorage.getItem('bookingData')) {
+        console.log('Booking checkout — skipping product PaymentIntent');
+        return;
+      }
+
       if (cartData.length === 0) {
         console.log('No products in cart, skipping PaymentIntent creation');
         return;
@@ -573,28 +578,28 @@ export const useCheckout = () => {
         auth.login(response.user);
         setProgress(100);
         return response.user;
-      } else if (response && response.message) {
-        // Handle API error (e.g., "Invalid password", "User not found")
-        const errorMessage = response.message.toLowerCase();
-        if (errorMessage.includes('password')) {
-          setErrors(prev => ({
-            ...prev,
-            password: response.message || 'Invalid password'
-          }));
-        } else {
-          setErrors(prev => ({
-            ...prev,
-            email: response.message || 'Login failed'
-          }));
-        }
-        setProgress(100);
-        return false;
-      } else {
-        setProgress(100);
-        return false;
       }
-    } catch (error) {
-      console.error('Login failed:', error);
+
+      const failMessage = response && 'message' in response && response.message
+        ? String(response.message)
+        : 'Invalid email or password';
+      const errorMessage = failMessage.toLowerCase();
+      if (errorMessage.includes('password') || errorMessage.includes('invalid')) {
+        setErrors((prev) => ({
+          ...prev,
+          password: failMessage,
+        }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          email: failMessage,
+        }));
+      }
+      toast.error(failMessage);
+      setProgress(100);
+      return false;
+    } catch {
+      toast.error('Login failed. Please try again.');
       setProgress(100);
       return false;
     }

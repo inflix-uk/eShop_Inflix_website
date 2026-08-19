@@ -137,7 +137,7 @@ export default function CheckoutPage() {
     expressShippingRates,
   } = useCheckout();
 
-  const isBookingOnly = hasBooking && products.length === 0;
+  const isBookingOnly = hasBooking;
   const activeClientSecret = isBookingOnly ? bookingClientSecret : clientSecret;
   const beginCheckoutTracked = useRef(false);
   const bnplAmountPence =
@@ -209,8 +209,12 @@ export default function CheckoutPage() {
       parsed.holdIds ||
       (parsed.holdId ? [parsed.holdId] : slots.map((s) => s.holdId).filter(Boolean) as string[]);
     const selectedExtras = parsed.selectedExtras || [];
-    // Fixed-price packages bill a single unit however many hours were picked.
-    const units = parsed.pricingMode === "fixed" ? 1 : Math.max(slots.length, 1);
+    const isEditing = parsed.kind === "editing";
+    const units = isEditing
+      ? Math.max(1, Math.floor(Number(parsed.episodeCount) || 1))
+      : parsed.pricingMode === "fixed"
+        ? 1
+        : Math.max(slots.length, 1);
     const slotsSubtotal =
       parsed.slotsSubtotal ?? (parsed.packagePrice || 0) * units;
     const editing =
@@ -244,8 +248,12 @@ export default function CheckoutPage() {
   const getBookingTotal = (data: CheckoutBookingData) => {
     if (data.totalPrice != null) return data.totalPrice;
     const hours = Math.max(data.slots?.length || 1, 1);
-    // Fixed-price packages bill a single unit however many hours were picked.
-    const units = data.pricingMode === "fixed" ? 1 : hours;
+    const units =
+      data.kind === "editing"
+        ? Math.max(1, Math.floor(Number(data.episodeCount) || 1))
+        : data.pricingMode === "fixed"
+          ? 1
+          : hours;
     const packagePrice = Number(data.packagePrice) || 0;
     const slotsSubtotal = data.slotsSubtotal ?? packagePrice * units;
     const catalogExtras = (data.selectedExtras || []).reduce(
@@ -317,7 +325,7 @@ export default function CheckoutPage() {
       try {
         const parsed = normalizeCheckoutBooking(JSON.parse(raw) as CheckoutBookingData);
 
-        if (isBookingHoldExpired(parsed.holdExpiresAt)) {
+        if (isBookingHoldExpired(parsed.holdExpiresAt) && parsed.kind !== "editing") {
           if (!cancelled) {
             await clearExpiredBooking(parsed);
           }
@@ -397,7 +405,7 @@ export default function CheckoutPage() {
 
   // Booking hold expiry check (while user stays on checkout)
   useEffect(() => {
-    if (!bookingHoldExpiry || !bookingData) return;
+    if (!bookingHoldExpiry || !bookingData || bookingData.kind === "editing") return;
 
     const checkExpiry = () => {
       if (isBookingHoldExpired(bookingHoldExpiry)) {
@@ -414,13 +422,13 @@ export default function CheckoutPage() {
   const handleBookingCheckout = async () => {
     if (!bookingData) return;
 
-    if (isBookingHoldExpired(bookingData.holdExpiresAt)) {
+    if (bookingData.kind !== "editing" && isBookingHoldExpired(bookingData.holdExpiresAt)) {
       await clearExpiredBooking(bookingData);
       return;
     }
 
     const holdIds = getBookingHoldIds(bookingData);
-    if (holdIds.length && bookingData.sessionId) {
+    if (bookingData.kind !== "editing" && holdIds.length && bookingData.sessionId) {
       const verifyRes = await fetch(`${API_URL}verify/booking/holds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -467,7 +475,21 @@ export default function CheckoutPage() {
       const holdIds = getBookingHoldIds(bookingData);
       const totalAmount = getBookingTotal(bookingData);
       const selectedExtras = bookingData.selectedExtras || [];
-      const bookingPayload = holdIds.length > 1
+      const bookingPayload =
+        bookingData.kind === "editing"
+          ? {
+              packageId: bookingData.packageId,
+              bookingMode: "queue",
+              customer: customerInfo,
+              notes: "",
+              extras: selectedExtras,
+              episodeCount: bookingData.episodeCount || 1,
+              episodeLengthMinutes: bookingData.episodeLengthMinutes || bookingData.packageDuration,
+              fileSource: bookingData.fileSource || "link",
+              fileLink: bookingData.fileLink || "",
+              fileLinkLater: Boolean(bookingData.fileLinkLater),
+            }
+          : holdIds.length > 1
         ? {
             holdIds,
             customer: customerInfo,

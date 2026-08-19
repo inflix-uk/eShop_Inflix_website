@@ -5,7 +5,7 @@ import { api, RegisterRequest } from '../api';
 export interface LoginResponse {
   success?: boolean;
   status?: number;
-  user: User;
+  user?: User;
   message?: string;
 }
 
@@ -29,23 +29,21 @@ export class AuthService {
     try {
       const response = await api.login({ email, password });
 
-      // Backend sendLoginSuccess returns { success, message, user } (no status: 201)
       if (response?.user?._id || response?.success) {
         return response;
       }
-      // Return the response with error message (e.g., "Invalid password")
-      return response;
-    } catch (error: any) {
-      console.error('Login failed:', error);
-      // Return error message from API response
-      if (error.response?.data?.message) {
-        return {
-          status: error.response.status || 401,
-          message: error.response.data.message,
-          user: {} as any
-        };
-      }
-      return false;
+
+      return {
+        status: response?.status || 401,
+        message: response?.message || 'Invalid email or password',
+        user: response?.user,
+      };
+    } catch {
+      return {
+        status: 500,
+        message: 'Login failed. Please try again.',
+        user: undefined,
+      };
     }
   }
 

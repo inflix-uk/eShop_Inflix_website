@@ -65,25 +65,9 @@ export interface GetAddressResult {
 
 export class AddressService {
   private static readonly POSTCODES_IO_BASE = 'https://api.postcodes.io';
-  private static readonly GETADDRESS_BASE = 'https://api.getAddress.io';
-  private getAddressApiKey: string | null = null;
-  private domainToken: string | null = null;
 
-  constructor(getAddressApiKey?: string, domainToken?: string) {
-    this.getAddressApiKey = getAddressApiKey || process.env.NEXT_PUBLIC_GETADDRESS_API_KEY || null;
-    this.domainToken = domainToken || process.env.NEXT_PUBLIC_GETADDRESS_DOMAIN_TOKEN || null;
-  }
-
-  static init(getAddressApiKey?: string, domainToken?: string): AddressService {
-    return new AddressService(getAddressApiKey, domainToken);
-  }
-
-  /**
-   * Get the appropriate API key or domain token for requests
-   */
-  private getApiCredential(): string | null {
-    // Prefer domain token for browser security, fallback to API key
-    return this.domainToken || this.getAddressApiKey;
+  static init(): AddressService {
+    return new AddressService();
   }
 
   /**
@@ -133,29 +117,17 @@ export class AddressService {
    * Lookup addresses by postcode using GetAddress.io
    */
   async lookupAddressByPostcode(postcode: string): Promise<AddressLookupResponse> {
-    if (!this.getAddressApiKey) {
-      return {
-        addresses: [],
-        success: false,
-        message: 'GetAddress API key not configured',
-      };
-    }
-
     try {
       const cleanPostcode = postcode.replace(/\s+/g, '');
 
-      const response = await axios.get(
-        `https://api.getAddress.io/find/${cleanPostcode}`,
-        {
-          headers: {
-            'api-key': this.getAddressApiKey,
-          },
-        }
+      const response = await fetch(
+        `/api/address/find?postcode=${encodeURIComponent(cleanPostcode)}`
       );
+      const data = await response.json().catch(() => null);
 
-      if (response.data && response.data.addresses) {
-        const addresses: AddressLookupResult[] = response.data.addresses.map((addr: string) => {
-          const parts = addr.split(', ');
+      if (data?.success && Array.isArray(data.addresses)) {
+        const addresses: AddressLookupResult[] = data.addresses.map((addr: string) => {
+          const parts = String(addr).split(', ');
           return {
             line_1: parts[0] || '',
             line_2: parts[1] || '',
@@ -175,24 +147,13 @@ export class AddressService {
       return {
         addresses: [],
         success: false,
-        message: 'No addresses found for this postcode',
+        message: data?.message || 'No addresses found for this postcode',
       };
-    } catch (error: any) {
-      console.error('Address lookup failed:', error);
-
-      let message = 'Address lookup failed';
-      if (error.response?.status === 401) {
-        message = 'Invalid API key';
-      } else if (error.response?.status === 404) {
-        message = 'Postcode not found';
-      } else if (error.response?.status === 429) {
-        message = 'Too many requests. Please try again later.';
-      }
-
+    } catch {
       return {
         addresses: [],
         success: false,
-        message,
+        message: 'Address lookup failed',
       };
     }
   }
@@ -216,50 +177,24 @@ export class AddressService {
       };
     } = {}
   ): Promise<AutocompleteSuggestion[]> {
-    const credential = this.getApiCredential();
-    if (!credential) {
-      console.warn('GetAddress API key or domain token not configured');
-      return [];
-    }
-
     if (term.length < 3) {
       return [];
     }
 
     try {
       const params = new URLSearchParams({
-        'api-key': credential,
-        top: (options.top || 6).toString(),
+        term,
+        top: String(options.top || 6),
       });
 
-      const requestBody: any = {};
-
-      if (options.filter) {
-        requestBody.filter = options.filter;
-      }
-
-      if (options.location) {
-        requestBody.location = options.location;
-      }
-
-      const url = `${AddressService.GETADDRESS_BASE}/autocomplete/${encodeURIComponent(term)}?${params}`;
-
-      const response = await fetch(url, {
-        method: Object.keys(requestBody).length > 0 ? 'POST' : 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: Object.keys(requestBody).length > 0 ? JSON.stringify(requestBody) : undefined,
-      });
-
+      const response = await fetch(`/api/address/autocomplete?${params}`);
       if (!response.ok) {
-        throw new Error(`Autocomplete failed: ${response.statusText}`);
+        return [];
       }
 
       const data: AutocompleteResponse = await response.json();
       return data.suggestions || [];
-    } catch (error) {
-      console.error('Autocomplete failed:', error);
+    } catch {
       return [];
     }
   }
@@ -268,25 +203,18 @@ export class AddressService {
    * Get full address details by suggestion ID
    */
   async getAddressById(id: string): Promise<GetAddressResult | null> {
-    const credential = this.getApiCredential();
-    if (!credential) {
-      console.warn('GetAddress API key or domain token not configured');
-      return null;
-    }
-
     try {
       const response = await fetch(
-        `${AddressService.GETADDRESS_BASE}/get/${id}?api-key=${credential}`
+        `/api/address/details?id=${encodeURIComponent(id)}`
       );
 
       if (!response.ok) {
-        throw new Error(`Get address failed: ${response.statusText}`);
+        return null;
       }
 
       const data: GetAddressResult = await response.json();
       return data;
-    } catch (error) {
-      console.error('Get address failed:', error);
+    } catch {
       return null;
     }
   }

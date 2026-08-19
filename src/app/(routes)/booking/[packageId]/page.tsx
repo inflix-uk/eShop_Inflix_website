@@ -34,6 +34,7 @@ import {
 } from "@/app/lib/bookingModuleThemeUtils";
 import { formatDuration } from "../utils/formatDuration";
 import BookingFlowLoading from "../components/BookingFlowLoading";
+import EditingBookingFlow from "./EditingBookingFlow";
 import "./booking-flow.css";
 import "../components/booking-package-cards.css";
 
@@ -440,6 +441,7 @@ export default function BookingFlowPage() {
     month = viewMonth.month
   ) => {
     if (!mongoPackageId) return;
+    if (pkg && isEditingPackage(pkg)) return;
     const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
     try {
       const res = await bookingService.getMonthAvailability(mongoPackageId, monthKey);
@@ -719,6 +721,11 @@ export default function BookingFlowPage() {
       setPkg(packageData);
 
       if (!packageData) { toast.error("Package not found"); router.push("/booking"); return; }
+
+      if (isEditingPackage(packageData)) {
+        setLoading(false);
+        return;
+      }
 
       const todayMin = getMinDate();
       const stored = getStoredBookingForPackage(packageData._id);
@@ -1329,6 +1336,15 @@ export default function BookingFlowPage() {
           message={busyMessage}
           style={bookingModuleRootStyle(bookingUi)}
         />
+      </>
+    );
+  }
+
+  if (pkg && isEditingPackage(pkg)) {
+    return (
+      <>
+        <LoadingBar color="#C2FC12" progress={progress} onLoaderFinished={() => setProgress(0)} />
+        <EditingBookingFlow pkg={pkg} siblingPackages={siblingPackages} bookingUi={bookingUi} />
       </>
     );
   }

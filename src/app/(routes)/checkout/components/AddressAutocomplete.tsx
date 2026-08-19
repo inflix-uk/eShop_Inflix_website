@@ -49,17 +49,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     try {
       const results = await addressService.getAutocompleteSuggestions(term, {
         top: 6,
-        filter: {
-          residential: true, // Focus on residential addresses
-        }
       });
 
       setSuggestions(results);
       setShowDropdown(results.length > 0);
       setSelectedIndex(-1);
-    } catch (error) {
-      console.error('Address search failed:', error);
-      setError('Failed to search addresses');
+    } catch {
       setSuggestions([]);
       setShowDropdown(false);
     } finally {
@@ -104,8 +99,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       } else {
         setError('Failed to get address details');
       }
-    } catch (error) {
-      console.error('Failed to get address details:', error);
+    } catch {
       setError('Failed to get address details');
     } finally {
       setLoading(false);
