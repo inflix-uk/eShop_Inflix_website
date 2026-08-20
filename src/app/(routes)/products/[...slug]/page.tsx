@@ -6,15 +6,28 @@ import ProductPage from "@/app/(routes)/products/[...slug]/ProductPage";
 import Loading from "@/app/components/Loading";
 import VariantLinksSSR from "@/app/(routes)/products/components/VariantLinksSSR";
 import ProductSEOContent from "@/app/(routes)/products/components/ProductSEOContent";
+import ProductComingSoon from "@/app/(routes)/products/components/ProductComingSoon";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import {
   fetchNestedFooterPage,
   FooterPageShell,
   isPublishedFooterPage,
 } from "@/app/lib/footerPagePublic";
+import {
+  escapeJsonLdForScriptTag,
+  generateProductSchema,
+} from "@/app/(routes)/products/services/seoService";
+import { summarizeProductReviews } from "@/app/(routes)/products/lib/productReviewsClient";
+import { getStoreIdentity } from "@/lib/storeIdentity";
+import { buildFaqPageJsonLdString } from "@/app/lib/faqJsonLd";
 
 // Force dynamic rendering since we use cache: "no-store" for fresh product data
 export const dynamic = 'force-dynamic';
+
+/** Live / buyable product — unpublished (false/null) shows Coming Soon + noindex */
+function isProductPublished(product: { status?: boolean | null } | null): boolean {
+  return product?.status === true;
+}
 
 async function getProductData(productName: string) {
   try {
@@ -276,6 +289,24 @@ export async function generateMetadata({
       };
     }
 
+    if (!isProductPublished(product)) {
+      const title = product.name
+        ? `${product.name} — Coming Soon`
+        : "Coming Soon";
+      return {
+        title,
+        description: "This product is coming soon.",
+        robots: {
+          index: false,
+          follow: false,
+          googleBot: {
+            index: false,
+            follow: false,
+          },
+        },
+      };
+    }
+
     // Check if this is a variant-specific URL
     const selectedVariant = findVariantFromSlug(product, variantSlug);
 
@@ -418,9 +449,19 @@ export default async function Product({
       notFound();
     }
 
+    if (!isProductPublished(product)) {
+      return (
+        <ProductComingSoon
+          productName={product.name}
+          navbarVariantTestConfig={navbarVariantTestConfig}
+        />
+      );
+    }
+
     // Get schemas based on variant selection
     const selectedVariant = findVariantFromSlug(product, variantSlug);
     const isVariantSelected = !!(selectedVariant && variantSlug);
+    const fullSlugPath = slug.join("/");
 
     let schemas: string[] = [];
 
@@ -432,21 +473,78 @@ export default async function Product({
       schemas = product.Seo_Meta?.metaSchemas?.filter((schema: string) => schema && schema.trim()) || [];
     }
 
+    const adminJsonLdObjects = schemas.flatMap((schema) => parseSchemaInputs(schema));
+
+    // Auto-build Google merchant Product+Offer when admin did not paste any valid JSON-LD
+    let autoProductJsonLd: string | null = null;
+    if (adminJsonLdObjects.length === 0) {
+      const storeIdentity = await getStoreIdentity().catch(() => null);
+      const reviewSummary = summarizeProductReviews(product.reviewDetails);
+      const autoSchema = await generateProductSchema(product, {
+        slugPath: fullSlugPath,
+        selectedVariant: isVariantSelected ? selectedVariant : null,
+        reviewData: reviewSummary,
+        siteName: storeIdentity?.siteName,
+      });
+      autoProductJsonLd = escapeJsonLdForScriptTag(JSON.stringify(autoSchema));
+    }
+
+    // Auto FAQPage schema only when published FAQs exist (and admin did not already paste FAQPage)
+    const adminHasFaqSchema = adminJsonLdObjects.some((entry) => {
+      const type = entry["@type"];
+      if (typeof type === "string") return type === "FAQPage";
+      if (Array.isArray(type)) return type.includes("FAQPage");
+      return false;
+    });
+
+    let autoFaqJsonLd: string | null = null;
+    if (!adminHasFaqSchema) {
+      const publishedFaqs = (Array.isArray(product.faqDetails) ? product.faqDetails : [])
+        .filter(
+          (faq: { status?: string; question?: string; answer?: string }) =>
+            faq?.status === "Published" && faq.question && faq.answer
+        )
+        .map((faq: { question?: string; answer?: string }) => ({
+          question: faq.question,
+          answer: faq.answer,
+        }));
+
+      const faqJson = buildFaqPageJsonLdString(publishedFaqs);
+      if (faqJson) {
+        autoFaqJsonLd = escapeJsonLdForScriptTag(faqJson);
+      }
+    }
+
   return (
     <>
-      {/* JSON-LD Structured Data Schemas */}
-      {schemas.flatMap((schema, index) => {
-        const parsedSchemas = parseSchemaInputs(schema);
-        return parsedSchemas.map((parsedSchema, innerIndex) => (
-          <script
-            key={`schema-${index}-${innerIndex}`}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(parsedSchema),
-            }}
-          />
-        ));
-      })}
+      {/* Admin-pasted JSON-LD (takes precedence over auto schema) */}
+      {adminJsonLdObjects.map((parsedSchema, index) => (
+        <script
+          key={`schema-admin-${index}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: escapeJsonLdForScriptTag(JSON.stringify(parsedSchema)),
+          }}
+        />
+      ))}
+
+      {/* Auto Product schema when no admin metaSchemas */}
+      {autoProductJsonLd ? (
+        <script
+          key="schema-auto-product"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: autoProductJsonLd }}
+        />
+      ) : null}
+
+      {/* Auto FAQ schema only when published FAQs exist */}
+      {autoFaqJsonLd ? (
+        <script
+          key="schema-auto-faq"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: autoFaqJsonLd }}
+        />
+      ) : null}
 
       <VariantLinksSSR product={product} />
       <Suspense fallback={<Loading />}>

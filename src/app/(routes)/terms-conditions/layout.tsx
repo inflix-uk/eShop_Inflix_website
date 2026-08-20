@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
 import { getPolicyPageJsonLdStrings } from "@/app/lib/policyPageJsonLd";
 
-const FOOTER_PAGE_SLUG = "refund-policy";
+/** CMS footer-page slug (admin uses `terms-conditions`). */
+const FOOTER_PAGE_SLUG = "terms-conditions";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return metadataForFooterPolicyPage("/refund-policy", FOOTER_PAGE_SLUG);
+  return metadataForFooterPolicyPage("/terms-conditions", FOOTER_PAGE_SLUG);
 }
 
-export default async function RefundPolicyLayout({
+export default async function TermsConditionsLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -19,7 +20,7 @@ export default async function RefundPolicyLayout({
     <>
       {jsonLdStrings.map((json, index) => (
         <script
-          key={`refund-policy-jsonld-${index}`}
+          key={`terms-conditions-jsonld-${index}`}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: json }}
         />
