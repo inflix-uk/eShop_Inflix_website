@@ -1,8 +1,6 @@
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
-import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
-import { fetchFooterPageBySlug } from "@/app/services/footerPageService";
+import { getPolicyPageJsonLdStrings } from "@/app/lib/policyPageJsonLd";
 
 const FOOTER_PAGE_SLUG = "shipping-policy";
 
@@ -15,21 +13,13 @@ export default async function ShippingPolicyLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let page = null;
-  try {
-    page = await fetchFooterPageBySlug(FOOTER_PAGE_SLUG);
-  } catch {
-    /* ignore */
-  }
-
-  const jsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
+  const jsonLdStrings = await getPolicyPageJsonLdStrings(FOOTER_PAGE_SLUG);
 
   return (
     <>
-      <SpeedInsights />
       {jsonLdStrings.map((json, index) => (
         <script
-          key={index}
+          key={`shipping-policy-jsonld-${index}`}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: json }}
         />

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
 
-const FOOTER_PAGE_SLUG = "terms-and-conditions";
-
-export async function generateMetadata(): Promise<Metadata> {
-  return metadataForFooterPolicyPage("/terms-and-conditions", FOOTER_PAGE_SLUG);
-}
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export default function TermsAndConditionsLayout({
   children,

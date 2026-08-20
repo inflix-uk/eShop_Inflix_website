@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy URL — canonical Terms page is `/terms-and-conditions`. */
+/** Legacy URL — canonical Terms page is `/terms-conditions`. */
 export default function TermsOfServiceRedirectPage() {
-  redirect("/terms-and-conditions/");
+  redirect("/terms-conditions/");
 }

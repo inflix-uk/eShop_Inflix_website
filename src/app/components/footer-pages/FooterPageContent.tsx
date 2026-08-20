@@ -278,7 +278,7 @@ function extraTitleAliases(slug: string): string[] {
       "Returns and Refunds",
     ];
   }
-  if (s === "terms-and-conditions" || s === "terms-of-service") {
+  if (s === "terms-and-conditions" || s === "terms-of-service" || s === "terms-conditions") {
     return [
       "Terms of Service",
       "Terms Of Service",

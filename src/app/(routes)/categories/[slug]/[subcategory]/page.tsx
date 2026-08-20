@@ -15,6 +15,11 @@ import {
   getPaginatedProducts,
   PRODUCT_CARDS_PER_PAGE,
 } from "@/app/components/productCardUtils";
+import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
+import {
+  adminSchemasIncludeItemList,
+  buildProductItemListJsonLdString,
+} from "@/app/lib/itemListJsonLd";
 import type { Product } from "../../../../../../types";
 function toOriginalCase(slug: string) {
   return slug
@@ -102,6 +107,22 @@ export default async function SubCategoryPage({
       checkStockRealTime={true}
     />
   ));
+
+  const adminJsonLdStrings = normalizeMetaSchemaJsonLdStrings(
+    categoryData.metaSchemas
+  );
+  const adminHasItemList = adminSchemasIncludeItemList(adminJsonLdStrings);
+
+  let autoItemListJsonLd: string | null = null;
+  if (!adminHasItemList) {
+    autoItemListJsonLd = await buildProductItemListJsonLdString({
+      listPath: `categories/${slug}/${subcategory}`,
+      name: categoryData.metaTitle,
+      description: categoryData.metaDescription,
+      products: pageProducts,
+    });
+  }
+
   return (
     <>
       {/* <header className="relative">
@@ -111,6 +132,23 @@ export default async function SubCategoryPage({
         </nav>
       </header> */}
       <NavbarVariantTestBar config={navbarVariantTestConfig} />
+
+      {adminJsonLdStrings.map((json, index) => (
+        <script
+          key={`subcategory-admin-jsonld-${index}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: json }}
+        />
+      ))}
+
+      {autoItemListJsonLd ? (
+        <script
+          key="subcategory-auto-itemlist"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: autoItemListJsonLd }}
+        />
+      ) : null}
+
       <div className="max-w-7xl mx-auto p-3">
         <nav className="mb-4 text-sm text-gray-600">
           <Link href="/" className="hover:underline">
@@ -147,7 +185,7 @@ export default async function SubCategoryPage({
               content_blocks={categoryData.content_blocks}
               metaTitle={categoryData.metaTitle}
               metaDescription={categoryData.metaDescription}
-              metaSchemas={categoryData.metaSchemas}
+              metaSchemas={[]}
             />
           </section>
           <div className="order-1">
