@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import React, { useState, useEffect, useRef } from "react";
 import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { useAuth } from "@/app/context/Auth";
 import { useCheckout } from "./hooks/useCheckout";
 import { useRouter } from "next/navigation";
@@ -74,6 +75,14 @@ export default function CheckoutPage() {
   const [bookingHoldExpiry, setBookingHoldExpiry] = useState<string | null>(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingClientSecret, setBookingClientSecret] = useState<string | null>(null);
+  /**
+   * A booking package can collect into its own Stripe account. When the
+   * payment-intent response names a different publishable key, Elements must
+   * mount with THAT key or Stripe.js cannot read the client secret.
+   */
+  const [bookingStripePromise, setBookingStripePromise] = useState<Promise<Stripe | null> | null>(
+    null
+  );
   const [bookingNumber, setBookingNumber] = useState<string | null>(null);
 
   const hasBooking = !!bookingData;
@@ -139,6 +148,8 @@ export default function CheckoutPage() {
 
   const isBookingOnly = hasBooking;
   const activeClientSecret = isBookingOnly ? bookingClientSecret : clientSecret;
+  const activeStripe =
+    isBookingOnly && bookingStripePromise ? bookingStripePromise : stripePromise;
   const beginCheckoutTracked = useRef(false);
   const bnplAmountPence =
     !isBookingOnly && totalSalePrice > 0 ? Math.round(totalSalePrice * 100) : 0;
@@ -542,6 +553,10 @@ export default function CheckoutPage() {
         toast.error(paymentResult.error || "Failed to initialize payment");
         setBookingSubmitting(false);
         return;
+      }
+
+      if (paymentResult.publishableKey) {
+        setBookingStripePromise(loadStripe(paymentResult.publishableKey));
       }
 
       setBookingClientSecret(paymentResult.clientSecret);
@@ -992,7 +1007,7 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {activeClientSecret && stripePromise ? (
+                    {activeClientSecret && activeStripe ? (
                       <div className="mb-6">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">
                           Payment Details
@@ -1004,7 +1019,7 @@ export default function CheckoutPage() {
                           </p>
                         )}
                         <Elements
-                          stripe={stripePromise}
+                          stripe={activeStripe}
                           options={{
                             clientSecret: activeClientSecret,
                             loader,
