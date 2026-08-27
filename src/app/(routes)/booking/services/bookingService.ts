@@ -504,6 +504,9 @@ export interface PaymentIntentResponse {
   paymentIntentId: string;
   amount: number;
   currency: string;
+  /** Publishable key of the Stripe account this intent was created on. */
+  publishableKey?: string;
+  stripeAccountLabel?: string;
 }
 
 export class BookingService {
@@ -762,16 +765,26 @@ export class BookingService {
     }
   }
 
-  async initializeStripe(): Promise<Stripe | null> {
+  /**
+   * A booking package may collect into its own Stripe account, so the key is
+   * resolved per package. Only the platform-default instance is memoised.
+   */
+  async initializeStripe(packageId?: string): Promise<Stripe | null> {
+    if (packageId) {
+      return this.fetchStripePromise(packageId);
+    }
     if (!this.stripePromise) {
       this.stripePromise = this.fetchStripePromise();
     }
     return this.stripePromise;
   }
 
-  private async fetchStripePromise(): Promise<Stripe | null> {
+  private async fetchStripePromise(packageId?: string): Promise<Stripe | null> {
     try {
-      const response = await axios.get(`${API_URL}config`);
+      const url = packageId
+        ? `${API_URL}config?packageId=${encodeURIComponent(packageId)}`
+        : `${API_URL}config`;
+      const response = await axios.get(url);
       return await loadStripe(response.data.publishableKey);
     } catch {
       return null;
