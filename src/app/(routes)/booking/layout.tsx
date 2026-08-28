@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import { bookingJsonLdStringsFromSeo } from "@/app/lib/bookingJsonLd";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
 import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import { getBookingPublicSeo } from "@/app/services/bookingSeoService";
@@ -62,10 +63,12 @@ export default async function BookingLayout({
   ]);
 
   const showNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
-  const jsonLdStrings = bookingJsonLdStringsFromSeo(
-    seo?.metaSchema ?? [],
-    canonicalUrl,
-    storeIdentity.siteName
+  const jsonLdStrings = await mergeAdminJsonLdWithAutoBusiness(
+    bookingJsonLdStringsFromSeo(
+      seo?.metaSchema ?? [],
+      canonicalUrl,
+      storeIdentity.siteName
+    )
   );
 
   return (

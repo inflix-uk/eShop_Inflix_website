@@ -4,6 +4,14 @@ import { isDisabledMarketingSlug } from "@/app/lib/disabledMarketingRoutes";
 import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
 import { getSuperadminControlsPublic } from "@/app/lib/superadminControlsPublic";
 
+function nextWithPathname(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+}
+
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
@@ -47,7 +55,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
 
-  return NextResponse.next();
+  return nextWithPathname(request);
 }
 
 export const config = {

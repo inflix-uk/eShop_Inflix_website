@@ -5,6 +5,8 @@ import {
   getImageUrl,
   type FooterPage,
 } from "@/app/services/footerPageService";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
+import { getStoreIdentity, shareImagesForPage } from "@/lib/storeIdentity";
 
 /**
  * CMS often stores a full <script type="application/ld+json">…</script> snippet.
@@ -76,13 +78,20 @@ export async function generateMetadata({
   const path = `/${decodedSlug}`;
   const canonicalUrl = await getCanonical(`/${decodedSlug}`);
 
-  const [staticMeta, page] = await Promise.all([
+  const [staticMeta, page, identity] = await Promise.all([
     fetchStaticMetaByPath(path),
     fetchFooterPageBySlug(decodedSlug).catch((error) => {
       console.error("Error fetching page for metadata:", error);
       return null;
     }),
+    getStoreIdentity().catch(() => null),
   ]);
+
+  const bannerUrl =
+    page?.publishStatus === "published" && page.bannerImage
+      ? getImageUrl(page.bannerImage)
+      : null;
+  const images = shareImagesForPage(bannerUrl, identity);
 
   // Primary source: Footer Page from admin (if published and has metaTitle)
   if (page?.publishStatus === "published" && page.metaTitle) {
@@ -98,17 +107,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description: description,
         type: "website",
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title: title,
         description: description,
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -125,11 +130,6 @@ export async function generateMetadata({
 
   // Secondary source: Static Meta from admin (fallback when footer page has no metaTitle)
   if (staticMeta?.titleTag) {
-    const ogImages =
-      page?.publishStatus === "published" && page.bannerImage
-        ? [{ url: getImageUrl(page.bannerImage) }]
-        : [];
-
     const metadata: Metadata = {
       title: staticMeta.titleTag,
       description: staticMeta.metaDescription || "",
@@ -139,13 +139,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description: staticMeta.metaDescription || "",
         type: "website",
-        images: ogImages,
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title: staticMeta.titleTag,
         description: staticMeta.metaDescription || "",
-        images: ogImages,
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -172,17 +172,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description: description,
         type: "website",
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title: title,
         description: description,
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -231,13 +227,15 @@ export default async function DynamicPageLayout({
       ? page.metaSchema
       : staticMeta?.metaSchemas ?? [];
 
-  const normalizedSchemas = schemaScripts
-    .map((schema) => ldJsonForScriptTag(schema))
-    .filter(Boolean);
+  const jsonLdStrings = await mergeAdminJsonLdWithAutoBusiness(
+    schemaScripts
+      .map((schema) => ldJsonForScriptTag(schema))
+      .filter(Boolean)
+  );
 
   return (
     <>
-      {normalizedSchemas.map((schema, index) => (
+      {jsonLdStrings.map((schema, index) => (
         <script
           key={index}
           type="application/ld+json"

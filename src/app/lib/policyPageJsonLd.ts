@@ -1,13 +1,11 @@
 import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
-import {
-  buildBusinessOrganizationJsonLdString,
-  shouldSkipAutoBusinessOrganization,
-} from "@/app/lib/businessJsonLd";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
 import { fetchFooterPageBySlug } from "@/app/services/footerPageService";
 
 /**
- * Admin metaSchema JSON-LD + auto Organization only when neither
- * page admin nor site-wide schema already provides a business Organization.
+ * Admin metaSchema JSON-LD with auto Organization fields merged in
+ * (admin filled keys win). Extra auto business node is not appended —
+ * root layout already emits site-wide / auto business except on blogs.
  */
 export async function getPolicyPageJsonLdStrings(
   footerPageSlug: string
@@ -20,13 +18,5 @@ export async function getPolicyPageJsonLdStrings(
   }
 
   const adminJsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
-  const out = [...adminJsonLdStrings];
-
-  const skipAuto = await shouldSkipAutoBusinessOrganization(adminJsonLdStrings);
-  if (!skipAuto) {
-    const business = await buildBusinessOrganizationJsonLdString();
-    if (business) out.push(business);
-  }
-
-  return out;
+  return mergeAdminJsonLdWithAutoBusiness(adminJsonLdStrings);
 }

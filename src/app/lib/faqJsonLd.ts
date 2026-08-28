@@ -36,10 +36,17 @@ export function normalizeFaqItems(items: FaqSchemaItem[] | undefined): FaqSchema
 }
 
 export function buildFaqPageJsonLdString(items: FaqSchemaItem[]): string | null {
+  const node = buildFaqPageJsonLd(items);
+  return node ? JSON.stringify(node) : null;
+}
+
+export function buildFaqPageJsonLd(
+  items: FaqSchemaItem[]
+): Record<string, unknown> | null {
   const normalized = normalizeFaqItems(items);
   if (normalized.length === 0) return null;
 
-  return JSON.stringify({
+  return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: normalized.map((item) => ({
@@ -50,7 +57,7 @@ export function buildFaqPageJsonLdString(items: FaqSchemaItem[]): string | null 
         text: stripHtmlForSchema(String(item.answer || "")),
       },
     })),
-  });
+  };
 }
 
 function isFaqWidgetContent(

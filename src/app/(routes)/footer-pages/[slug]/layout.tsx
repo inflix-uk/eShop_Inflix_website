@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCanonical } from "@/lib/getCanonical";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
 import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 import {
   fetchFooterPageBySlug,
@@ -109,7 +110,9 @@ export default async function FooterPageLayout({
     console.error("Error fetching page for layout:", error);
   }
 
-  const jsonLdStrings = normalizeMetaSchemaJsonLdStrings(page?.metaSchema);
+  const jsonLdStrings = await mergeAdminJsonLdWithAutoBusiness(
+    normalizeMetaSchemaJsonLdStrings(page?.metaSchema)
+  );
 
   return (
     <>

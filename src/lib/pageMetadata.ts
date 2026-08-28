@@ -60,7 +60,7 @@ export async function buildStorePageMetadata(
   const description =
     cmsMeta?.metaDescription?.trim() || fallbackDescription;
   const keywords = cmsMeta?.metaKeywords?.trim();
-  const images = ogImagesFromUrl(identity.ogImageUrl);
+  const images = ogImagesFromUrl(identity.ogImageUrl, identity.ogImageAlt);
 
   return {
     title,
