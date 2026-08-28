@@ -16,10 +16,13 @@ import {
 import {
   escapeJsonLdForScriptTag,
   generateProductSchema,
+  resolveProductPageJsonLdObjects,
 } from "@/app/(routes)/products/services/seoService";
 import { summarizeProductReviews } from "@/app/(routes)/products/lib/productReviewsClient";
 import { getStoreIdentity } from "@/lib/storeIdentity";
-import { buildFaqPageJsonLdString } from "@/app/lib/faqJsonLd";
+import { buildFaqPageJsonLd } from "@/app/lib/faqJsonLd";
+import { generateAutoBusinessSchema, jsonLdStringsHaveBusinessSchema } from "@/app/lib/businessJsonLd";
+import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
 
 // Force dynamic rendering since we use cache: "no-store" for fresh product data
 export const dynamic = 'force-dynamic';
@@ -475,76 +478,55 @@ export default async function Product({
 
     const adminJsonLdObjects = schemas.flatMap((schema) => parseSchemaInputs(schema));
 
-    // Auto-build Google merchant Product+Offer when admin did not paste any valid JSON-LD
-    let autoProductJsonLd: string | null = null;
-    if (adminJsonLdObjects.length === 0) {
-      const storeIdentity = await getStoreIdentity().catch(() => null);
-      const reviewSummary = summarizeProductReviews(product.reviewDetails);
-      const autoSchema = await generateProductSchema(product, {
+    // Always build auto Product baseline, then:
+    // - no admin Product → use full auto
+    // - admin Product → keep admin fields, fill only missing from auto
+    // - admin non-Product only → auto Product + admin nodes
+    const storeIdentity = await getStoreIdentity().catch(() => null);
+    const reviewSummary = summarizeProductReviews(product.reviewDetails);
+    const [autoProductSchema, autoBusinessSchema, siteWideSchemas] = await Promise.all([
+      generateProductSchema(product, {
         slugPath: fullSlugPath,
         selectedVariant: isVariantSelected ? selectedVariant : null,
         reviewData: reviewSummary,
         siteName: storeIdentity?.siteName,
-      });
-      autoProductJsonLd = escapeJsonLdForScriptTag(JSON.stringify(autoSchema));
-    }
+      }),
+      generateAutoBusinessSchema(),
+      getSiteWideSchemaPublic().catch(() => [] as string[]),
+    ]);
 
-    // Auto FAQPage schema only when published FAQs exist (and admin did not already paste FAQPage)
-    const adminHasFaqSchema = adminJsonLdObjects.some((entry) => {
-      const type = entry["@type"];
-      if (typeof type === "string") return type === "FAQPage";
-      if (Array.isArray(type)) return type.includes("FAQPage");
-      return false;
-    });
+    const publishedFaqs = (Array.isArray(product.faqDetails) ? product.faqDetails : [])
+      .filter(
+        (faq: { status?: string; question?: string; answer?: string }) =>
+          faq?.status === "Published" && faq.question && faq.answer
+      )
+      .map((faq: { question?: string; answer?: string }) => ({
+        question: faq.question,
+        answer: faq.answer,
+      }));
+    const autoFaqSchema = buildFaqPageJsonLd(publishedFaqs);
 
-    let autoFaqJsonLd: string | null = null;
-    if (!adminHasFaqSchema) {
-      const publishedFaqs = (Array.isArray(product.faqDetails) ? product.faqDetails : [])
-        .filter(
-          (faq: { status?: string; question?: string; answer?: string }) =>
-            faq?.status === "Published" && faq.question && faq.answer
-        )
-        .map((faq: { question?: string; answer?: string }) => ({
-          question: faq.question,
-          answer: faq.answer,
-        }));
-
-      const faqJson = buildFaqPageJsonLdString(publishedFaqs);
-      if (faqJson) {
-        autoFaqJsonLd = escapeJsonLdForScriptTag(faqJson);
+    const productJsonLdObjects = resolveProductPageJsonLdObjects(
+      adminJsonLdObjects,
+      autoProductSchema,
+      {
+        autoBusiness: autoBusinessSchema,
+        autoFaq: autoFaqSchema,
+        appendAutoBusiness: !jsonLdStringsHaveBusinessSchema(siteWideSchemas),
       }
-    }
+    );
 
   return (
     <>
-      {/* Admin-pasted JSON-LD (takes precedence over auto schema) */}
-      {adminJsonLdObjects.map((parsedSchema, index) => (
+      {productJsonLdObjects.map((parsedSchema, index) => (
         <script
-          key={`schema-admin-${index}`}
+          key={`schema-product-page-${index}`}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: escapeJsonLdForScriptTag(JSON.stringify(parsedSchema)),
           }}
         />
       ))}
-
-      {/* Auto Product schema when no admin metaSchemas */}
-      {autoProductJsonLd ? (
-        <script
-          key="schema-auto-product"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: autoProductJsonLd }}
-        />
-      ) : null}
-
-      {/* Auto FAQ schema only when published FAQs exist */}
-      {autoFaqJsonLd ? (
-        <script
-          key="schema-auto-faq"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: autoFaqJsonLd }}
-        />
-      ) : null}
 
       <VariantLinksSSR product={product} />
       <Suspense fallback={<Loading />}>

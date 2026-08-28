@@ -1,26 +1,33 @@
 import { getCanonical } from "@/lib/getCanonical";
 import { getStoreIdentity } from "@/lib/storeIdentity";
 import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
-
-function escapeJsonLdForScriptTag(json: string): string {
-  return json.replace(/</g, "\\u003c");
-}
+import { withPodcastStudioPhotos } from "@/app/lib/podcastShareImage";
+import {
+  applyAutoJsonLd,
+  escapeJsonLdForScriptTag,
+  isPlainObject,
+  parseJsonLdStringsToObjects,
+  schemaTypeIncludes,
+  stringifyJsonLdObjects,
+} from "@/app/lib/jsonLdMerge";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
+  return isPlainObject(value) ? value : null;
 }
 
 function typeIncludes(node: Record<string, unknown>, wanted: string): boolean {
-  const type = node["@type"];
-  if (typeof type === "string") return type === wanted;
-  if (Array.isArray(type)) return type.some((t) => t === wanted);
-  return false;
+  return schemaTypeIncludes(node, wanted);
 }
 
-const BUSINESS_TYPES = ["Organization", "LocalBusiness", "OnlineStore"] as const;
+const BUSINESS_TYPES = [
+  "Organization",
+  "LocalBusiness",
+  "OnlineStore",
+  "OnlineBusiness",
+  "Store",
+  "RecordingStudio",
+] as const;
 
-/** True if this node itself is a business type. */
 function isBusinessNode(node: Record<string, unknown>): boolean {
   return BUSINESS_TYPES.some((t) => typeIncludes(node, t));
 }
@@ -81,7 +88,6 @@ export function extractBusinessNodeFromJsonLd(
 
   if (typeIncludes(root, "OnlineStore")) return root;
 
-  // Nested about / publisher on WebPage
   for (const key of ["about", "publisher", "mainEntity"] as const) {
     const nested = asRecord(root[key]);
     if (
@@ -96,79 +102,37 @@ export function extractBusinessNodeFromJsonLd(
   return null;
 }
 
-function cloneBusinessSchema(node: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {
-    "@context": "https://schema.org/",
-    "@type": typeIncludes(node, "LocalBusiness")
-      ? "LocalBusiness"
-      : "Organization",
-  };
-
-  const copyKeys = [
-    "name",
-    "alternateName",
-    "legalName",
-    "url",
-    "logo",
-    "image",
-    "email",
-    "telephone",
-    "description",
-    "address",
-    "contactPoint",
-    "brand",
-    "identifier",
-    "sameAs",
-    "areaServed",
-    "currenciesAccepted",
-    "paymentAccepted",
-  ] as const;
-
-  for (const key of copyKeys) {
-    if (node[key] !== undefined) out[key] = node[key];
-  }
-
-  return out;
-}
-
 /**
- * Auto business (Organization) JSON-LD for policy pages.
- * Prefers admin site-wide Organization; falls back to store identity.
- * Callers must skip when Organization is already on the page (site-wide or admin).
+ * Google LocalBusiness requires name + address.
+ * Without a usable PostalAddress, emit Organization (no required fields).
+ * @see https://developers.google.com/search/docs/appearance/structured-data/local-business
+ * @see https://developers.google.com/search/docs/appearance/structured-data/logo
  */
-export async function buildBusinessOrganizationJsonLdString(): Promise<string | null> {
-  const siteWide = await getSiteWideSchemaPublic().catch(() => [] as string[]);
-
-  for (const raw of siteWide) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      const business = extractBusinessNodeFromJsonLd(parsed);
-      if (business && (business.name || business.url)) {
-        return escapeJsonLdForScriptTag(
-          JSON.stringify(cloneBusinessSchema(business))
-        );
-      }
-    } catch {
-      /* ignore bad site-wide rows */
-    }
-  }
-
+export async function generateAutoBusinessSchema(): Promise<Record<string, unknown>> {
   const [site, identity] = await Promise.all([
     getCanonical(""),
     getStoreIdentity().catch(() => null),
   ]);
-  const name = (identity?.siteName || "").trim() || "Aroma Desire";
-  const logo = (identity?.ogImageUrl || "").trim();
+  const name = (identity?.siteName || "").trim() || "Store";
+  const logo = (identity?.logoUrl || identity?.ogImageUrl || "").trim();
+  const photo = (identity?.ogImageUrl || "").trim();
 
-  const fallback: Record<string, unknown> = {
+  const schema: Record<string, unknown> = {
     "@context": "https://schema.org/",
     "@type": "Organization",
     name,
     url: site,
   };
-  if (logo) fallback.logo = logo;
+  if (logo) schema.logo = logo;
+  if (photo) schema.image = photo;
+  else if (logo) schema.image = logo;
 
-  return escapeJsonLdForScriptTag(JSON.stringify(fallback));
+  return schema;
+}
+
+export async function buildBusinessOrganizationJsonLdString(): Promise<string | null> {
+  const schema = await generateAutoBusinessSchema();
+  return escapeJsonLdForScriptTag(JSON.stringify(schema));
 }
 
 export function jsonLdStringsHaveBusinessSchema(
@@ -179,7 +143,9 @@ export function jsonLdStringsHaveBusinessSchema(
     try {
       return jsonLdContainsBusinessSchema(JSON.parse(raw) as unknown);
     } catch {
-      return /"@type"\s*:\s*"(Organization|LocalBusiness|OnlineStore)"/.test(raw);
+      return /"@type"\s*:\s*"(Organization|LocalBusiness|OnlineStore|RecordingStudio)"/.test(
+        raw
+      );
     }
   });
 }
@@ -191,10 +157,6 @@ export function adminJsonLdHasBusinessSchema(
   return jsonLdStringsHaveBusinessSchema(jsonLdStrings);
 }
 
-/**
- * Skip auto Organization when site-wide or page admin schema already
- * declares Organization / LocalBusiness / OnlineStore (avoids duplicates).
- */
 export async function shouldSkipAutoBusinessOrganization(
   adminJsonLdStrings: string[]
 ): Promise<boolean> {
@@ -202,4 +164,252 @@ export async function shouldSkipAutoBusinessOrganization(
 
   const siteWide = await getSiteWideSchemaPublic().catch(() => [] as string[]);
   return jsonLdStringsHaveBusinessSchema(siteWide);
+}
+
+export function isBlogPathname(pathname: string | null | undefined): boolean {
+  const p = String(pathname || "").toLowerCase();
+  if (!p) return false;
+  return p === "/blogs" || p === "/blogs/" || p.startsWith("/blogs/");
+}
+
+export function isProductPathname(pathname: string | null | undefined): boolean {
+  const p = String(pathname || "").toLowerCase();
+  if (!p) return false;
+  return p === "/products" || p === "/products/" || p.startsWith("/products/");
+}
+
+function isStandaloneOrganizationNode(node: unknown): boolean {
+  if (!isPlainObject(node)) return false;
+  return (
+    schemaTypeIncludes(node, "Organization") &&
+    !schemaTypeIncludes(node, "OnlineStore") &&
+    !schemaTypeIncludes(node, "OnlineBusiness") &&
+    !schemaTypeIncludes(node, "LocalBusiness") &&
+    !schemaTypeIncludes(node, "Store") &&
+    !schemaTypeIncludes(node, "RecordingStudio")
+  );
+}
+
+function hasUsablePostalAddress(address: unknown): boolean {
+  const a = asRecord(address);
+  if (!a) return false;
+  const country = String(a.addressCountry || "").trim();
+  const locality = String(a.addressLocality || "").trim();
+  const street = String(a.streetAddress || "").trim();
+  return Boolean(country) && Boolean(street || locality);
+}
+
+/**
+ * Google LocalBusiness required: name + address.
+ * @see https://developers.google.com/search/docs/appearance/structured-data/local-business
+ */
+function organizationToLocalBusiness(
+  org: Record<string, unknown>
+): Record<string, unknown> | null {
+  if (!hasUsablePostalAddress(org.address)) return null;
+  const name = String(org.name || "").trim();
+  if (!name) return null;
+
+  const out: Record<string, unknown> = {
+    "@context": "https://schema.org/",
+    "@type": "LocalBusiness",
+    name,
+    address: org.address,
+  };
+
+  for (const key of [
+    "url",
+    "image",
+    "logo",
+    "telephone",
+    "email",
+    "geo",
+    "openingHoursSpecification",
+    "priceRange",
+    "description",
+    "sameAs",
+    "legalName",
+  ] as const) {
+    if (org[key] !== undefined) out[key] = org[key];
+  }
+  return out;
+}
+
+function harvestOrganizationsForLocalBusiness(
+  nodes: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  const found: Record<string, unknown>[] = [];
+
+  const walk = (entry: unknown) => {
+    if (!isPlainObject(entry)) return;
+    if (isStandaloneOrganizationNode(entry) || schemaTypeIncludes(entry, "LocalBusiness")) {
+      found.push(entry);
+    }
+    if (Array.isArray(entry["@graph"])) {
+      for (const child of entry["@graph"]) walk(child);
+    }
+    walk(entry.parentOrganization);
+  };
+
+  for (const node of nodes) walk(node);
+  return found;
+}
+
+/**
+ * Product pages: OnlineStore + WebSite (no Product-duplicate commerce fields),
+ * plus Google LocalBusiness from site-wide Organization NAP (name + address).
+ * Offer.seller stays a small Organization on Product.
+ */
+const STORE_COMMERCE_KEYS_ON_PDP = [
+  "offers",
+  "hasMerchantReturnPolicy",
+  "shippingDetails",
+  "hasShippingService",
+  "availability",
+] as const;
+
+export function siteWideJsonLdForProductPage(
+  nodes: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  let localBusiness: Record<string, unknown> | null = null;
+  for (const org of harvestOrganizationsForLocalBusiness(nodes)) {
+    const lb = organizationToLocalBusiness(org);
+    if (lb) {
+      localBusiness = lb;
+      break;
+    }
+  }
+
+  const slimStoreNode = (node: Record<string, unknown>): Record<string, unknown> => {
+    const out: Record<string, unknown> = { ...node };
+    const isStore =
+      schemaTypeIncludes(out, "OnlineStore") ||
+      schemaTypeIncludes(out, "OnlineBusiness") ||
+      schemaTypeIncludes(out, "Store");
+    const isWebSite = schemaTypeIncludes(out, "WebSite");
+
+    if (isStore) {
+      for (const key of STORE_COMMERCE_KEYS_ON_PDP) {
+        delete out[key];
+      }
+      delete out.parentOrganization;
+    }
+
+    if (isWebSite) {
+      if (localBusiness) out.publisher = localBusiness;
+      else delete out.publisher;
+    }
+
+    return out;
+  };
+
+  const mapEntry = (entry: unknown): unknown => {
+    if (!isPlainObject(entry)) return entry;
+    if (isStandaloneOrganizationNode(entry) || schemaTypeIncludes(entry, "LocalBusiness")) {
+      return null;
+    }
+    if (Array.isArray(entry["@graph"])) {
+      const graph = (entry["@graph"] as unknown[])
+        .map(mapEntry)
+        .filter((item) => item != null);
+      if (!graph.length) return null;
+      return slimStoreNode({ ...entry, "@graph": graph });
+    }
+    return slimStoreNode(entry);
+  };
+
+  const slimmed = nodes
+    .map((node) => mapEntry(node))
+    .filter((node): node is Record<string, unknown> => isPlainObject(node));
+
+  const hasWebSite = slimmed.some((node) => {
+    if (schemaTypeIncludes(node, "WebSite")) return true;
+    const graph = node["@graph"];
+    return (
+      Array.isArray(graph) &&
+      graph.some((item) => isPlainObject(item) && schemaTypeIncludes(item, "WebSite"))
+    );
+  });
+
+  if (localBusiness && !hasWebSite) {
+    slimmed.push({
+      "@context": "https://schema.org/",
+      "@type": "WebSite",
+      name: localBusiness.name,
+      url: localBusiness.url,
+      publisher: localBusiness,
+    });
+  }
+
+  return slimmed;
+}
+
+/** Middleware sets x-pathname on the *request* (not the response). */
+export function pathnameFromRequestHeaders(headerList: Headers): string {
+  const candidates = [
+    headerList.get("x-pathname"),
+    headerList.get("next-url"),
+    headerList.get("x-invoke-path"),
+    headerList.get("x-matched-path"),
+  ];
+  for (const raw of candidates) {
+    const value = String(raw || "").trim();
+    if (!value) continue;
+    try {
+      if (/^https?:\/\//i.test(value)) return new URL(value).pathname;
+    } catch {
+      /* use as path */
+    }
+    return value.split("?")[0] || value;
+  }
+  return "";
+}
+
+/**
+ * Site-wide admin JSON-LD.
+ * - Product URLs: OnlineStore + WebSite with nested LocalBusiness publisher only.
+ * - Blog URLs: admin as-is, no auto Organization append.
+ * - Other URLs: admin as-is; append auto Organization only if no business node.
+ */
+export async function resolveSiteWideJsonLdStrings(
+  siteWideStrings: string[],
+  pathname: string | null | undefined
+): Promise<string[]> {
+  const adminObjects = parseJsonLdStringsToObjects(siteWideStrings);
+
+  if (isProductPathname(pathname)) {
+    const forPdp = siteWideJsonLdForProductPage(adminObjects);
+    return forPdp.length
+      ? stringifyJsonLdObjects(await withPodcastStudioPhotos(forPdp))
+      : [];
+  }
+
+  const autoBusiness = await generateAutoBusinessSchema();
+  const skipAutoBusiness = isBlogPathname(pathname);
+  const merged = applyAutoJsonLd(
+    adminObjects,
+    { business: autoBusiness },
+    {
+      appendAutoBusiness: !skipAutoBusiness,
+      mergeAutoBusiness: false,
+    }
+  );
+  if (!merged.length) return [];
+  return stringifyJsonLdObjects(await withPodcastStudioPhotos(merged));
+}
+
+export async function mergeAdminJsonLdWithAutoBusiness(
+  adminJsonLdStrings: string[],
+  options?: { appendAutoBusiness?: boolean }
+): Promise<string[]> {
+  const autoBusiness = await generateAutoBusinessSchema();
+  const append = options?.appendAutoBusiness === true;
+
+  const adminObjects = parseJsonLdStringsToObjects(adminJsonLdStrings);
+  const merged = applyAutoJsonLd(
+    adminObjects,
+    { business: autoBusiness },
+    { appendAutoBusiness: append, mergeAutoBusiness: false }
+  );
+  return stringifyJsonLdObjects(await withPodcastStudioPhotos(merged));
 }

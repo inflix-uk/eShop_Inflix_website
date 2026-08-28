@@ -4,6 +4,13 @@ import {
   ProductReviewRow,
   ProductReviewsSummary,
 } from "@/app/(routes)/products/lib/productReviewsClient";
+import {
+  applyAutoJsonLd,
+  escapeJsonLdForScriptTag as escapeJsonLdShared,
+  hasNonEmptyField,
+  isPlainObject,
+  toSchemaOrgShortEnum,
+} from "@/app/lib/jsonLdMerge";
 
 type ProductVariantLike = {
   name?: string;
@@ -66,6 +73,42 @@ function parseMoney(value: unknown): number | null {
   const n = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
   if (!Number.isFinite(n) || n < 0) return null;
   return n;
+}
+
+/** Reject empty / placeholder SKU-MPN values like 0, 0.0, "null". */
+function normalizeCatalogCode(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower === "null" || lower === "undefined" || lower === "n/a" || lower === "na") {
+    return "";
+  }
+  // Numeric placeholders from admin form defaults
+  if (/^0+(\.0+)?$/.test(raw)) return "";
+  return raw;
+}
+
+/** GTIN/EAN: digits only, valid retail lengths only. */
+function normalizeGtinDigits(value: unknown): string {
+  const digits = String(value ?? "").trim().replace(/\D/g, "");
+  if (![8, 12, 13, 14].includes(digits.length)) return "";
+  // All zeros / trivial
+  if (/^0+$/.test(digits)) return "";
+  return digits;
+}
+
+function assignGtinFields(schema: Record<string, unknown>, gtin: string) {
+  delete schema.gtin;
+  delete schema.gtin8;
+  delete schema.gtin12;
+  delete schema.gtin13;
+  delete schema.gtin14;
+  if (!gtin) return;
+  if (gtin.length === 8) schema.gtin8 = gtin;
+  else if (gtin.length === 12) schema.gtin12 = gtin;
+  else if (gtin.length === 13) schema.gtin13 = gtin;
+  else if (gtin.length === 14) schema.gtin14 = gtin;
+  else schema.gtin = gtin;
 }
 
 function mapItemCondition(raw: string | undefined | null): string {
@@ -161,10 +204,7 @@ function buildReturnPolicy() {
   };
 }
 
-/** Escape `<` so values cannot break the outer script tag. */
-export function escapeJsonLdForScriptTag(json: string): string {
-  return json.replace(/</g, "\\u003c");
-}
+export const escapeJsonLdForScriptTag = escapeJsonLdShared;
 
 export async function generateOrganizationSchema(siteName = "Aroma Desire") {
   const site = await getCanonical("");
@@ -229,14 +269,26 @@ export async function generateProductSchema(
     product.name;
 
   const images = collectImages(product, variant);
-  const sku = String(variant?.SKU || "").trim();
-  const mpn = String(variant?.MPN || "").trim();
-  const gtin = String(variant?.EIN || "").trim().replace(/\D/g, "");
+  const sku = normalizeCatalogCode(variant?.SKU);
+  const mpn = normalizeCatalogCode(variant?.MPN);
+  const gtin = normalizeGtinDigits(variant?.EIN);
   const brandName = String(product.brand || sellerName).trim();
   const conditionSource =
     product.condition ||
     variant?.name ||
     "";
+
+  const validFromDate = (() => {
+    const raw = (product as { createdAt?: string }).createdAt;
+    if (raw) {
+      try {
+        return new Date(raw).toISOString().split("T")[0];
+      } catch {
+        /* fall through */
+      }
+    }
+    return new Date().toISOString().split("T")[0];
+  })();
 
   const offer: Record<string, unknown> = {
     "@type": "Offer",
@@ -262,6 +314,7 @@ export async function generateProductSchema(
       listPrice > salePrice &&
       salePrice > 0
     ) {
+      offer.validFrom = validFromDate;
       offer.priceSpecification = {
         "@type": "UnitPriceSpecification",
         priceType: "StrikethroughPrice",
@@ -276,10 +329,12 @@ export async function generateProductSchema(
     "@type": "Product",
     name: schemaName,
     description,
-    image: images,
     url: productPageUrl,
     offers: offer,
   };
+  if (images.length > 0) {
+    schema.image = images;
+  }
 
   if (brandName) {
     schema.brand = {
@@ -292,15 +347,21 @@ export async function generateProductSchema(
     schema.category = product.category;
   }
 
+  // Variant grouping for Google merchant (GSC productGroupID)
+  const variantCount = Array.isArray(product.variantValues)
+    ? product.variantValues.length
+    : 0;
+  const productId = String(product._id || "").trim();
+  if (productId && variantCount > 1) {
+    schema.productGroupID = productId;
+    if (selectedVariant) {
+      schema.inProductGroupWithID = productId;
+    }
+  }
+
   if (sku) schema.sku = sku;
   if (mpn) schema.mpn = mpn;
-  if (gtin) {
-    if (gtin.length === 8) schema.gtin8 = gtin;
-    else if (gtin.length === 12) schema.gtin12 = gtin;
-    else if (gtin.length === 13) schema.gtin13 = gtin;
-    else if (gtin.length === 14) schema.gtin14 = gtin;
-    else schema.gtin = gtin;
-  }
+  assignGtinFields(schema, gtin);
 
   const averageRating = Number(reviewData?.averageRating || 0);
   const totalReviews = Number(reviewData?.totalReviews || 0);
@@ -352,7 +413,188 @@ export async function generateProductSchema(
     }
   }
 
-  return schema;
+  return orderProductSchemaKeys(normalizeOfferEnumerationFields(schema));
+}
+
+export {
+  isProductSchemaNode,
+  mergeMissingSchemaFields,
+} from "@/app/lib/jsonLdMerge";
+
+const PRODUCT_IDENTIFIER_KEYS = [
+  "sku",
+  "mpn",
+  "gtin",
+  "gtin8",
+  "gtin12",
+  "gtin13",
+  "gtin14",
+  "isbn",
+] as const;
+
+/** Preferred Product JSON-LD key order (Google ignores order; keeps validators readable). */
+const PRODUCT_KEY_ORDER = [
+  "@context",
+  "@type",
+  "@id",
+  "name",
+  "description",
+  "image",
+  "url",
+  "sku",
+  "mpn",
+  "gtin",
+  "gtin8",
+  "gtin12",
+  "gtin13",
+  "gtin14",
+  "isbn",
+  "brand",
+  "manufacturer",
+  "category",
+  "color",
+  "material",
+  "productGroupID",
+  "inProductGroupWithID",
+  "additionalProperty",
+  "offers",
+  "aggregateRating",
+  "review",
+] as const;
+
+function orderProductSchemaKeys(
+  productNode: Record<string, unknown>
+): Record<string, unknown> {
+  const ordered: Record<string, unknown> = {};
+  for (const key of PRODUCT_KEY_ORDER) {
+    if (Object.prototype.hasOwnProperty.call(productNode, key)) {
+      ordered[key] = productNode[key];
+    }
+  }
+  for (const key of Object.keys(productNode)) {
+    if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+      ordered[key] = productNode[key];
+    }
+  }
+  return ordered;
+}
+
+/**
+ * Google merchant docs: full schema.org URLs and short names are both valid
+ * (e.g. InStock / NewCondition). We emit short names for consistency.
+ * @see https://developers.google.com/search/docs/appearance/structured-data/merchant-listing
+ */
+function normalizeOfferEnumerationFields(
+  productNode: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...productNode };
+  const offers = out.offers;
+  if (!isPlainObject(offers)) return out;
+
+  const nextOffers: Record<string, unknown> = { ...offers };
+
+  for (const key of ["availability", "itemCondition"] as const) {
+    const short = toSchemaOrgShortEnum(nextOffers[key]);
+    if (short) nextOffers[key] = short;
+  }
+
+  const priceSpec = nextOffers.priceSpecification;
+  if (isPlainObject(priceSpec)) {
+    const nextSpec: Record<string, unknown> = { ...priceSpec };
+    const priceType = toSchemaOrgShortEnum(nextSpec.priceType);
+    if (priceType) nextSpec.priceType = priceType;
+    nextOffers.priceSpecification = nextSpec;
+  } else if (Array.isArray(priceSpec)) {
+    nextOffers.priceSpecification = priceSpec.map((entry) => {
+      if (!isPlainObject(entry)) return entry;
+      const nextSpec: Record<string, unknown> = { ...entry };
+      const priceType = toSchemaOrgShortEnum(nextSpec.priceType);
+      if (priceType) nextSpec.priceType = priceType;
+      return nextSpec;
+    });
+  }
+
+  const returns = nextOffers.hasMerchantReturnPolicy;
+  if (isPlainObject(returns)) {
+    const nextReturns: Record<string, unknown> = { ...returns };
+    for (const key of [
+      "returnPolicyCategory",
+      "returnMethod",
+      "returnFees",
+    ] as const) {
+      const short = toSchemaOrgShortEnum(nextReturns[key]);
+      if (short) nextReturns[key] = short;
+    }
+    // applicableCountry must stay as country code string "GB", not URL
+    const country = nextReturns.applicableCountry;
+    if (typeof country === "string") {
+      const shortCountry = toSchemaOrgShortEnum(country);
+      if (shortCountry && shortCountry.length <= 3) {
+        nextReturns.applicableCountry = shortCountry.toUpperCase();
+      }
+    }
+    nextOffers.hasMerchantReturnPolicy = nextReturns;
+  }
+
+  out.offers = nextOffers;
+  return out;
+}
+
+/**
+ * Identifiers always follow catalog (variant SKU / MPN / EAN), never stale admin-pasted values.
+ * If catalog value is missing/invalid → field omitted (empty).
+ * Reorders keys so sku/mpn/gtin sit with product identity fields (not after reviews).
+ */
+function finalizeProductSchemaNode(
+  productNode: Record<string, unknown>,
+  autoProduct: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...productNode };
+
+  for (const key of PRODUCT_IDENTIFIER_KEYS) {
+    delete out[key];
+  }
+
+  for (const key of PRODUCT_IDENTIFIER_KEYS) {
+    if (hasNonEmptyField(autoProduct, key)) {
+      out[key] = autoProduct[key];
+    }
+  }
+
+  return orderProductSchemaKeys(normalizeOfferEnumerationFields(out));
+}
+
+/**
+ * Resolve final JSON-LD list for a product page:
+ * - No admin Product → full auto Product
+ * - Admin Product(s) → merge missing merchant fields only (admin wins)
+ * - sku/mpn/gtin always from catalog; omitted when not given
+ * - FAQPage / Organization / LocalBusiness: admin fields win, missing from auto
+ * - Non-matching admin nodes pass through unchanged
+ */
+export function resolveProductPageJsonLdObjects(
+  adminObjects: Record<string, unknown>[],
+  autoProduct: Record<string, unknown>,
+  extras?: {
+    autoBusiness?: Record<string, unknown> | null;
+    autoFaq?: Record<string, unknown> | null;
+    appendAutoBusiness?: boolean;
+  }
+): Record<string, unknown>[] {
+  return applyAutoJsonLd(
+    adminObjects,
+    {
+      product: autoProduct,
+      business: extras?.autoBusiness || null,
+      faq: extras?.autoFaq || null,
+    },
+    {
+      appendAutoProduct: true,
+      appendAutoBusiness: extras?.appendAutoBusiness !== false && Boolean(extras?.autoBusiness),
+      appendAutoFaq: Boolean(extras?.autoFaq),
+      finalizeProduct: finalizeProductSchemaNode,
+    }
+  );
 }
 
 export async function generateBreadcrumbSchema(product: ProductData, slug: string) {

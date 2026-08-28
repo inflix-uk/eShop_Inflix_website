@@ -13,6 +13,8 @@ import {
   ogImagesFromUrl,
 } from "@/lib/storeIdentity";
 import { getCanonical } from "@/lib/getCanonical";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
+import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 
 const SLUG = "deals-and-discounts";
 
@@ -135,26 +137,17 @@ export default async function DealsAndDiscountsLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const cms = await getPublishedCmsPage();
+  const jsonLdStrings = await mergeAdminJsonLdWithAutoBusiness(
+    cms?.metaSchema?.length
+      ? normalizeMetaSchemaJsonLdStrings(cms.metaSchema)
+      : normalizeMetaSchemaJsonLdStrings(
+          (await fetchStaticMetaByPath("/deals-and-discounts"))?.metaSchemas
+        )
+  );
 
-  if (cms?.metaSchema?.length) {
-    return (
-      <>
-        {cms.metaSchema.map((schema: string, index: number) => (
-          <script
-            key={index}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: schema }}
-          />
-        ))}
-        {children}
-      </>
-    );
-  }
-
-  const metaData = await fetchStaticMetaByPath("/deals-and-discounts");
   return (
     <>
-      {metaData?.metaSchemas?.map((schema: string, index: number) => (
+      {jsonLdStrings.map((schema, index) => (
         <script
           key={index}
           type="application/ld+json"

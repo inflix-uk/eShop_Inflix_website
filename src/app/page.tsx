@@ -19,7 +19,20 @@ import { isBackendAvailable } from "@/app/lib/backendAvailability";
 import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import { getHomeServerCmsBundle } from "@/app/lib/homeServerCms";
-import { buildHomepageFaqJsonLdStrings } from "@/app/lib/faqJsonLd";
+import {
+  buildFaqPageJsonLd,
+  extractFaqItemsFromHomepageBlocks,
+} from "@/app/lib/faqJsonLd";
+import { generateAutoBusinessSchema } from "@/app/lib/businessJsonLd";
+import {
+  firstUsableHeroShareImage,
+  withPodcastStudioPhotos,
+} from "@/app/lib/podcastShareImage";
+import {
+  applyAutoJsonLd,
+  parseJsonLdStringsToObjects,
+  stringifyJsonLdObjects,
+} from "@/app/lib/jsonLdMerge";
 import { getStoreIdentity, DEFAULT_LOGO_ALT } from "@/lib/storeIdentity";
 
 export const revalidate = 120;
@@ -50,10 +63,11 @@ const HOME_FALLBACK_TITLE = "";
 const HOME_FALLBACK_DESCRIPTION = "";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [metaData, homepageSeo, heroPayload] = await Promise.all([
+  const [metaData, homepageSeo, heroPayload, identity] = await Promise.all([
     getMetaData(),
     getHomepagePublicSeo(),
     getHomepageHeroBannersCached(),
+    getStoreIdentity().catch(() => null),
   ]);
 
   const titleFromCms = homepageSeo?.metaTitle?.trim();
@@ -72,11 +86,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const keywords =
     keywordsFromCms ?? metaData?.metaKeywords;
 
-  const firstHeroBanner = heroPayload?.banners?.[0];
-  const ogImage =
-    firstHeroBanner?.srcLarge ||
-    firstHeroBanner?.srcSmall ||
-    undefined;
+  const firstHeroStill = firstUsableHeroShareImage(heroPayload?.banners);
+  const ogImage = firstHeroStill || identity?.ogImageUrl || undefined;
+  const ogImageAlt = identity?.ogImageAlt;
   const canonicalUrl = await getCanonical("/");
 
   return {
@@ -90,13 +102,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url: canonicalUrl,
       description,
       type: "website",
-      images: ogImage ? [{ url: ogImage }] : [],
+      ...(ogImage ? { images: [{ url: ogImage, ...(ogImageAlt ? { alt: ogImageAlt } : {}) }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ogImage ? [{ url: ogImage }] : [],
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
     alternates: {
       canonical: canonicalUrl,
@@ -143,7 +155,9 @@ export default async function Home() {
       getStoreIdentity().catch(() => ({
         siteName: "",
         logoAlt: "Store logo",
+        logoUrl: null,
         ogImageUrl: null,
+        ogImageAlt: "Store logo",
       })),
     ]);
   const { banners: heroBanners, heroSocial } = heroPayload;
@@ -154,20 +168,27 @@ export default async function Home() {
     .filter((s): s is string => s != null && s.length > 0);
 
   const canonicalUrl = await getCanonical("/");
-  const adminHasFaqSchema = adminJsonLdStrings.some((entry) =>
-    /"@type"\s*:\s*"FAQPage"/.test(entry)
+  const fallbackWebSite = getDefaultHomepageJsonLdString(
+    canonicalUrl,
+    storeIdentity.siteName
   );
-  const faqJsonLdStrings =
-    !adminHasFaqSchema && cmsBundle?.homepageBlocks?.length
-      ? buildHomepageFaqJsonLdStrings(cmsBundle.homepageBlocks)
-      : [];
-
-  const homepageJsonLdToRender = [
-    ...(adminJsonLdStrings.length > 0
-      ? adminJsonLdStrings
-      : [getDefaultHomepageJsonLdString(canonicalUrl, storeIdentity.siteName)]),
-    ...faqJsonLdStrings,
-  ];
+  const adminObjects = parseJsonLdStringsToObjects(
+    adminJsonLdStrings.length > 0 ? adminJsonLdStrings : [fallbackWebSite]
+  );
+  const autoFaq =
+    cmsBundle?.homepageBlocks?.length
+      ? buildFaqPageJsonLd(extractFaqItemsFromHomepageBlocks(cmsBundle.homepageBlocks))
+      : null;
+  const autoBusiness = await generateAutoBusinessSchema();
+  const homepageJsonLdToRender = stringifyJsonLdObjects(
+    await withPodcastStudioPhotos(
+      applyAutoJsonLd(
+        adminObjects,
+        { business: autoBusiness, faq: autoFaq },
+        { appendAutoBusiness: false, appendAutoFaq: true }
+      )
+    )
+  );
 
   return (
     <>

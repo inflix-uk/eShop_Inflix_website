@@ -32,7 +32,13 @@ import {
   type LogoSettings,
 } from "@/app/services/logoService";
 import { getSiteWideSchemaPublic } from "@/app/services/siteWideSchemaService";
+import { getStoreIdentity, ogImagesFromUrl } from "@/lib/storeIdentity";
+import {
+  pathnameFromRequestHeaders,
+  resolveSiteWideJsonLdStrings,
+} from "@/app/lib/businessJsonLd";
 import { isBackendAvailable } from "@/app/lib/backendAvailability";
+import { headers } from "next/headers";
 import { BackendAvailabilityProvider } from "@/app/context/BackendAvailabilityContext";
 import { ProductCardDesignProvider } from "@/app/context/ProductCardDesignContext";
 import { getProductCardSettingsPublic } from "@/app/services/productCardSettingsService";
@@ -120,17 +126,18 @@ export async function generateMetadata(): Promise<Metadata> {
         }
       : {};
 
-  const ogImage = siteBranding?.logoUrl?.trim() || undefined;
+  const identity = backendAvailable ? await getStoreIdentity().catch(() => null) : null;
+  const ogImages = ogImagesFromUrl(identity?.ogImageUrl, identity?.ogImageAlt);
 
   const metadata: Metadata = {
     robots: "index, follow",
     openGraph: {
       type: "website",
-      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+      ...(ogImages.length ? { images: ogImages } : {}),
     },
     twitter: {
       card: "summary_large_image",
-      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+      ...(ogImages.length ? { images: ogImages } : {}),
     },
     // Skip metadata.verification when GSC meta is injected via Site scripts head HTML (avoids duplicate tags)
     ...(verificationCode && {
@@ -149,7 +156,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [backendAvailable, siteScripts, siteThemeBundle, announcementBanner, siteWideSchemas, siteBranding, productCardSettings] =
+  const headerList = await headers();
+  const pathname = pathnameFromRequestHeaders(headerList);
+
+  const [backendAvailable, siteScripts, siteThemeBundle, announcementBanner, siteWideSchemasRaw, siteBranding, productCardSettings] =
     await Promise.all([
       isBackendAvailable(),
       getSiteScriptsPublic(),
@@ -168,6 +178,11 @@ export default async function RootLayout({
       getLogoSettingsPublic(),
       getProductCardSettingsPublic(),
     ]);
+
+  const siteWideSchemas = await resolveSiteWideJsonLdStrings(
+    siteWideSchemasRaw,
+    pathname
+  );
 
   const effectiveBranding = backendAvailable ? siteBranding : null;
   const ssrLogoHref = effectiveBranding?.logoUrl?.trim() || null;

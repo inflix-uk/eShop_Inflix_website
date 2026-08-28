@@ -4,6 +4,8 @@ import {
   fetchFooterPageBySlug,
   getImageUrl,
 } from "@/app/services/footerPageService";
+import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
+import { getStoreIdentity, shareImagesForPage } from "@/lib/storeIdentity";
 
 function ldJsonForScriptTag(raw: string): string {
   let s = String(raw).trim();
@@ -70,13 +72,20 @@ export async function generateMetadata({
   const pathSeg = `/${decodedParentSlug}/${decodedPageSlug}`;
   const canonicalUrl = await getCanonical(pathSeg);
 
-  const [staticMeta, page] = await Promise.all([
+  const [staticMeta, page, identity] = await Promise.all([
     fetchStaticMetaByPath(pathSeg),
     fetchFooterPageBySlug(decodedPageSlug, decodedParentSlug).catch((error) => {
       console.error("Error fetching page for metadata:", error);
       return null;
     }),
+    getStoreIdentity().catch(() => null),
   ]);
+
+  const bannerUrl =
+    page?.publishStatus === "published" && page.bannerImage
+      ? getImageUrl(page.bannerImage)
+      : null;
+  const images = shareImagesForPage(bannerUrl, identity);
 
   if (page?.publishStatus === "published" && page.metaTitle) {
     const title = page.metaTitle;
@@ -91,17 +100,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description,
         type: "website",
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -117,11 +122,6 @@ export async function generateMetadata({
   }
 
   if (staticMeta?.titleTag) {
-    const ogImages =
-      page?.publishStatus === "published" && page.bannerImage
-        ? [{ url: getImageUrl(page.bannerImage) }]
-        : [];
-
     const metadata: Metadata = {
       title: staticMeta.titleTag,
       description: staticMeta.metaDescription || "",
@@ -131,13 +131,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description: staticMeta.metaDescription || "",
         type: "website",
-        images: ogImages,
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title: staticMeta.titleTag,
         description: staticMeta.metaDescription || "",
-        images: ogImages,
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -163,17 +163,13 @@ export async function generateMetadata({
         url: canonicalUrl,
         description,
         type: "website",
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       twitter: {
         card: "summary_large_image",
         title,
         description,
-        images: page.bannerImage
-          ? [{ url: getImageUrl(page.bannerImage) }]
-          : [],
+        ...(images.length ? { images } : {}),
       },
       alternates: {
         canonical: canonicalUrl,
@@ -217,13 +213,15 @@ export default async function CategoryDynamicPageLayout({
       ? page.metaSchema
       : staticMeta?.metaSchemas ?? [];
 
-  const normalizedSchemas = schemaScripts
-    .map((schema) => ldJsonForScriptTag(schema))
-    .filter(Boolean);
+  const jsonLdStrings = await mergeAdminJsonLdWithAutoBusiness(
+    schemaScripts
+      .map((schema) => ldJsonForScriptTag(schema))
+      .filter(Boolean)
+  );
 
   return (
     <>
-      {normalizedSchemas.map((schema, index) => (
+      {jsonLdStrings.map((schema, index) => (
         <script
           key={index}
           type="application/ld+json"
