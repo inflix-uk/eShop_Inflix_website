@@ -91,6 +91,7 @@ export interface CreateOrderRequest {
   status: string;
   shippingMethod?: ShippingMethodData | null;
   marketingAttribution?: MarketingAttributionPayload;
+  conversionConsent?: { analytics: boolean; marketing: boolean };
 }
 
 export interface CreateOrderResponse {

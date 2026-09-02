@@ -1,35 +1,36 @@
-import Script from "next/script";
+"use client";
+
+import { useEffect } from "react";
+import {
+  COOKIE_CONSENT_UPDATED_EVENT,
+  COOKIE_CONSENT_UPDATED_EVENT_LEGACY,
+  getConsentPreferences,
+} from "@/app/lib/cookieConsent";
+import { syncFacebookPixelForConsent } from "@/app/lib/facebookPixel";
 
 /**
- * When true, Meta/Facebook Pixel will not load even if GTM injects the tag:
- * the official bootstrap does `if (f.fbq) return` before fetching fbevents.js.
- * Real pixel is not enabled in this task — remains stubbed unless env override is set.
- * When unblocked, GTM may still load Meta tags; targeting consent is enforced via
- * cookieConsent / performance / targeting cookies elsewhere (GTM container config).
+ * GTM may call fbq(). Until marketing consent, a discard-only stub is installed
+ * in <head>. After marketing is granted, replace the stub (do not flush) so the
+ * official pixel can load. Revoke reinstalls the stub.
  */
-export const TEMPORARILY_BLOCK_FACEBOOK_PIXEL = true;
-
-/**
- * Optional override without a code change: set NEXT_PUBLIC_ENABLE_FACEBOOK_PIXEL=true
- * in env to force pixel on even while TEMPORARILY_BLOCK_FACEBOOK_PIXEL is true.
- */
-function shouldBlock(): boolean {
-  if (process.env.NEXT_PUBLIC_ENABLE_FACEBOOK_PIXEL === "true") {
-    return false;
-  }
-  return TEMPORARILY_BLOCK_FACEBOOK_PIXEL;
-}
-
 export default function FacebookPixelBlock() {
-  if (!shouldBlock()) return null;
+  useEffect(() => {
+    const sync = () => {
+      try {
+        syncFacebookPixelForConsent(getConsentPreferences().marketing);
+      } catch {
+        /* non-fatal */
+      }
+    };
 
-  return (
-    <Script
-      id="fb-pixel-stub"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{
-        __html: `!function(w){var n=function(){};n.queue=[];n.loaded=!0;n.version="2.0";n.callMethod=n.push=function(){};w.fbq=n;w._fbq=n}(window);`,
-      }}
-    />
-  );
+    sync();
+    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT, sync);
+    window.addEventListener(COOKIE_CONSENT_UPDATED_EVENT_LEGACY, sync);
+    return () => {
+      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT, sync);
+      window.removeEventListener(COOKIE_CONSENT_UPDATED_EVENT_LEGACY, sync);
+    };
+  }, []);
+
+  return null;
 }

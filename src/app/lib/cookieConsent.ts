@@ -1,5 +1,5 @@
 /**
- * Guide §7.2 — consent storage (Zextons-style).
+ * Consent storage (Zextons spec).
  * Cookies: cookieConsent, analytics, marketing (365d, SameSite=Lax, Secure on HTTPS).
  * Legacy: performance → analytics, targeting → marketing (cleaned on save).
  */
@@ -56,36 +56,74 @@ export function openConsentSettings(): void {
   window.dispatchEvent(new CustomEvent(OPEN_CONSENT_SETTINGS_EVENT));
 }
 
-function resolveGranularConsentStatus(analytics: boolean, marketing: boolean): ConsentStatus {
-  if (analytics && marketing) return 'accepted';
-  if (!analytics && !marketing) return 'rejected';
+/**
+ * Save-preferences status only (not Accept all / Reject all).
+ * Both optional categories off → preferences; any on → customized.
+ */
+export function resolveGranularConsentStatus(
+  analytics: boolean,
+  marketing: boolean
+): ConsentStatus {
+  if (!analytics && !marketing) return 'preferences';
   return 'customized';
 }
 
+type CookieReader = (name: string) => string | undefined;
+
 /**
- * Read current preferences. Migrates legacy performance/targeting if new cookies absent.
+ * Pure read algorithm — unit-tested without js-cookie.
+ * Denied by default until the user chooses.
  */
-export function getConsentPreferences(): ConsentPreferences {
-  const statusRaw = (Cookies.get('cookieConsent') || '') as ConsentStatus;
+export function readConsentPreferencesFromStore(
+  getCookie: CookieReader
+): ConsentPreferences {
+  const statusRaw = (getCookie('cookieConsent') || '') as ConsentStatus;
   const hasStatus = Boolean(statusRaw);
 
-  let analytics = isGranted(Cookies.get('analytics'));
-  let marketing = isGranted(Cookies.get('marketing'));
-
-  // Legacy fallback when new cookies not yet written
-  if (Cookies.get('analytics') == null && Cookies.get('performance') != null) {
-    analytics = isGranted(Cookies.get('performance'));
+  if (!hasStatus) {
+    return {
+      necessary: true,
+      analytics: false,
+      marketing: false,
+      status: '',
+      hasChoice: false,
+    };
   }
-  if (Cookies.get('marketing') == null && Cookies.get('targeting') != null) {
-    marketing = isGranted(Cookies.get('targeting'));
+
+  const analyticsCookie = getCookie('analytics');
+  const marketingCookie = getCookie('marketing');
+  const analyticsMissing = analyticsCookie == null || analyticsCookie === '';
+  const marketingMissing = marketingCookie == null || marketingCookie === '';
+
+  // Legacy Accept: status=accepted and both category cookies missing.
+  if (statusRaw === 'accepted' && analyticsMissing && marketingMissing) {
+    return {
+      necessary: true,
+      analytics: true,
+      marketing: true,
+      status: 'accepted',
+      hasChoice: true,
+    };
   }
 
-  if (statusRaw === 'accepted') {
-    analytics = true;
-    marketing = true;
-  } else if (statusRaw === 'rejected') {
-    analytics = false;
-    marketing = false;
+  if (statusRaw === 'rejected') {
+    return {
+      necessary: true,
+      analytics: false,
+      marketing: false,
+      status: 'rejected',
+      hasChoice: true,
+    };
+  }
+
+  let analytics = isGranted(analyticsCookie);
+  let marketing = isGranted(marketingCookie);
+
+  if (analyticsMissing && getCookie('performance') != null) {
+    analytics = isGranted(getCookie('performance'));
+  }
+  if (marketingMissing && getCookie('targeting') != null) {
+    marketing = isGranted(getCookie('targeting'));
   }
 
   return {
@@ -93,8 +131,15 @@ export function getConsentPreferences(): ConsentPreferences {
     analytics,
     marketing,
     status: statusRaw,
-    hasChoice: hasStatus,
+    hasChoice: true,
   };
+}
+
+/**
+ * Read current preferences. Migrates legacy performance/targeting if new cookies absent.
+ */
+export function getConsentPreferences(): ConsentPreferences {
+  return readConsentPreferencesFromStore((name) => Cookies.get(name));
 }
 
 export function saveConsentPreferences(input: {
@@ -111,7 +156,6 @@ export function saveConsentPreferences(input: {
   Cookies.set('analytics', String(analytics), COOKIE_OPTS);
   Cookies.set('marketing', String(marketing), COOKIE_OPTS);
 
-  // Clean legacy aliases
   Cookies.remove('performance', { path: '/' });
   Cookies.remove('targeting', { path: '/' });
 

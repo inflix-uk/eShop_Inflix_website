@@ -87,6 +87,8 @@ export interface MarketingAttributionPayload {
   visitorId?: string;
   gaClientId?: string | null;
   consent?: MarketingConsentState;
+  firstVisitAt?: string;
+  lastVisitAt?: string;
 }
 
 interface StoredAttribution {
@@ -96,6 +98,8 @@ interface StoredAttribution {
   landingPage?: string;
   clickIds?: Partial<Record<ClickIdKey, string>>;
   gaClientId?: string;
+  firstVisitAt?: string;
+  lastVisitAt?: string;
   updatedAt: string;
 }
 
@@ -372,6 +376,39 @@ function readGaClientId(allowAnalytics: boolean): string | undefined {
   return truncate(ga, MAX.id);
 }
 
+function scheduleGaClientIdPoll(): void {
+  if (!isBrowser() || !hasAnalyticsConsent()) return;
+  const existing = loadStored();
+  if (existing?.gaClientId) return;
+  const delays = [500, 1500, 3000, 5000];
+  for (const ms of delays) {
+    window.setTimeout(() => {
+      if (!hasAnalyticsConsent()) return;
+      const gaClientId = readGaClientId(true);
+      if (!gaClientId) return;
+      const stored = loadStored();
+      if (!stored) return;
+      stored.gaClientId = gaClientId;
+      stored.updatedAt = new Date().toISOString();
+      saveStored(stored);
+    }, ms);
+  }
+}
+
+/** URL click IDs stay; fbc/fbp only with marketing. */
+export function stripMarketingAttributionFields(
+  clickIds: Partial<Record<ClickIdKey, string>> | undefined,
+  marketing: boolean
+): Partial<Record<ClickIdKey, string>> | undefined {
+  if (!clickIds) return undefined;
+  const next = { ...clickIds };
+  if (!marketing) {
+    delete next.fbc;
+    delete next.fbp;
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 function detectDeviceType(): 'mobile' | 'desktop' | 'tablet' | 'unknown' {
   const ua = navigator.userAgent;
   if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/i.test(ua)) return 'tablet';
@@ -409,6 +446,8 @@ function prunePayload(
   if (payload.sessionId) result.sessionId = payload.sessionId;
   if (payload.visitorId) result.visitorId = payload.visitorId;
   if (payload.gaClientId) result.gaClientId = payload.gaClientId;
+  if (payload.firstVisitAt) result.firstVisitAt = payload.firstVisitAt;
+  if (payload.lastVisitAt) result.lastVisitAt = payload.lastVisitAt;
   if (payload.consent) result.consent = payload.consent;
 
   const hasAttributionData =
@@ -464,6 +503,11 @@ export function bootstrapAttribution(): void {
       cookieClickIds
     );
 
+    if (!stored.firstVisitAt) {
+      stored.firstVisitAt = stored.firstTouch?.capturedAt || new Date().toISOString();
+    }
+    stored.lastVisitAt = new Date().toISOString();
+
     if (prefs.analytics) {
       const gaClientId = readGaClientId(true);
       if (gaClientId) stored.gaClientId = gaClientId;
@@ -495,6 +539,9 @@ export function bootstrapAttribution(): void {
     }
 
     clearPersistedVisitorIdIfDenied();
+    if (prefs.analytics) {
+      scheduleGaClientIdPoll();
+    }
     devLog('bootstrap', {
       analytics: prefs.analytics,
       marketing: prefs.marketing,
@@ -671,13 +718,10 @@ export function getMarketingAttributionForOrder(): MarketingAttributionPayload |
 
     const urlClickIds = buildUrlClickIds(params);
     const cookieClickIds = buildCookieClickIds(consent.marketing);
-    const clickIds = mergeClickIds(stored?.clickIds, urlClickIds, cookieClickIds);
-
-    // Ensure cookie IDs stripped if marketing false
-    if (!consent.marketing && clickIds) {
-      delete clickIds.fbc;
-      delete clickIds.fbp;
-    }
+    const clickIds = stripMarketingAttributionFields(
+      mergeClickIds(stored?.clickIds, urlClickIds, cookieClickIds),
+      consent.marketing
+    );
 
     const orderTouch = buildTouch(params, referrer, currentPage);
     const shouldIncludeOrderTouch =
@@ -695,6 +739,8 @@ export function getMarketingAttributionForOrder(): MarketingAttributionPayload |
       gaClientId: consent.analytics
         ? stored?.gaClientId || readGaClientId(true) || null
         : null,
+      firstVisitAt: stored?.firstVisitAt,
+      lastVisitAt: stored?.lastVisitAt,
       consent,
     });
   } catch (error) {

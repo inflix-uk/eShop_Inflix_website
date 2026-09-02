@@ -4,6 +4,13 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { OrderService } from "../services/orderService";
+import {
+  ensureTrackingReady,
+} from "@/app/lib/analyticsEvents";
+import {
+  getConsentPreferences,
+  hasMarketingConsent,
+} from "@/app/lib/cookieConsent";
 const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
 const TopBar = dynamic(() => import("@/app/topbar/page"), { ssr: false });
 
@@ -58,14 +65,16 @@ export default function ThankYouPage() {
     }
   }, []);
 
-  // Google Analytics purchase tracking - fires only once when order is loaded
+  // Browser conversions: GA4 purchase (analytics) + ads_purchase/pixels (marketing).
   useEffect(() => {
-    console.log('🎯 GA Tracking useEffect triggered. Order:', order, 'HasTracked:', hasTracked.current);
-    if (order && !hasTracked.current) {
-      hasTracked.current = true;
-      console.log('🚀 Firing Google Analytics purchase event...');
+    if (!order || hasTracked.current) return;
+    hasTracked.current = true;
 
-      // Track purchase using OrderService
+    const prefs = getConsentPreferences();
+    const run = async () => {
+      if (prefs.analytics || prefs.marketing) {
+        await ensureTrackingReady();
+      }
       const orderService = OrderService.init();
       orderService.trackPurchaseEvent(
         order.orderNumber,
@@ -76,12 +85,16 @@ export default function ThankYouPage() {
           phone: order.customerPhone,
         }
       );
-    }
+    };
+    void run();
   }, [order]);
 
-  // Trustpilot JavaScript Integration - sends review invitation
+  // Trustpilot invite transmits email — marketing consent required.
   useEffect(() => {
     if (!order?.customerEmail || !order?.orderNumber || hasTrustpilotInvited.current) {
+      return;
+    }
+    if (!hasMarketingConsent()) {
       return;
     }
 
