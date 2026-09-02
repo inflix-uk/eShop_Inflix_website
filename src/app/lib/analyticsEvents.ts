@@ -32,6 +32,7 @@ export interface TrackEventOptions {
 declare global {
   interface Window {
     dataLayer?: Record<string, unknown>[];
+    __gtmInjected?: boolean;
   }
 }
 
@@ -165,9 +166,32 @@ function mapGa4Items(items: EcommerceLineItem[] = []) {
 }
 
 function pushDataLayer(payload: Record<string, unknown>): void {
-  if (!isBrowser() || !hasAnalyticsConsent()) return;
+  if (!isBrowser()) return;
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push(payload);
+}
+
+function pushAnalyticsDataLayer(payload: Record<string, unknown>): boolean {
+  if (!hasAnalyticsConsent()) return false;
+  pushDataLayer(payload);
+  return true;
+}
+
+function urlClickIdsFromAttribution(
+  attribution?: ReturnType<typeof getMarketingAttributionForOrder>
+): Record<string, string | undefined> | undefined {
+  const clickIds = attribution?.clickIds;
+  if (!clickIds) return undefined;
+  const next = {
+    gclid: clickIds.gclid,
+    gbraid: clickIds.gbraid,
+    wbraid: clickIds.wbraid,
+    fbclid: clickIds.fbclid,
+    msclkid: clickIds.msclkid,
+    ttclid: clickIds.ttclid,
+    oppref: clickIds.oppref,
+  };
+  return Object.values(next).some(Boolean) ? next : undefined;
 }
 
 async function postFirstPartyEvent(
@@ -207,36 +231,80 @@ async function buildUserDataHashes(options: TrackEventOptions) {
   };
 }
 
+export interface EnhancedUserData {
+  email?: string;
+  phone_number?: string;
+  first_name?: string;
+  last_name?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+/** Returns undefined unless marketing consent is true. Never attach to GA4 purchase. */
+export function buildEnhancedUserData(
+  contact?: {
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    postalCode?: string;
+    country?: string;
+  },
+  marketing = hasMarketingConsent()
+): EnhancedUserData | undefined {
+  if (!marketing || !contact) return undefined;
+  const data: EnhancedUserData = {};
+  const email = contact.email ? String(contact.email).trim().toLowerCase() : '';
+  if (email && email.includes('@')) data.email = email;
+  const phone = contact.phone ? normalizePhone(contact.phone) : undefined;
+  if (phone) data.phone_number = phone;
+  const firstName = contact.firstName?.trim();
+  const lastName = contact.lastName?.trim();
+  if (firstName) data.first_name = firstName;
+  if (lastName) data.last_name = lastName;
+  const postal = contact.postalCode?.trim();
+  if (postal) data.postal_code = postal;
+  const country = contact.country?.trim();
+  if (country) data.country = country;
+  return Object.keys(data).length > 0 ? data : undefined;
+}
+
+function utmFromAttribution(
+  attribution?: ReturnType<typeof getMarketingAttributionForOrder>
+): Record<string, string | undefined> {
+  const touch =
+    attribution?.orderTouch || attribution?.lastTouch || attribution?.firstTouch;
+  return {
+    source: touch?.source,
+    medium: touch?.medium,
+    campaign: touch?.campaign,
+    term: touch?.term,
+    content: touch?.content,
+  };
+}
+
 /**
  * Track a funnel event to dataLayer (GTM) and first-party API.
+ * GA4 ecommerce funnel events require analytics consent.
  */
 export async function trackMarketingEvent(
   eventName: MarketingEventName,
   options: TrackEventOptions = {}
-): Promise<void> {
-  if (!isBrowser() || !hasAnalyticsConsent()) return;
+): Promise<boolean> {
+  if (!isBrowser() || !hasAnalyticsConsent()) return false;
 
   const attribution = getMarketingAttributionForOrder();
   const platformInfo = inferMarketingPlatform(attribution);
-  const eventId = generateEventId(eventName);
+  const eventId = options.orderNumber || generateEventId(eventName);
   const path = options.path ?? window.location.pathname + window.location.search;
   const pageTitle = options.pageTitle ?? document.title;
-  const userData = await buildUserDataHashes(options);
   const consent = readMarketingConsent();
 
   const items = options.items || [];
   const value = options.value;
   const currency = options.currency || 'GBP';
-
-  const clickIds =
-    consent.marketing && attribution?.clickIds
-      ? {
-          gclid: attribution.clickIds.gclid,
-          fbclid: attribution.clickIds.fbclid,
-          msclkid: attribution.clickIds.msclkid,
-          ttclid: attribution.clickIds.ttclid,
-        }
-      : undefined;
+  const clickIds = urlClickIdsFromAttribution(attribution);
+  const utm = utmFromAttribution(attribution);
 
   const ga4Ecommerce: Record<string, unknown> = {
     currency,
@@ -245,25 +313,20 @@ export async function trackMarketingEvent(
     ...(items.length > 0 ? { items: mapGa4Items(items) } : {}),
   };
 
-  pushDataLayer({ ecommerce: null });
-  pushDataLayer({
+  pushAnalyticsDataLayer({ ecommerce: null });
+  pushAnalyticsDataLayer({
     event: eventName,
+    event_id: eventId,
     marketing_platform: platformInfo.platform,
-    marketing_source: platformInfo.source ?? null,
-    marketing_medium: platformInfo.medium ?? null,
-    marketing_campaign: platformInfo.campaign ?? null,
+    marketing_source: platformInfo.source ?? utm.source ?? null,
+    marketing_medium: platformInfo.medium ?? utm.medium ?? null,
+    marketing_campaign: platformInfo.campaign ?? utm.campaign ?? null,
     page_path: path,
     page_title: pageTitle,
     ecommerce: ga4Ecommerce,
-    ...(userData && hasMarketingConsent()
-      ? {
-          user_data: {
-            sha256_email_address: userData.emailSha256 ?? undefined,
-            sha256_phone_number: userData.phoneSha256 ?? undefined,
-          },
-        }
-      : {}),
   });
+
+  const userData = consent.marketing ? await buildUserDataHashes(options) : undefined;
 
   await postFirstPartyEvent(eventName, eventId, {
     sessionId: attribution?.sessionId,
@@ -284,6 +347,72 @@ export async function trackMarketingEvent(
     userData,
     clickIds,
   });
+
+  return true;
+}
+
+export function trackAnalyticsPurchase(
+  orderNumber: string,
+  value: number,
+  items: EcommerceLineItem[],
+  currency = 'GBP'
+): boolean {
+  if (!isBrowser() || !hasAnalyticsConsent()) return false;
+  const attribution = getMarketingAttributionForOrder();
+  const utm = utmFromAttribution(attribution);
+
+  pushAnalyticsDataLayer({ ecommerce: null });
+  pushAnalyticsDataLayer({
+    event: 'purchase',
+    event_id: orderNumber,
+    ecommerce: {
+      currency,
+      value,
+      transaction_id: orderNumber,
+      items: mapGa4Items(items),
+    },
+    source: utm.source ?? null,
+    medium: utm.medium ?? null,
+    campaign: utm.campaign ?? null,
+    term: utm.term ?? null,
+    content: utm.content ?? null,
+  });
+  return true;
+}
+
+export function trackAdsConversion(
+  orderNumber: string,
+  value: number,
+  items: EcommerceLineItem[],
+  contact?: {
+    email?: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    postalCode?: string;
+    country?: string;
+  },
+  currency = 'GBP'
+): boolean {
+  if (!isBrowser() || !hasMarketingConsent()) return false;
+
+  const userData = buildEnhancedUserData(contact, true);
+  if (userData) {
+    pushDataLayer({ event: 'user_data', user_data: userData });
+  }
+
+  pushDataLayer({ ecommerce: null });
+  pushDataLayer({
+    event: 'ads_purchase',
+    event_id: orderNumber,
+    ecommerce: {
+      currency,
+      value,
+      transaction_id: orderNumber,
+      items: mapGa4Items(items),
+    },
+  });
+  return true;
 }
 
 export function trackPageView(): void {
@@ -312,17 +441,35 @@ export function trackBeginCheckout(items: EcommerceLineItem[], value: number, co
   });
 }
 
+export async function ensureTrackingReady(timeoutMs = 2500): Promise<boolean> {
+  if (!isBrowser()) return false;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (document.getElementById('gtm-script') || window.__gtmInjected) return true;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  return Boolean(document.getElementById('gtm-script') || window.__gtmInjected);
+}
+
 export async function trackPurchase(
   orderNumber: string,
   value: number,
   items: EcommerceLineItem[],
   contact?: { email?: string; phone?: string }
 ): Promise<void> {
-  await trackMarketingEvent('purchase', {
-    orderNumber,
-    value,
-    items,
-    email: contact?.email,
-    phone: contact?.phone,
-  });
+  if (hasAnalyticsConsent()) {
+    await trackMarketingEvent('purchase', {
+      orderNumber,
+      value,
+      items,
+      email: contact?.email,
+      phone: contact?.phone,
+    });
+  }
+
+  if (hasMarketingConsent()) {
+    trackAdsConversion(orderNumber, value, items, contact);
+    const { trackMetaPurchase } = await import('@/app/lib/facebookPixel');
+    trackMetaPurchase(value, 'GBP', orderNumber);
+  }
 }

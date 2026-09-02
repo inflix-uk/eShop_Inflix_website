@@ -8,6 +8,7 @@ import DeferredGoogleTagManagerGate from "@/app/components/analytics/DeferredGoo
 import MarketingAttributionCaptureGate from "@/app/components/analytics/MarketingAttributionCaptureGate";
 import ConsentCookieGate from "@/app/components/common/ConsentCookieGate";
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
+import { CONSENT_DEFAULT_INLINE_SCRIPT } from "@/app/lib/consentMode";
 import SiteBrandColors from "@/app/components/SiteBrandColors";
 import SiteThemeInlineStyles from "@/app/components/SiteThemeInlineStyles";
 import TypographyThemeStyles from "@/app/components/TypographyThemeStyles";
@@ -201,6 +202,9 @@ export default async function RootLayout({
     >
       <head>
         <script
+          dangerouslySetInnerHTML={{ __html: CONSENT_DEFAULT_INLINE_SCRIPT }}
+        />
+        <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var backendUp=${backendAvailableLiteral};var href=${faviconHeadScriptLiteral};var sel='link[rel="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"],link[rel="apple-touch-icon-precomposed"],link[rel="mask-icon"]';document.querySelectorAll(sel).forEach(function(n){n.remove();});if(!backendUp||!href){["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href='data:,';document.head.appendChild(l);});return;}["icon","shortcut icon","apple-touch-icon"].forEach(function(rel){var l=document.createElement("link");l.rel=rel;l.href=href;document.head.appendChild(l);});}catch(e){}})();`,
           }}
@@ -212,7 +216,6 @@ export default async function RootLayout({
         {ssrLogoHref ? (
           <link rel="preload" as="image" href={ssrLogoHref} fetchPriority="high" />
         ) : null}
-        <FacebookPixelBlock />
         <DeferredGoogleTagManagerGate />
         {/* Dynamic site-wide schemas from admin panel */}
         {siteWideSchemas.map((jsonStr, i) => (
@@ -240,6 +243,7 @@ export default async function RootLayout({
           <AuthProvider>
             <BackendAvailabilityProvider backendAvailable={backendAvailable}>
               <ConsentCookieGate />
+              <FacebookPixelBlock />
               <MarketingAttributionCaptureGate />
               <ProductCardDesignProvider design={productCardSettings.activeDesign}>
                 {backendAvailable && <SiteBrandColors />}

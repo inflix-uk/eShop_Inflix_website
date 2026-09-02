@@ -52,7 +52,7 @@ function PreferenceToggle({
 
 /**
  * Original bottom-banner UI + preferences overlay.
- * Consent storage / Consent Mode still use guide analytics + marketing cookies.
+ * Consent storage / Consent Mode still use analytics + marketing cookies.
  * Uses `.cookie-consent-ui` black/white chrome so CMS tag colors cannot wash out text.
  */
 const CookieConsent: FC = () => {
