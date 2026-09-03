@@ -32,14 +32,15 @@ export function getInitialStockStatus(product: Product): boolean {
 export const PRODUCT_CARDS_PER_PAGE = 50;
 
 export function getPaginatedProducts<T>(
-  products: T[],
+  products: T[] | null | undefined,
   page: number,
   perPage = PRODUCT_CARDS_PER_PAGE
 ): T[] {
+  const list = Array.isArray(products) ? products : [];
   const safePage =
     Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
   const start = (safePage - 1) * perPage;
-  return products.slice(start, start + perPage);
+  return list.slice(start, start + perPage);
 }
 
 export function getProductCardDisplayData(product: Product): ProductCardDisplay {

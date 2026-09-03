@@ -21,9 +21,9 @@ export default function ProductList({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
   const [filteredProducts, setFilteredProducts] =
-    useState<Product[]>(initialProducts);
+    useState<Product[]>(initialProducts ?? []);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
   const [currentPage, setCurrentPage] = useState<number>(() => {
     const rawPage = Number(searchParams.get("page") || "1");

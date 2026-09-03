@@ -71,10 +71,10 @@ async function getProducts(categoryName: string) {
       );
     }
 
-    if (!res.ok) return null;
+    if (!res.ok) return [];
 
     const data = await res.json();
-    return data.products || [];
+    return Array.isArray(data.products) ? data.products : [];
   } catch (error) {
     console.error("Error fetching products:", error);
     return [];

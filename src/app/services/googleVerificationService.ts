@@ -10,8 +10,8 @@ import { cmsTimedFetch } from "@/app/lib/cmsTimedFetch";
 const getApiBaseUrl = (): string => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) {
-    console.warn('NEXT_PUBLIC_API_URL is not set in environment variables. Using default.');
-    return `${process.env.NEXT_PUBLIC_API_URL}`;
+    console.warn('[GoogleVerification] NEXT_PUBLIC_API_URL is not set. Skipping verification API fetch.');
+    return "";
   }
   return apiUrl;
 };
@@ -34,6 +34,10 @@ export interface GoogleVerificationResponse {
  */
 export async function getGoogleVerificationCode(): Promise<string | null> {
   try {
+    if (!API_BASE_URL) {
+      return null;
+    }
+
     // Use the correct endpoint pattern
     const endpoints = [
       `${API_BASE_URL}/get/google-search-console-verification`,
@@ -110,15 +114,16 @@ export async function getGoogleVerificationCode(): Promise<string | null> {
     }
     
     // If we get here, all endpoints failed
-    console.error('[GoogleVerification] ❌ All API endpoints failed');
+    console.warn('[GoogleVerification] All API endpoints failed');
     if (lastError) {
-      console.error('[GoogleVerification] Last error:', lastError.message);
+      console.warn('[GoogleVerification] Last error:', lastError.message);
     }
     console.warn('[GoogleVerification] Meta tag will NOT be added (all API calls failed)');
     return null;
   } catch (error) {
-    console.error('[GoogleVerification] ❌ Unexpected error fetching verification code:', error);
-    console.error('[GoogleVerification] Error details:', error instanceof Error ? error.message : String(error));
+    // Keep this non-fatal in SSR metadata generation; avoid noisy Next console-error overlays.
+    console.warn('[GoogleVerification] Unexpected error fetching verification code:', error);
+    console.warn('[GoogleVerification] Error details:', error instanceof Error ? error.message : String(error));
     console.warn('[GoogleVerification] Meta tag will NOT be added (unexpected error)');
     // Don't throw - gracefully handle errors, don't add meta tag
     return null;

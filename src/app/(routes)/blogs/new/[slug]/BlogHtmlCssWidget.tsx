@@ -20,6 +20,18 @@ function sanitizeCssForStyleElement(css: string): string {
   return String(css ?? "").replace(/<\/style/gi, "<\u200c/style");
 }
 
+/**
+ * Admin previews run in an iframe where `:root`, `html`, and `body` selectors are valid.
+ * On storefront we scope CSS to the widget subtree, so remap those selectors to `:scope`
+ * to preserve variables/base styles and keep visual parity with admin preview.
+ */
+function normalizeCssForScopedWidget(css: string): string {
+  return String(css ?? "")
+    .replace(/(^|[,{]\s*):root\b/gm, "$1:scope")
+    .replace(/(^|[,{]\s*)html\b/gm, "$1:scope")
+    .replace(/(^|[,{]\s*)body\b/gm, "$1:scope");
+}
+
 export default function BlogHtmlCssWidget({
   html = "",
   css = "",
@@ -40,7 +52,7 @@ export default function BlogHtmlCssWidget({
     return null;
   }
 
-  const safeCss = sanitizeCssForStyleElement(rawCss);
+  const safeCss = sanitizeCssForStyleElement(normalizeCssForScopedWidget(rawCss));
   /** Limits admin rules to this subtree (evergreen browsers; same isolation idea as shadow DOM). */
   const scopedCss = hasCss
     ? `@scope ([data-cms-html-css="${scopeToken}"]) {\n${safeCss}\n}`
@@ -63,7 +75,7 @@ export default function BlogHtmlCssWidget({
       ) : null}
       {hasHtml ? (
         <div
-          className="prose prose-sm sm:prose-base max-w-none blog-content cms-html-css-widget-inner"
+          className="max-w-none blog-content cms-html-css-widget-inner"
           dangerouslySetInnerHTML={{ __html: cleanHtml }}
           suppressHydrationWarning
         />
