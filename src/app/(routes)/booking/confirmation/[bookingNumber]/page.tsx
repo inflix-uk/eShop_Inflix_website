@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
@@ -130,6 +130,7 @@ function BookingConfirmationContent() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentUiStatus>("pending");
   const [verifyEmail, setVerifyEmail] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const conversionFiredRef = useRef(false);
 
   const effectiveEmail = emailFromUrl || verifyEmail.trim();
 
@@ -191,6 +192,45 @@ function BookingConfirmationContent() {
     const timer = setTimeout(() => loadBooking(effectiveEmail), 2000);
     return () => clearTimeout(timer);
   }, [hasMounted, effectiveEmail, isPaymentRedirect, loadBooking]);
+
+  // Fire a deterministic booking conversion event for GTM when payment is truly successful.
+  useEffect(() => {
+    if (
+      !hasMounted ||
+      !isPaymentRedirect ||
+      paymentStatus !== "success" ||
+      !bookingNumber ||
+      conversionFiredRef.current
+    ) {
+      return;
+    }
+
+    const dedupeKey = `booking_conversion_fired_${bookingNumber}`;
+    if (sessionStorage.getItem(dedupeKey)) {
+      conversionFiredRef.current = true;
+      return;
+    }
+
+    const totalValue =
+      booking?.totalAmount != null
+        ? Number(booking.totalAmount)
+        : null;
+
+    if (typeof window !== "undefined") {
+      (window as Window & { dataLayer?: Record<string, unknown>[] }).dataLayer =
+        (window as Window & { dataLayer?: Record<string, unknown>[] }).dataLayer || [];
+
+      (window as Window & { dataLayer: Record<string, unknown>[] }).dataLayer.push({
+        event: "booking_payment_confirmed",
+        booking_number: bookingNumber,
+        payment_success: true,
+        ...(totalValue != null ? { value: totalValue, currency: "GBP" } : {}),
+      });
+    }
+
+    sessionStorage.setItem(dedupeKey, "1");
+    conversionFiredRef.current = true;
+  }, [hasMounted, isPaymentRedirect, paymentStatus, bookingNumber, booking?.totalAmount]);
 
   const statusContent: Record<
     PaymentUiStatus,
