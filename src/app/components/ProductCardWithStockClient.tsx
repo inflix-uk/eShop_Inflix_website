@@ -8,6 +8,7 @@ import {
   getProductCardDisplayData,
 } from "./productCardUtils";
 import { useProductCardDesign } from "@/app/context/ProductCardDesignContext";
+import { useStockStatus } from "../hooks/useStockStatus";
 
 type ProductCardWithStockClientProps = {
   product: Product;
@@ -20,17 +21,15 @@ export default function ProductCardWithStockClient({
 }: ProductCardWithStockClientProps) {
   const display = getProductCardDisplayData(product);
   const initialInStock = getInitialStockStatus(product);
+  const stockStatus = useStockStatus(checkStockRealTime ? product._id : "");
+  const isInStock = checkStockRealTime ? stockStatus.hasStock : initialInStock;
   const cardDesign = useProductCardDesign();
 
   return (
-    <ProductCardEnhancers
-      product={product}
-      checkStockRealTime={checkStockRealTime}
-      initialInStock={initialInStock}
-    >
+    <ProductCardEnhancers product={product}>
       <ProductCardView
         display={display}
-        isInStock={initialInStock}
+        isInStock={isInStock}
         variant="withStock"
         cardDesign={cardDesign}
       />
