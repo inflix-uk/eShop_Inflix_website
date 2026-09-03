@@ -5,6 +5,7 @@ import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/app/StoreProvider";
 import { AuthProvider } from "@/app/context/Auth";
 import DeferredGoogleTagManagerGate from "@/app/components/analytics/DeferredGoogleTagManagerGate";
+import DeferredGoogleAdsGate from "@/app/components/analytics/DeferredGoogleAdsGate";
 import MarketingAttributionCaptureGate from "@/app/components/analytics/MarketingAttributionCaptureGate";
 import ConsentCookieGate from "@/app/components/common/ConsentCookieGate";
 import FacebookPixelBlock from "@/app/components/analytics/FacebookPixelBlock";
@@ -216,7 +217,10 @@ export default async function RootLayout({
         {ssrLogoHref ? (
           <link rel="preload" as="image" href={ssrLogoHref} fetchPriority="high" />
         ) : null}
-        <DeferredGoogleTagManagerGate />
+        <DeferredGoogleTagManagerGate gtmId={siteScripts?.gtmContainerId} />
+        <DeferredGoogleAdsGate
+          conversionId={siteScripts?.googleAdsConversionId}
+        />
         {/* Dynamic site-wide schemas from admin panel */}
         {siteWideSchemas.map((jsonStr, i) => (
           <script

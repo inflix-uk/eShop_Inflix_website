@@ -14,6 +14,8 @@ export type SiteScriptsPublic = {
   semrushScript: string;
   ahrefsScript: string;
   googleSearchConsoleScript: string;
+  gtmContainerId: string;
+  googleAdsConversionId: string;
   customScripts: SiteScriptCustomPublic[];
 };
 
@@ -41,6 +43,8 @@ export const getSiteScriptsPublic = cache(
         semrushScript: d.semrushScript || "",
         ahrefsScript: d.ahrefsScript || "",
         googleSearchConsoleScript: d.googleSearchConsoleScript || "",
+        gtmContainerId: String(d.gtmContainerId || "").trim(),
+        googleAdsConversionId: String(d.googleAdsConversionId || "").trim(),
         customScripts: Array.isArray(d.customScripts) ? d.customScripts : [],
       } as SiteScriptsPublic;
     } catch (e) {

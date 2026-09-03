@@ -8,6 +8,10 @@ const DeferredGoogleTagManager = dynamic(
 );
 
 /** Server `layout.tsx` cannot use `dynamic(..., { ssr: false })`; this client gate wraps it. */
-export default function DeferredGoogleTagManagerGate() {
-  return <DeferredGoogleTagManager />;
+export default function DeferredGoogleTagManagerGate({
+  gtmId,
+}: {
+  gtmId?: string | null;
+}) {
+  return <DeferredGoogleTagManager gtmId={gtmId} />;
 }
