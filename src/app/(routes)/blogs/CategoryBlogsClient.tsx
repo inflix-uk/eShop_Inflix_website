@@ -307,7 +307,7 @@ export default function CategoryBlogsClient({
               .map((blog: Blog) => (
                 <div
                   key={blog._id}
-                  className="transform hover:scale-105 transition duration-300"
+                  className="min-w-0"
                 >
                   <BlogCard {...blog} />
                 </div>

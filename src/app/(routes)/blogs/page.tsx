@@ -335,14 +335,14 @@ function BlogsContent() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 md:gap-8">
                 {currentBlogs
                   .filter((blog: Blog) => {
                     const slug = blog.slug || blog.permalink || "";
                     return slug && slug.trim() !== "";
                   })
                   .map((blog: Blog) => (
-                    <div key={blog._id} className="transform transition duration-300 hover:scale-105">
+                    <div key={blog._id} className="min-w-0">
                       <BlogCard {...blog} />
                     </div>
                   ))}
