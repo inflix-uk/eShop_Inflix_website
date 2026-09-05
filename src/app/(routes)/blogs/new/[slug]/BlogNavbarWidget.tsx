@@ -140,6 +140,26 @@ function resolveHref(raw?: string): string {
   return `/${value}`;
 }
 
+/** True when hex is near-black (unreadable on blue business navbar). */
+function isNearBlackHex(value?: string): boolean {
+  const v = String(value || "").trim();
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(v);
+  if (!m) return false;
+  let hex = m[1];
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  // Relative luminance (sRGB)
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum < 0.35;
+}
+
 /** Prefer explicit URL; otherwise infer mailto:/tel: from CTA label (email/phone). */
 function resolveCtaHref(rawUrl?: string, label?: string): string {
   const url = String(rawUrl || "").trim();
@@ -3796,8 +3816,17 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
 
   const effectiveLogoUrl = (widgetLogoUrl || fallbackLogoUrl || "").trim();
   const logoUrl = effectiveLogoUrl;
-  const linkTextColor = contentForRender?.menuLinkTextColor?.trim() || "#334155";
-  const linkHoverColor = contentForRender?.menuLinkHoverColor?.trim() || "#0f172a";
+  const rawLinkText = contentForRender?.menuLinkTextColor?.trim() || "#334155";
+  const rawLinkHover = contentForRender?.menuLinkHoverColor?.trim() || "#0f172a";
+  // Business blue pill: dark hover (#000) from admin makes links unreadable — keep light.
+  const isBusinessNav =
+    variant === "business" || variant === "business-2";
+  const linkTextColor =
+    isBusinessNav && isNearBlackHex(rawLinkText) ? "#fafafa" : rawLinkText;
+  const linkHoverColor =
+    isBusinessNav && isNearBlackHex(rawLinkHover)
+      ? "#ffffff"
+      : rawLinkHover;
   const linkColorVars = {
     "--nav-link-text": linkTextColor,
     "--nav-link-hover": linkHoverColor,
@@ -3885,6 +3914,18 @@ export default function BlogNavbarWidget({ content }: { content: NavbarWidgetCon
         }
         .navbar-widget-link-colors[data-navbar-variant="pill-black"] nav.nav-pill-black-desktop > div > a[data-nav-link="1"]:hover {
           color: rgba(255, 255, 255, 0.88) !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="business"] nav a[data-nav-link="1"],
+        .navbar-widget-link-colors[data-navbar-variant="business"] nav a[data-nav-link="1"] *,
+        .navbar-widget-link-colors[data-navbar-variant="business-2"] nav a[data-nav-link="1"],
+        .navbar-widget-link-colors[data-navbar-variant="business-2"] nav a[data-nav-link="1"] * {
+          color: var(--nav-link-text) !important;
+        }
+        .navbar-widget-link-colors[data-navbar-variant="business"] nav a[data-nav-link="1"]:hover,
+        .navbar-widget-link-colors[data-navbar-variant="business"] nav a[data-nav-link="1"]:hover *,
+        .navbar-widget-link-colors[data-navbar-variant="business-2"] nav a[data-nav-link="1"]:hover,
+        .navbar-widget-link-colors[data-navbar-variant="business-2"] nav a[data-nav-link="1"]:hover * {
+          color: var(--nav-link-hover) !important;
         }
       }
     `}</style>

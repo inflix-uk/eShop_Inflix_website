@@ -59,9 +59,9 @@ export function resolveTagColorsFromApi(data: unknown): TagColorsConfig {
   return out;
 }
 
-/** Exclude chrome that must keep its own Tailwind / CMS colors (checkout, banners, navbar CTAs, htmlCss widgets). */
+/** Exclude chrome that must keep its own Tailwind / CMS colors (checkout, banners, navbar, footer, htmlCss widgets). */
 const CUSTOM_COLOR_EXCLUSION =
-  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not([data-nav-flyout-panel] *):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.booking-flow-v3):not(.booking-flow-v3 *):not(.blogs-themed *):not(.cookie-consent-ui *):not(.cookie-consent-ui):not(.cms-html-css-widget):not(.cms-html-css-widget *):not(.cms-html-css-widget-inner):not(.cms-html-css-widget-inner *)";
+  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not([data-nav-link]):not([data-nav-link] *):not([data-nav-link-icon]):not([data-nav-link-icon] *):not([data-nav-flyout-label]):not([data-nav-flyout-panel] *):not(.navbar-widget-link-colors):not(.navbar-widget-link-colors *):not(#site-footer):not(#site-footer *):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.booking-flow-v3):not(.booking-flow-v3 *):not(.blogs-themed *):not(.cookie-consent-ui *):not(.cookie-consent-ui):not(.cms-html-css-widget):not(.cms-html-css-widget *):not(.cms-html-css-widget-inner):not(.cms-html-css-widget-inner *)";
 
 function levelSelectors(tag: TagColorKey): string {
   if (CUSTOM_SELECTORS[tag]) {

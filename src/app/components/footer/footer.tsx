@@ -681,7 +681,13 @@ const Footer: React.FC<FooterProps> = ({
                   alt={logoAltText}
                   width={170}
                   height={68}
-                  className="block h-auto w-[170px] object-contain object-center sm:object-left"
+                  className={`block h-auto w-[170px] object-contain object-center sm:object-left${
+                    ["business", "business-2"].includes(
+                      String(navbarVariant || "").toLowerCase()
+                    )
+                      ? " brightness-0 invert"
+                      : ""
+                  }`}
                   sizes="170px"
                   loading="lazy"
                   onError={() => {
