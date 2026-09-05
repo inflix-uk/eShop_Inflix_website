@@ -128,9 +128,32 @@ const NAVBAR_REACT_ICON_MAP: Record<string, IconType> = {
 function resolveHref(raw?: string): string {
   const value = String(raw || "").trim();
   if (!value) return "#";
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("mailto:") ||
+    value.startsWith("tel:")
+  ) {
+    return value;
+  }
   if (value.startsWith("/")) return value;
   return `/${value}`;
+}
+
+/** Prefer explicit URL; otherwise infer mailto:/tel: from CTA label (email/phone). */
+function resolveCtaHref(rawUrl?: string, label?: string): string {
+  const url = String(rawUrl || "").trim();
+  if (url) return resolveHref(url);
+  const text = String(label || "").trim();
+  if (!text) return "#";
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
+    return `mailto:${text}`;
+  }
+  const digits = text.replace(/[^\d+]/g, "");
+  if (digits.length >= 7 && /^[+]?[\d\s().-]+$/.test(text)) {
+    return `tel:${digits}`;
+  }
+  return "#";
 }
 
 const CUSTOMER_DASHBOARD_HREF = "/customer/dashboard";
@@ -322,10 +345,10 @@ const NAVBAR_BUSINESS2_ROW_H = "h-[64px] min-h-[64px] max-h-[64px]";
 /** Buttons/icons sit shorter inside the strip (not flush to strip edges). */
 const NAVBAR_BUSINESS_BTN_H = "h-8 min-h-8 max-h-8";
 /** Primary/secondary CTAs: taller so they sit flush with the strip. */
-const NAVBAR_BUSINESS_CTA_H = "h-[32px] min-h-[35px] max-h-[40px]";
-/** Business desktop: compact single-row CTAs beside search/icons. */
+const NAVBAR_BUSINESS_CTA_H = "h-9 min-h-9 max-h-10";
+/** Business desktop: email/phone CTAs need room — do not truncate long labels. */
 const NAVBAR_BUSINESS_CTA_CLASS =
-  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[7rem] shrink items-center justify-center gap-0.5 whitespace-nowrap rounded-md px-2 py-0 text-[9px] font-semibold leading-none shadow-sm sm:max-w-[8rem] sm:gap-1 sm:px-2.5 sm:text-[10px] lg:max-w-[9rem] lg:text-[11px]`;
+  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[11rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-black/5 px-2.5 py-0 text-[10px] font-semibold leading-none shadow-sm sm:max-w-[14rem] sm:px-3 sm:text-[11px] lg:max-w-[17rem] lg:text-xs xl:max-w-[19rem]`;
 /** Dark overlay inside the admin-colored strip (right zone, slanted left edge). */
 const NAVBAR_BUSINESS_STRIP_RIGHT_BG = "rgba(0, 0, 0, 0.8)";
 /** Slanted left edge: bottom extends further left than top (matches reference). */
@@ -1767,7 +1790,7 @@ function NavbarBusiness({
         </button>
       </div>
 
-      {/* Single row: logo | one bg strip (nav center + actions right) */}
+      {/* Logo | blue nav pill | contact CTAs (separate — avoids mismatched right strip) */}
       <div
         className={`relative hidden w-full min-w-0 items-center gap-2 overflow-visible md:flex ${NAVBAR_BUSINESS_ROW_H} lg:gap-3`}
       >
@@ -1777,34 +1800,33 @@ function NavbarBusiness({
           </div>
         </div>
 
-        <div
-          className={`${NAVBAR_BUSINESS_ROW_H} relative flex min-w-0 flex-1 items-stretch rounded-xl`}
+        <nav
+          className={`${NAVBAR_BUSINESS_ROW_H} relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 rounded-xl px-3 sm:px-4`}
+          style={businessLeftStripBgStyle}
+          aria-label="Primary"
         >
-          {/* LEFT STRAP: Nav links on admin bg color — grows to fill strip */}
-          <nav
-            className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 rounded-l-xl px-3 sm:px-4"
-            style={businessLeftStripBgStyle}
-            aria-label="Primary"
-          >
-            {links.map((link, i) => (
-              <NavLinkItemNode
-                key={link.id || i}
-                link={link}
-                i={i}
-                fallbackIcon={DEFAULT_NAVBAR_FLATICON}
-                bodyPortalFlyout
-                compact
-                linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 ${NAVBAR_MENU_LINK_BUSINESS} transition`}
-              />
-            ))}
-          </nav>
+          {links.map((link, i) => (
+            <NavLinkItemNode
+              key={link.id || i}
+              link={link}
+              i={i}
+              fallbackIcon={DEFAULT_NAVBAR_FLATICON}
+              bodyPortalFlyout
+              compact
+              linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 ${NAVBAR_MENU_LINK_BUSINESS} transition`}
+            />
+          ))}
+        </nav>
 
-          {/* RIGHT STRAP: Buttons on dark background */}
+        {(showIcons || showPrimaryButton || showSecondaryButton || showSearch) ? (
           <div
-            className="relative z-[1] flex shrink-0 flex-nowrap items-center justify-end rounded-r-xl px-3 sm:px-4"
-            style={businessRightStripBgStyle}
+            className={`${NAVBAR_BUSINESS_ROW_H} relative z-[1] flex shrink-0 flex-nowrap items-center justify-end gap-1.5 rounded-xl px-2 sm:gap-2 sm:px-3`}
+            style={
+              showIcons || showSearch
+                ? businessRightStripBgStyle
+                : undefined
+            }
           >
-            <div className="relative flex flex-nowrap items-center justify-end gap-1.5 py-0 sm:gap-2">
             {showIcons ? (
               <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <ActionIconLink
@@ -1831,25 +1853,29 @@ function NavbarBusiness({
               </div>
             ) : null}
             {showPrimaryButton || showSecondaryButton ? (
-              <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 {showPrimaryButton ? (
                   <a
-                    href={resolveHref(content?.primaryButtonUrl)}
+                    href={resolveCtaHref(content?.primaryButtonUrl, primaryLabel)}
                     className={`${NAVBAR_BUSINESS_CTA_CLASS} bg-emerald-700 text-white transition hover:bg-emerald-800`}
                     style={primaryButtonStyle}
                   >
-                    <PrimaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span data-navbar-btn-text className="min-w-0 truncate">{primaryLabel}</span>
+                    <PrimaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span data-navbar-btn-text className="min-w-0 truncate">
+                      {primaryLabel}
+                    </span>
                   </a>
                 ) : null}
                 {showSecondaryButton ? (
                   <a
-                    href={resolveHref(content?.secondaryButtonUrl)}
+                    href={resolveCtaHref(content?.secondaryButtonUrl, secondaryLabel)}
                     className={`${NAVBAR_BUSINESS_CTA_CLASS} bg-orange-500 text-white transition hover:bg-orange-600`}
                     style={secondaryButtonStyle}
                   >
-                    <SecondaryButtonIcon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                    <span data-navbar-btn-text className="min-w-0 truncate">{secondaryLabel}</span>
+                    <SecondaryButtonIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span data-navbar-btn-text className="min-w-0 truncate">
+                      {secondaryLabel}
+                    </span>
                   </a>
                 ) : null}
               </div>
@@ -1864,10 +1890,9 @@ function NavbarBusiness({
                   className="min-w-0 h-full w-full [&_form>div>div]:!h-8 [&_form>div>div]:!min-h-8 [&_form>div>div]:!max-h-8"
                 />
               </div>
-              ) : null}
-            </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
       </div>
       </header>
 
