@@ -53,7 +53,12 @@ export default function BlogCard(
     return `${ip}${path}`;
   })();
 
-  const alt = blog.featuredImageAlt || blog.blogthumbnailImageAlt || blog.title || blog.name || "Blog Image";
+  const alt =
+    blog.featuredImageAlt ||
+    blog.blogthumbnailImageAlt ||
+    blog.title ||
+    blog.name ||
+    "Blog Image";
   const imageDescription = blog.featuredImageDescription || undefined;
 
   let category = blog.blogCategory || "";
@@ -91,67 +96,69 @@ export default function BlogCard(
   );
 
   const categoryLabel = (category && String(category).trim()) || "Blog";
-  const categorySlug = toCategorySlug((category && String(category).trim()) || "general");
+  const categorySlug = toCategorySlug(
+    (category && String(category).trim()) || "general"
+  );
 
-  const slideClass = carouselSlide
+  // Carousel needs Embla flex basis; grid pages should fill the cell.
+  const wrapperClass = carouselSlide
     ? "embla__slide mr-3 flex min-w-0 shrink-0 flex-[0_0_calc((100%-0.75rem)/2)] sm:flex-[0_0_calc((100%-1rem)/2)] lg:flex-[0_0_calc((100%-3rem)/3)] px-1"
-    : "embla__slide flex-[0_0_100%] md:flex-[0_0_33.33%] px-1.5";
+    : "w-full h-full min-w-0";
 
   return (
-    <div key={blog._id} className={slideClass}>
+    <div key={blog._id} className={wrapperClass}>
       <Link
         href={`/blogs/${categorySlug}/${slug}`}
         className="block h-full min-w-0 w-full max-w-full"
       >
-        <div className="w-full min-w-0 max-w-full py-1.5 sm:py-5">
-          <div className="bg-white rounded-lg shadow-xl sm:p-5 p-1.5 md:mb-0 mb-2 sm:mb-5 transition-all duration-500 ease-in-out hover:scale-105 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full min-w-0">
-            <div className="mb-1 sm:mb-2 flex justify-between items-start gap-1 sm:gap-2">
-              <div className="min-w-0">
-                <span className="bg-gray-200 text-gray-900 px-1 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-sm inline-block max-w-full truncate">
-                  {categoryLabel}
-                </span>
-              </div>
+        <article className="group flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden rounded-2xl bg-white shadow-xl transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-card-shadow">
+          {/* 1:1 thumbnail — full-bleed, no letterboxing */}
+          <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-gray-100">
+            <Image
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+              src={image || "/default-image.jpg"}
+              alt={alt}
+              title={imageDescription}
+              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+            />
+          </div>
+
+          <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="inline-block max-w-[65%] truncate rounded-md bg-gray-200 px-2 py-1 text-[10px] font-medium text-gray-900 sm:text-xs">
+                {categoryLabel}
+              </span>
               {dateLabel ? (
-                <div className="text-[8px] sm:text-sm bg-primary px-1 sm:px-2 py-0.5 sm:py-1 text-white rounded-lg flex flex-col items-center justify-center shrink-0 text-nowrap">
-                  <span>{dateLabel}</span>
-                </div>
+                <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-white sm:text-xs">
+                  {dateLabel}
+                </span>
               ) : null}
             </div>
 
-            <div className="text-xs sm:text-lg mb-1 sm:mb-2 min-h-0 sm:min-h-[4rem] flex items-start">
-              <span className="line-clamp-2 font-medium text-gray-900 transition-colors duration-300 group-hover:text-primary">
-                {title}
-              </span>
-            </div>
+            <h3 className="line-clamp-2 min-h-[2.5rem] text-base font-semibold leading-snug text-gray-900 transition-colors duration-200 group-hover:text-primary sm:min-h-[3rem] sm:text-lg">
+              {title}
+            </h3>
 
-            <div className="relative w-full h-32 sm:h-56 min-h-0 sm:min-h-[14rem] shrink-0 overflow-hidden flex items-center justify-center bg-gray-50">
-              <Image
-                className="object-contain transform transition-transform duration-1500 ease-in-out scale-105 group-hover:scale-110"
-                src={image || "/default-image.jpg"}
-                alt={alt}
-                title={imageDescription}
-                loading="lazy"
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              />
-            </div>
-
-            <div className="flex flex-row justify-between items-end gap-1 sm:gap-2 md:mt-5 mt-auto w-full min-h-0 sm:min-h-[2.75rem]">
+            <div className="mt-auto flex items-end justify-between gap-3 pt-1">
               <div className="min-w-0 flex-1 hidden sm:block">
                 {excerpt ? (
-                  <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
+                  <p className="line-clamp-2 text-sm leading-snug text-gray-500">
                     {excerpt}
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-400 italic">Read the full article</p>
+                  <p className="text-sm italic text-gray-400">
+                    Read the full article
+                  </p>
                 )}
               </div>
-              <span className="text-[10px] sm:text-sm font-medium text-primary shrink-0 self-end pb-0.5">
+              <span className="shrink-0 text-sm font-medium text-primary">
                 Read more
               </span>
             </div>
           </div>
-        </div>
+        </article>
       </Link>
     </div>
   );
