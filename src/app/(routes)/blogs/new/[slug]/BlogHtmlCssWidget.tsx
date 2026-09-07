@@ -1,5 +1,8 @@
 import { useId } from "react";
-import { extractHtmlDocumentFragment } from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
+import {
+  extractHtmlDocumentFragment,
+  scopeCssToHost,
+} from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
 
 /** Strip scripts and external stylesheets; keep fragment-only markup safe for innerHTML. */
 function sanitizeHtmlFragment(html: string): string {
@@ -18,18 +21,6 @@ function sanitizeHtmlFragment(html: string): string {
  */
 function sanitizeCssForStyleElement(css: string): string {
   return String(css ?? "").replace(/<\/style/gi, "<\u200c/style");
-}
-
-/**
- * Admin previews run in an iframe where `:root`, `html`, and `body` selectors are valid.
- * On storefront we scope CSS to the widget subtree, so remap those selectors to `:scope`
- * to preserve variables/base styles and keep visual parity with admin preview.
- */
-function normalizeCssForScopedWidget(css: string): string {
-  return String(css ?? "")
-    .replace(/(^|[,{]\s*):root\b/gm, "$1:scope")
-    .replace(/(^|[,{]\s*)html\b/gm, "$1:scope")
-    .replace(/(^|[,{]\s*)body\b/gm, "$1:scope");
 }
 
 export default function BlogHtmlCssWidget({
@@ -52,10 +43,13 @@ export default function BlogHtmlCssWidget({
     return null;
   }
 
-  const safeCss = sanitizeCssForStyleElement(normalizeCssForScopedWidget(rawCss));
-  /** Limits admin rules to this subtree (evergreen browsers; same isolation idea as shadow DOM). */
+  const host = `[data-cms-html-css="${scopeToken}"]`;
+  /**
+   * Prefix selectors onto the widget host. Do not wrap with `@scope`:
+   * iOS WebKit ignores that at-rule, so admin colours never reached the text.
+   */
   const scopedCss = hasCss
-    ? `@scope ([data-cms-html-css="${scopeToken}"]) {\n${safeCss}\n}`
+    ? scopeCssToHost(sanitizeCssForStyleElement(rawCss), host)
     : "";
 
   return (

@@ -4,7 +4,7 @@ const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const UPSTREAM_URL = `${base}/site-theme/public`;
 const TIMEOUT_MS = 8000;
 
-export const revalidate = 120;
+export const revalidate = 0;
 
 /** Matches `DEFAULT_SITE_THEME` in `siteThemeUtils` — no storefront tint until CMS sets hex colors. */
 const NO_CMS_THEME_COLORS = {
@@ -48,7 +48,8 @@ export async function GET() {
     const res = await fetch(UPSTREAM_URL, {
       headers: { Accept: "application/json" },
       signal: controller.signal,
-      next: { revalidate: 120 },
+      cache: "no-store",
+      next: { revalidate: 0 },
     });
 
     if (!res.ok) {
@@ -65,7 +66,7 @@ export async function GET() {
     return NextResponse.json(json, {
       status: 200,
       headers: {
-        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+        "Cache-Control": "no-store",
       },
     });
   } catch {

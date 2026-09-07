@@ -51,7 +51,7 @@ export async function getSiteThemePublic(): Promise<SiteThemeLayoutBundle> {
   try {
     const res = await cmsTimedFetch(`${base}/site-theme/public`, {
       headers: { Accept: "application/json" },
-      ...cmsPublicFetchInit({ next: { revalidate: 120 } }),
+          ...cmsPublicFetchInit({ next: { revalidate: 10 } }),
     });
 
     if (!res.ok) {
