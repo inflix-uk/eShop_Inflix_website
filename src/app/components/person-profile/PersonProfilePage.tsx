@@ -1,6 +1,7 @@
-import TopBar from "@/app/topbar/page";
-import Nav from "@/app/components/navbar/Nav";
 import Link from "next/link";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
+import { getHomeNavbarCriticalServer } from "@/app/services/navbarCriticalServer";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import ProfileBlocksRenderer from "./ProfileBlocksRenderer";
 
 export type PersonProfileRole = "author" | "reviewer";
@@ -49,6 +50,31 @@ async function getProfileByRoleAndSlug(
   const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   if (!apiBase) return null;
 
+  // Preferred source: BlogAuthor collection (admin /admin/author saves blocks here).
+  // Blog post embeds intentionally omit blocks to keep payloads small.
+  try {
+    const response = await fetch(
+      `${apiBase}/blog-authors/public/${encodeURIComponent(role)}/${encodeURIComponent(slug)}`,
+      { next: { revalidate: 30 } }
+    );
+    if (response.ok) {
+      const payload = await response.json();
+      const data = payload?.data;
+      if (data && typeof data === "object") {
+        return {
+          name: String(data.name || ""),
+          designation: String(data.designation || ""),
+          bio: String(data.bio || data.description || ""),
+          image: String(data.image || data.profileImage || ""),
+          blocks: Array.isArray(data.blocks) ? data.blocks : [],
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch author profile from blog-authors:", error);
+  }
+
+  // Fallback: dig embedded author/reviewer from blog posts (legacy / no DB profile).
   try {
     const limit = 200;
     const maxPages = 30;
@@ -115,7 +141,12 @@ type Props = {
 export default async function PersonProfilePage({ profileRole, params }: Props) {
   const { slug } = await params;
   const normalizedSlug = decodeURIComponent(slug).toLowerCase().trim();
-  const profile = await getProfileByRoleAndSlug(profileRole, normalizedSlug);
+  const [profile, navbarVariantTestConfig, navServerBootstrap] =
+    await Promise.all([
+      getProfileByRoleAndSlug(profileRole, normalizedSlug),
+      getNavbarVariantTestPublicServer(),
+      getHomeNavbarCriticalServer(),
+    ]);
 
   const fallbackName = normalizedSlug
     .split("-")
@@ -129,13 +160,26 @@ export default async function PersonProfilePage({ profileRole, params }: Props) 
   const profileBlocks = Array.isArray(profile?.blocks) ? profile.blocks : [];
   const roleLabel = profileRole === "reviewer" ? "Reviewer" : "Author";
   const sectionCrumb = roleLabel;
+  const showNavbar = navbarVariantTestConfig?.showOnStorefront !== false;
+  const isPodcast = navbarVariantTestConfig?.variant === "podcast";
 
   return (
     <>
-      <TopBar />
-      <Nav />
+      {showNavbar ? (
+        <NavbarVariantTestBar
+          config={navbarVariantTestConfig}
+          serverBootstrapLogo={{
+            logoUrl: navServerBootstrap.logoUrl,
+            logoAlt: navServerBootstrap.logoAlt,
+          }}
+        />
+      ) : null}
 
-      <main className="min-h-screen  py-14">
+      <main
+        className={`min-h-screen py-14${
+          isPodcast ? " blogs-themed blogs-podcast" : ""
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4">
           <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-600">
             <ol className="flex flex-wrap items-center gap-2">
@@ -151,7 +195,7 @@ export default async function PersonProfilePage({ profileRole, params }: Props) 
             </ol>
           </nav>
 
-          <div className=" p-8 sm:p-10">
+          <div className="p-8 sm:p-10">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
               {profileImage ? (
                 <img
@@ -160,19 +204,23 @@ export default async function PersonProfilePage({ profileRole, params }: Props) 
                   className="w-24 h-24 rounded-2xl border border-gray-200 object-cover shadow-sm"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-50 to-white border border-gray-200 flex items-center justify-center text-indigo-700 text-2xl font-bold shadow-sm">
+                <div className="w-24 h-24 rounded-2xl bg-primary/10 border border-gray-200 flex items-center justify-center text-primary text-2xl font-bold shadow-sm">
                   {name.charAt(0).toUpperCase()}
                 </div>
               )}
 
               <div className="text-center sm:text-left">
-                <p className="text-xs uppercase tracking-widest text-gray-400">{roleLabel}</p>
+                <p className="text-xs uppercase tracking-widest text-gray-400">
+                  {roleLabel}
+                </p>
 
                 <h1 className="text-2xl sm:text-3xl capitalize font-semibold text-gray-900 mt-1">
                   {name}
                 </h1>
 
-                <p className="text-base text-gray-500 capitalize mt-1">{designation}</p>
+                <p className="text-base text-gray-500 capitalize mt-1">
+                  {designation}
+                </p>
 
                 <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-xs text-gray-600">
                   Verified {roleLabel}
@@ -183,9 +231,13 @@ export default async function PersonProfilePage({ profileRole, params }: Props) 
             <div className="my-8 border-t border-gray-100" />
 
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900 tracking-wide uppercase">About</h2>
+              <h2 className="text-lg font-semibold text-gray-900 tracking-wide uppercase">
+                About
+              </h2>
 
-              <p className="text-gray-700 text-base leading-8 whitespace-pre-line">{bio}</p>
+              <p className="text-gray-700 text-base leading-8 whitespace-pre-line">
+                {bio}
+              </p>
             </div>
 
             {profileBlocks.length > 0 ? (

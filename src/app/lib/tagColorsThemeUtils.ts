@@ -59,15 +59,29 @@ export function resolveTagColorsFromApi(data: unknown): TagColorsConfig {
   return out;
 }
 
-/** Exclude chrome that must keep its own Tailwind / CMS colors (checkout, banners, navbar, footer, htmlCss widgets). */
+/**
+ * Exclude chrome that must keep its own Tailwind / CMS colors (checkout, banners,
+ * navbar, footer, booking flow). Homepage HTML/CSS widgets and blog pages are
+ * included so Site-wide color actually reaches storefront content.
+ */
 const CUSTOM_COLOR_EXCLUSION =
-  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not([data-nav-link]):not([data-nav-link] *):not([data-nav-link-icon]):not([data-nav-link-icon] *):not([data-nav-flyout-label]):not([data-nav-flyout-panel] *):not(.navbar-widget-link-colors):not(.navbar-widget-link-colors *):not(#site-footer):not(#site-footer *):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.booking-flow-v3):not(.booking-flow-v3 *):not(.blogs-themed *):not(.cookie-consent-ui *):not(.cookie-consent-ui):not(.cms-html-css-widget):not(.cms-html-css-widget *):not(.cms-html-css-widget-inner):not(.cms-html-css-widget-inner *)";
+  ":not([data-banner-text]):not([data-navbar-btn-text]):not([data-booking-btn-text]):not([data-nav-link]):not([data-nav-link] *):not([data-nav-link-icon]):not([data-nav-link-icon] *):not([data-nav-flyout-label]):not([data-nav-flyout-panel] *):not(.navbar-widget-link-colors):not(.navbar-widget-link-colors *):not(#site-footer):not(#site-footer *):not(.checkout-themed *):not(.checkout-order-summary *):not(.booking-confirmation-module *):not(.booking-flow-v3):not(.booking-flow-v3 *):not(.cookie-consent-ui *):not(.cookie-consent-ui)";
+
+const WIDGET_TAG_HOSTS = [
+  ".cms-html-css-widget",
+  ".cms-html-css-widget-inner",
+  "[data-widget='html-css']",
+];
 
 function levelSelectors(tag: TagColorKey): string {
   if (CUSTOM_SELECTORS[tag]) {
     return CUSTOM_SELECTORS[tag]!;
   }
-  return CMS_TYPO_CONTEXTS.map((ctx) => `${ctx}${tag}${CUSTOM_COLOR_EXCLUSION}`.trim()).join(",");
+  const contextRules = CMS_TYPO_CONTEXTS.map((ctx) =>
+    `${ctx}${tag}${CUSTOM_COLOR_EXCLUSION}`.trim()
+  );
+  const widgetRules = WIDGET_TAG_HOSTS.map((host) => `${host} ${tag}`);
+  return [...contextRules, ...widgetRules].join(",");
 }
 
 /**
@@ -89,7 +103,13 @@ export function tagColorsThemeStyleCss(tagColors: TagColorsConfig): string {
     "[data-booking-slot]:not([data-selected]):not(:disabled):hover",
   ].join(",");
   const hoverRule = `${bookingHover}{background-color:color-mix(in srgb,var(--bookingSelectedDateBg-color,#c2fc12) 55%,#111827)!important;color:#ffffff!important;}`;
-  return `:root{${vars}}${rules.join("")}${hoverRule}`;
+  /**
+   * Homepage HTML widgets (e.g. `.psm-page`) use local tokens instead of raw
+   * `h1`/`p` colors. Higher specificity than the widget's `.psm-page { --cream }`
+   * so Site-wide color still wins after prefixed widget CSS in the body.
+   */
+  const widgetTokenRule = `${WIDGET_TAG_HOSTS.map((host) => `${host} .psm-page,${host}.psm-page`).join(",")}{--cream:var(--h1-color)!important;--green:var(--span-color)!important;--text-2:var(--p-color)!important;}`;
+  return `:root{${vars}}${rules.join("")}${hoverRule}${widgetTokenRule}`;
 }
 
 export const TAG_COLORS_STYLE_ID = "cms-tag-colors-theme";
