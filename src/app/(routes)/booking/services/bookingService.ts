@@ -97,8 +97,10 @@ export interface BookingPackageExtra {
   title: string;
   price: number;
   description?: string;
-  /** When true, booking UI shows +/- quantity instead of Add toggle. */
+  /** When true, booking UI shows +/- quantity capped by selected guests. */
   quantityEnabled?: boolean;
+  /** When true, booking UI shows +/- quantity with no guest cap. */
+  quantityUnlimited?: boolean;
   /** When true, `discountPrice` is charged and `price` is shown crossed out. */
   discountEnabled?: boolean;
   discountPrice?: number;
@@ -347,9 +349,10 @@ export interface SelectedBookingExtra {
   title: string;
   image?: string;
   description?: string;
-  /** Selected quantity (1 for toggle extras; 1–9 when quantityEnabled). */
+  /** Selected quantity (1 for toggle extras; guest-capped or unlimited when a quantity picker is on). */
   quantity?: number;
   quantityEnabled?: boolean;
+  quantityUnlimited?: boolean;
   /** List price to show crossed out — absent when there is no discount. */
   originalPrice?: number;
   discountPercent?: number;

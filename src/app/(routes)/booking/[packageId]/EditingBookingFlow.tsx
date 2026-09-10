@@ -53,7 +53,8 @@ function toSelectedExtra(
     image: extra.image,
     description: extra.description,
     quantity: Math.max(1, Math.floor(quantity) || 1),
-    quantityEnabled: Boolean(extra.quantityEnabled),
+    quantityEnabled: Boolean(extra.quantityEnabled || extra.quantityUnlimited),
+    quantityUnlimited: Boolean(extra.quantityUnlimited),
     originalPrice: pricing.hasDiscount ? pricing.originalPrice : undefined,
     discountPercent: pricing.hasDiscount ? pricing.discountPercent : undefined,
     unitLabel: extra.unitLabel || "per episode",
@@ -479,7 +480,7 @@ export default function EditingBookingFlow({
                 ) : (
                   packageExtras.map((extra, index) => {
                     const selected = isExtraSelected(index);
-                    const quantityEnabled = Boolean(extra.quantityEnabled);
+                    const quantityEnabled = Boolean(extra.quantityEnabled || extra.quantityUnlimited);
                     const qty = getExtraQuantity(index);
                     const extraPricing = resolveExtraPricing(extra);
                     const tbc = isExtraPriceTbc(extra);

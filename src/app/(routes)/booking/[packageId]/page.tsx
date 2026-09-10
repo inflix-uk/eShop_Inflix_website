@@ -63,6 +63,21 @@ function slotKey(date: string, startTime: string) {
 }
 
 const EXTRA_QTY_MAX = 9;
+const EXTRA_QTY_UNLIMITED_MAX = 99;
+
+function extraHasQuantityPicker(
+  extra?: Pick<BookingPackageExtra, "quantityEnabled" | "quantityUnlimited"> | null
+) {
+  return Boolean(extra?.quantityEnabled || extra?.quantityUnlimited);
+}
+
+function extraQtyCap(
+  extra: Pick<BookingPackageExtra, "quantityEnabled" | "quantityUnlimited"> | undefined,
+  guestCount: number
+) {
+  if (extra?.quantityUnlimited) return EXTRA_QTY_UNLIMITED_MAX;
+  return Math.max(0, Math.min(EXTRA_QTY_MAX, guestCount));
+}
 
 function toSelectedExtra(
   extra: BookingPackageExtra,
@@ -77,7 +92,8 @@ function toSelectedExtra(
     image: extra.image,
     description: extra.description,
     quantity: Math.max(1, Math.floor(quantity) || 1),
-    quantityEnabled: Boolean(extra.quantityEnabled),
+    quantityEnabled: Boolean(extra.quantityEnabled) && !extra.quantityUnlimited,
+    quantityUnlimited: Boolean(extra.quantityUnlimited),
     originalPrice: pricing.hasDiscount ? pricing.originalPrice : undefined,
     discountPercent: pricing.hasDiscount ? pricing.discountPercent : undefined,
   };
@@ -978,7 +994,8 @@ export default function BookingFlowPage() {
 
   const isExtraSelected = (index: number) => selectedExtras.some((e) => e.index === index);
 
-  const extraQtyMax = Math.max(0, Math.min(EXTRA_QTY_MAX, guestCount));
+  const getExtraQtyMax = (extra?: Pick<BookingPackageExtra, "quantityEnabled" | "quantityUnlimited">) =>
+    extraQtyCap(extra, guestCount);
 
   const getExtraQuantity = (index: number) =>
     Math.max(0, selectedExtras.find((e) => e.index === index)?.quantity || 0);
@@ -986,13 +1003,20 @@ export default function BookingFlowPage() {
   const setExtraQuantity = (extra: BookingPackageExtra, index: number, rawQty: number) => {
     if (submitting) return;
     const parsed = Number.isFinite(Number(rawQty)) ? Math.floor(Number(rawQty)) : 0;
-    const next = Math.max(0, Math.min(extraQtyMax, parsed));
+    const next = Math.max(0, Math.min(getExtraQtyMax(extra), parsed));
     setSelectedExtras((prev) => {
       if (next <= 0) return prev.filter((e) => e.index !== index);
       const exists = prev.some((e) => e.index === index);
       if (exists) {
         return prev.map((e) =>
-          e.index === index ? { ...e, quantity: next, quantityEnabled: true } : e
+          e.index === index
+            ? {
+                ...e,
+                quantity: next,
+                quantityEnabled: Boolean(extra.quantityEnabled) && !extra.quantityUnlimited,
+                quantityUnlimited: Boolean(extra.quantityUnlimited),
+              }
+            : e
         );
       }
       return [...prev, toSelectedExtra(extra, index, next)];
@@ -1004,25 +1028,35 @@ export default function BookingFlowPage() {
       let changed = false;
       const next: SelectedBookingExtra[] = [];
       for (const e of prev) {
-        if (!e.quantityEnabled) {
+        const catalog = packageExtras[e.index];
+        const unlimited = Boolean(catalog?.quantityUnlimited || e.quantityUnlimited);
+        const guestLimited = Boolean(catalog?.quantityEnabled || e.quantityEnabled) && !unlimited;
+        if (!guestLimited && !unlimited) {
           next.push(e);
           continue;
         }
+        const cap = extraQtyCap(
+          {
+            quantityEnabled: guestLimited,
+            quantityUnlimited: unlimited,
+          },
+          guestCount
+        );
         const qty = Math.max(0, Math.floor(Number(e.quantity) || 0));
-        if (qty <= 0 || extraQtyMax <= 0) {
+        if (qty <= 0 || cap <= 0) {
           changed = true;
           continue;
         }
-        if (qty > extraQtyMax) {
+        if (qty > cap) {
           changed = true;
-          next.push({ ...e, quantity: extraQtyMax });
+          next.push({ ...e, quantity: cap, quantityUnlimited: unlimited, quantityEnabled: guestLimited });
         } else {
           next.push(e);
         }
       }
       return changed ? next : prev;
     });
-  }, [extraQtyMax]);
+  }, [guestCount, packageExtras]);
 
   useEffect(() => {
     setExtraQtyHintIndex(null);
@@ -1034,7 +1068,8 @@ export default function BookingFlowPage() {
     qty: number
   ) => {
     if (submitting) return;
-    if (qty >= extraQtyMax) {
+    const cap = getExtraQtyMax(extra);
+    if (qty >= cap) {
       setExtraQtyHintIndex(index);
       return;
     }
@@ -1856,7 +1891,9 @@ export default function BookingFlowPage() {
                       {visibleExtras.map(({ extra, index }) => {
                         const selected = isExtraSelected(index);
                         const imageUrl = bookingService.resolveImageUrl(extra.image);
-                        const quantityEnabled = Boolean(extra.quantityEnabled);
+                        const quantityEnabled = extraHasQuantityPicker(extra);
+                        const quantityUnlimited = Boolean(extra.quantityUnlimited);
+                        const extraCap = getExtraQtyMax(extra);
                         const qty = getExtraQuantity(index);
                         const extraPricing = resolveExtraPricing(extra);
                         return (
@@ -1911,16 +1948,18 @@ export default function BookingFlowPage() {
                                     type="button"
                                     className="bf-xqty__btn"
                                     aria-label={`Increase ${extra.title}`}
-                                    disabled={submitting || extraQtyMax <= 0}
+                                    disabled={submitting || extraCap <= 0}
                                     onClick={() => tryIncreaseExtraQty(extra, index, qty)}
                                   >
                                     +
                                   </button>
                                 </div>
-                                {(qty >= extraQtyMax || extraQtyHintIndex === index) &&
-                                extraQtyMax > 0 ? (
+                                {(qty >= extraCap || extraQtyHintIndex === index) &&
+                                extraCap > 0 ? (
                                   <p className="bf-xqty-hint" role="status">
-                                    Max {extraQtyMax} — based on guests selected
+                                    {quantityUnlimited
+                                      ? `Max ${extraCap}`
+                                      : `Max ${extraCap} — based on guests selected`}
                                   </p>
                                 ) : null}
                               </div>
@@ -2164,7 +2203,7 @@ export default function BookingFlowPage() {
                           disabled={submitting}
                           onClick={() => {
                             const match = packageExtras[extra.index];
-                            if (match?.quantityEnabled) {
+                            if (extraHasQuantityPicker(match)) {
                               setExtraQuantity(match, extra.index, 0);
                               return;
                             }
