@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     controls.routeBlockingEnabled === false &&
     controls.disabledMarketingRoutes.includes(slug);
 
-  if (isDisabledMarketingSlug(pathname) || dynamicDisabledBySuperadmin) {
+  if (isDisabledMarketingSlug(slug) || dynamicDisabledBySuperadmin) {
     return NextResponse.rewrite(
       new URL("/__disabled-marketing-route", request.url)
     );

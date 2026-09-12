@@ -1,16 +1,30 @@
 import type { Metadata } from "next";
-import { buildStorePageMetadata } from "@/lib/pageMetadata";
+import { metadataForFooterPolicyPage } from "@/app/lib/policyFooterPageMetadata";
+import { getPolicyPageJsonLdStrings } from "@/app/lib/policyPageJsonLd";
+
+const FOOTER_PAGE_SLUG = "about-us";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return buildStorePageMetadata({
-    path: "/about-us",
-    fallbackTitle: "About Us",
-    fallbackDescription: "Learn more about our store.",
-  });
+  return metadataForFooterPolicyPage("/about-us", FOOTER_PAGE_SLUG);
 }
 
-export default function AboutLayout({
+export default async function AboutUsLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return <>{children}</>;
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const jsonLdStrings = await getPolicyPageJsonLdStrings(FOOTER_PAGE_SLUG);
+
+  return (
+    <>
+      {jsonLdStrings.map((json, index) => (
+        <script
+          key={`about-us-jsonld-${index}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: json }}
+        />
+      ))}
+      {children}
+    </>
+  );
 }
