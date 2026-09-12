@@ -56,7 +56,6 @@ const PaymentForm = dynamic(
 import TrustBoxWidget from "@/app/components/trusBoxWidget";
 import CheckoutBenefits from "./components/checkout-benefits";
 import PaymentLogos from "@/app/components/PaymentLogos";
-import PaymentVendorScripts from "@/app/components/PaymentVendorScripts";
 import { trackBeginCheckout } from "@/app/lib/analyticsEvents";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
 
@@ -151,9 +150,6 @@ export default function CheckoutPage() {
   const activeStripe =
     isBookingOnly && bookingStripePromise ? bookingStripePromise : stripePromise;
   const beginCheckoutTracked = useRef(false);
-  const bnplAmountPence =
-    !isBookingOnly && totalSalePrice > 0 ? Math.round(totalSalePrice * 100) : 0;
-  const showBnplMessaging = bnplAmountPence >= 100;
 
   useEffect(() => {
     if (beginCheckoutTracked.current || isBookingOnly || products.length === 0) return;
@@ -890,10 +886,6 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <PaymentVendorScripts
-        enablePayPal={showBnplMessaging}
-        enableKlarna={showBnplMessaging}
-      />
       <NewsletterModal mode="checkout" />
       <LoadingBar
         color="#046d38"
@@ -990,23 +982,6 @@ export default function CheckoutPage() {
                   />
 
                   <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                    {showBnplMessaging && (
-                      <div className="mb-4" key={`bnpl-${bnplAmountPence}`}>
-                        <div
-                          data-pp-message
-                          data-pp-style-layout="text"
-                          data-pp-style-logo-type="inline"
-                          data-pp-style-text-color="black"
-                          data-pp-amount={String(bnplAmountPence)}
-                        />
-                        <klarna-placement
-                          data-key="credit-promotion-badge"
-                          data-locale="en-GB"
-                          data-purchase-amount={String(bnplAmountPence)}
-                        />
-                      </div>
-                    )}
-
                     {activeClientSecret && activeStripe ? (
                       <div className="mb-6">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">
