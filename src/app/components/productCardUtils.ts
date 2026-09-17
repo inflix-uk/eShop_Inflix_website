@@ -43,14 +43,26 @@ export function getPaginatedProducts<T>(
   return list.slice(start, start + perPage);
 }
 
+function firstPositivePrice(...values: unknown[]): number {
+  for (const value of values) {
+    const amount = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(amount) && amount > 0) return amount;
+  }
+  return 0;
+}
+
 export function getProductCardDisplayData(product: Product): ProductCardDisplay {
   const hasGroupPrice = typeof product.groupPrice === "number";
-  const displayPrice =
-    typeof product.price === "number" ? product.price : product.minSalePrice;
-  const displayOriginalPrice =
-    typeof product.originalPrice === "number"
-      ? product.originalPrice
-      : product.minPrice;
+  const displayPrice = firstPositivePrice(
+    product.price,
+    product.minSalePrice,
+    product.minPrice
+  );
+  const displayOriginalPrice = firstPositivePrice(
+    product.originalPrice,
+    product.minPrice,
+    displayPrice
+  );
   const discountPercentage =
     displayOriginalPrice > 0
       ? Math.max(
