@@ -368,7 +368,13 @@ const NAVBAR_BUSINESS_BTN_H = "h-8 min-h-8 max-h-8";
 const NAVBAR_BUSINESS_CTA_H = "h-9 min-h-9 max-h-10";
 /** Business desktop: email/phone CTAs need room — do not truncate long labels. */
 const NAVBAR_BUSINESS_CTA_CLASS =
-  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[11rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-black/5 px-2.5 py-0 text-[10px] font-semibold leading-none shadow-sm sm:max-w-[14rem] sm:px-3 sm:text-[11px] lg:max-w-[17rem] lg:text-xs xl:max-w-[19rem]`;
+  `inline-flex ${NAVBAR_BUSINESS_CTA_H} min-w-0 max-w-[11rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-black/5 px-2.5 py-0 text-[10px] font-semibold leading-none shadow-sm sm:max-w-[14rem] sm:px-3 sm:text-[11px] lg:max-w-[17rem] xl:max-w-[19rem] xl:text-xs`;
+/**
+ * Business desktop: logo hugs its image (height-capped, width follows aspect) so the nav pill
+ * keeps the leftover row width instead of a fixed 24% column of empty space.
+ */
+const NAVBAR_BUSINESS_LOGO_WRAPPER_CLASS =
+  "flex w-auto min-w-0 shrink-0 items-center gap-2.5 [&>a]:w-auto [&_img]:!w-auto [&_img]:!min-h-0 [&_img]:!max-h-[52px] [&_img]:max-w-[200px]";
 /** Dark overlay inside the admin-colored strip (right zone, slanted left edge). */
 const NAVBAR_BUSINESS_STRIP_RIGHT_BG = "rgba(0, 0, 0, 0.8)";
 /** Slanted left edge: bottom extends further left than top (matches reference). */
@@ -378,9 +384,9 @@ const NAVBAR_BUSINESS_STRIP_RIGHT_CLIP =
 const NAVBAR_BUSINESS_STRIP_RIGHT_W =
   "w-[calc(37%+1.35rem)] min-w-[calc(16rem+1.35rem)]";
 
-/** Business strip — slightly tighter row but still readable. */
+/** Business strip — compact on laptops so every link stays inside the pill. */
 const NAVBAR_MENU_LINK_BUSINESS =
-  "text-xs font-medium leading-snug sm:text-sm";
+  "text-[11px] font-medium leading-snug xl:text-[13px] 2xl:text-sm";
 /** Business-2 — slightly larger nav labels than Business. */
 const NAVBAR_MENU_LINK_BUSINESS2 =
   "text-sm font-medium leading-snug sm:text-[15px] lg:text-[16px]";
@@ -1003,6 +1009,7 @@ function NavbarMobileDrawer({
   closeButtonClassName,
   children,
   drawerBgColor,
+  desktopHiddenClass = "md:hidden",
 }: {
   open: boolean;
   onClose: () => void;
@@ -1011,6 +1018,8 @@ function NavbarMobileDrawer({
   closeButtonClassName: string;
   children: ReactNode;
   drawerBgColor?: string;
+  /** Must match the breakpoint where the variant swaps its burger bar for the desktop row. */
+  desktopHiddenClass?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -1029,7 +1038,7 @@ function NavbarMobileDrawer({
         type="button"
         aria-label={open ? "Close menu overlay" : undefined}
         aria-hidden={!open}
-        className={`fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 md:hidden ${open ? "" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 ${desktopHiddenClass} ${open ? "" : "pointer-events-none opacity-0"}`}
         onClick={onClose}
         tabIndex={open ? 0 : -1}
       />
@@ -1038,7 +1047,7 @@ function NavbarMobileDrawer({
         aria-modal="true"
         aria-labelledby="mobile-nav-menu-title"
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out md:hidden ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
+        className={`fixed inset-y-0 right-0 z-[201] flex max-h-[100dvh] w-[min(100vw-0.75rem,24rem)] flex-col overflow-y-auto border-l shadow-[0_25px_80px_-16px_rgba(15,23,42,0.28)] transition-transform duration-300 ease-out ${desktopHiddenClass} ${panelClassName} ${open ? "translate-x-0" : "pointer-events-none translate-x-full"}`}
         style={hasDarkBg ? { backgroundColor: drawerBgColor, borderColor: "rgba(255,255,255,0.1)" } : { backgroundColor: "#f8f9fb", borderColor: "rgba(226,232,240,0.9)" }}
       >
         <div
@@ -1795,8 +1804,9 @@ function NavbarBusiness({
   };
   return (
     <>
-      <header className="relative w-full overflow-visible px-10 py-3 sm:px-16 lg:px-20 xl:px-28 2xl:px-32">
-      <div className="flex items-center justify-between md:hidden">
+      {/* Gutters match the page content container (`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8`). */}
+      <header className="relative mx-auto w-full max-w-7xl overflow-visible px-4 py-3 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between lg:hidden">
         <div className={NAV_LOGO_WRAPPER_CLASS}>
           <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
         </div>
@@ -1812,16 +1822,17 @@ function NavbarBusiness({
 
       {/* Logo | blue nav pill | contact CTAs (separate — avoids mismatched right strip) */}
       <div
-        className={`relative hidden w-full min-w-0 items-center gap-2 overflow-visible md:flex ${NAVBAR_BUSINESS_ROW_H} lg:gap-3`}
+        className={`relative hidden w-full min-w-0 items-center gap-2 overflow-visible lg:flex ${NAVBAR_BUSINESS_ROW_H} lg:gap-3`}
       >
-        <div className="flex shrink-0 items-center">
-          <div className={`${NAV_LOGO_WRAPPER_CLASS} shrink-0`}>
+        <div className="flex min-w-0 shrink-0 items-center">
+          <div className={NAVBAR_BUSINESS_LOGO_WRAPPER_CLASS}>
             <NavbarLogoHomeSlot logoUrl={logoUrl} logoText={logoText} />
           </div>
         </div>
 
+        {/* `overflow-x-auto` keeps extra admin links inside the pill instead of under the CTAs. */}
         <nav
-          className={`${NAVBAR_BUSINESS_ROW_H} relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 rounded-xl px-3 sm:px-4`}
+          className={`${NAVBAR_BUSINESS_ROW_H} relative z-[1] flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-center gap-0.5 overflow-x-auto overflow-y-hidden rounded-xl px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:px-4`}
           style={businessLeftStripBgStyle}
           aria-label="Primary"
         >
@@ -1833,7 +1844,7 @@ function NavbarBusiness({
               fallbackIcon={DEFAULT_NAVBAR_FLATICON}
               bodyPortalFlyout
               compact
-              linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1.5 py-0 ${NAVBAR_MENU_LINK_BUSINESS} transition`}
+              linkClassName={`inline-flex ${NAVBAR_BUSINESS_BTN_H} shrink-0 items-center whitespace-nowrap px-1 py-0 ${NAVBAR_MENU_LINK_BUSINESS} transition xl:px-1.5`}
             />
           ))}
         </nav>
@@ -1902,7 +1913,7 @@ function NavbarBusiness({
             ) : null}
             {showSearch ? (
               <div
-                className={`hidden ${NAVBAR_BUSINESS_BTN_H} min-w-0 max-w-[9rem] shrink-0 lg:block lg:max-w-[10rem] xl:max-w-[11rem]`}
+                className={`hidden ${NAVBAR_BUSINESS_BTN_H} min-w-0 shrink-0 xl:block xl:max-w-[10rem] 2xl:max-w-[11rem]`}
               >
                 <NavbarSearch
                   variant="compactDense"
@@ -1922,6 +1933,7 @@ function NavbarBusiness({
         panelClassName="text-slate-900"
         headerClassName="border-slate-200 text-slate-900"
         closeButtonClassName="hover:bg-slate-100 text-slate-700"
+        desktopHiddenClass="lg:hidden"
       >
         <nav className="flex flex-col gap-2">
           {links.map((link, i) => (

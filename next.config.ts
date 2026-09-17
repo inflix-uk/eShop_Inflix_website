@@ -61,6 +61,11 @@ function buildImageRemotePatterns(): ImageRemotePattern[] {
       hostname: "api.spectrotech.co.uk",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "api.zextons.co.uk",
+      pathname: "/**",
+    },
   ];
 
   const addHostname = (hostname: string, protocol: "http" | "https" = "https", port?: string) => {

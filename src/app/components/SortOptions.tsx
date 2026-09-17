@@ -20,11 +20,15 @@ export const SortOptions: SortOption[] = [
   {
     name: "Price: Low to High",
     key: "priceLowToHigh",
-    sortFunc: (a, b) => parseFloat(a.minSalePrice) - parseFloat(b.minSalePrice),
+    sortFunc: (a, b) =>
+      (Number(a.minSalePrice) || Number(a.minPrice) || Number(a.price) || 0) -
+      (Number(b.minSalePrice) || Number(b.minPrice) || Number(b.price) || 0),
   },
   {
     name: "Price: High to Low",
     key: "priceHighToLow",
-    sortFunc: (a, b) => parseFloat(b.minSalePrice) - parseFloat(a.minSalePrice),
+    sortFunc: (a, b) =>
+      (Number(b.minSalePrice) || Number(b.minPrice) || Number(b.price) || 0) -
+      (Number(a.minSalePrice) || Number(a.minPrice) || Number(a.price) || 0),
   },
 ];
