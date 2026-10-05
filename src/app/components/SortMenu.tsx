@@ -12,12 +12,12 @@ export default function SortMenu({
 }) {
   return (
     <>
-      <Menu as="div" className="relative inline-block text-left">
+      <Menu as="div" className="relative z-50 inline-block text-left">
         <MenuButton className="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-green-500">
           Sort: {selectedSort.name}
           <ChevronDownIcon className="-mr-1 ml-2 h-5 w-5" aria-hidden="true" />
         </MenuButton>
-        <MenuItems className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
+        <MenuItems className="origin-top-right absolute right-0 z-50 mt-2 w-56 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           {SortOptions.map((option) => (
             <MenuItem key={option.key}>
               {({ active }) => (
