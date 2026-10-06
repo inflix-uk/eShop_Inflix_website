@@ -1,4 +1,5 @@
 import React from "react";
+import { cleanCmsText } from "@/app/lib/cleanCmsText";
 
 const productContentStyles = `
   .product-content ul li h1,
@@ -59,7 +60,7 @@ export default function ProductSummary({ product }: { product: any }) {
               className="prose prose-sm sm:prose-base max-w-none text-justify rounded-xl break-words !text-black product-content"
               dangerouslySetInnerHTML={{
                 __html: product
-                  ? product.Product_summary
+                  ? cleanCmsText(product.Product_summary)
                   : "<p>No content provided</p>",
               }}
             />
