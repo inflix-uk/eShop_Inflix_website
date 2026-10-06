@@ -3,7 +3,6 @@ import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import VariantPrice from "@/app/(routes)/products/components/VariantPrice";
-import Loading from "@/app/components/Loading";
 const Tab = dynamic(() => import("@headlessui/react").then((mod) => mod.Tab));
 import { TabList, TabGroup } from "@headlessui/react";
 // const TabList = dynamic(() =>
@@ -301,8 +300,18 @@ export default function ImagePart({
 
   const stockNotification = getStockNotificationContent();
 
+  // No photos is a state, not something still loading: the full-screen loader
+  // that used to be returned here covered the whole product page for good.
   if (!images || images.length === 0) {
-    return <Loading />;
+    return (
+      <div
+        role="img"
+        aria-label={`${product?.name || "Product"}: no image available`}
+        className="mx-auto flex aspect-square w-full max-w-2xl items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 lg:sticky top-28"
+      >
+        No image available
+      </div>
+    );
   }
   // console.log(images);
   return (
