@@ -1,8 +1,29 @@
 import React from "react";
 import HomepageContent from "@/app/components/HomepageContent";
 import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
+import { cleanCmsText } from "@/app/lib/cleanCmsText";
+
+/**
+ * NEXT_PUBLIC_PRODUCT_DESCRIPTION_FONT=zextons shows the description in the
+ * font used for descriptions on zextons.co.uk (the device's system UI font)
+ * instead of the store's CMS typography. Set per store: every store is built
+ * from this code, and the others keep their own fonts.
+ */
+const ZEXTONS_DESCRIPTION_FONT =
+  (process.env.NEXT_PUBLIC_PRODUCT_DESCRIPTION_FONT || "").trim().toLowerCase() === "zextons";
 
 const productContentStyles = `
+  /* !important: must win over the CMS typography rules and fonts pasted in
+     with the text. Icon fonts (<i>) are left alone. */
+  .product-description-zextons,
+  .product-description-zextons :where(p, li, h1, h2, h3, h4, h5, h6, span, strong, em, b, u, a, td, th, blockquote, div) {
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+  }
+  /* The CMS typography can set whole paragraphs or headings italic; emphasis
+     inside them (<em>, <i>) keeps its own italics. */
+  .product-description-zextons :where(p, li, h1, h2, h3, h4, h5, h6) {
+    font-style: normal !important;
+  }
   .product-content ul li h1,
   .product-content ul li h2,
   .product-content ul li h3,
@@ -52,6 +73,8 @@ export default function ProductDescription({
 }) {
   const blocks = product?.Product_description_blocks;
   const hasBlocks = Array.isArray(blocks) && blocks.length > 0;
+  const descriptionHtml = cleanCmsText(product?.Product_description);
+  const fontClass = ZEXTONS_DESCRIPTION_FONT ? " product-description-zextons" : "";
 
   return (
     <>
@@ -65,7 +88,7 @@ export default function ProductDescription({
           </div>
           <div className="relative z-10 flex-1">
             {hasBlocks ? (
-              <div className="product-content max-w-none rounded-xl break-words text-black">
+              <div className={`product-content max-w-none rounded-xl break-words text-black${fontClass}`}>
                 <HomepageContent
                   blocks={blocks}
                   widgetVisibility={DEFAULT_SITE_WIDGET_VISIBILITY}
@@ -73,9 +96,9 @@ export default function ProductDescription({
               </div>
             ) : (
               <div
-                className="prose prose-sm sm:prose-base max-w-none text-justify rounded-xl break-words !text-black product-content"
+                className={`prose prose-sm sm:prose-base max-w-none text-justify rounded-xl break-words !text-black product-content${fontClass}`}
                 dangerouslySetInnerHTML={{
-                  __html: product?.Product_description || "<p>No content provided</p>",
+                  __html: descriptionHtml || "<p>No content provided</p>",
                 }}
               />
             )}
