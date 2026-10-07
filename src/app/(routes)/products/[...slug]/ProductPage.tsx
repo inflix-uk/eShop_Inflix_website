@@ -221,8 +221,16 @@ export default function ProductPage({
   const deliveryEndStr = deliveryEnd.toLocaleDateString("en-GB", options);
   // Images
   const images = useMemo(() => {
+    // A product can have a thumbnail and no gallery; show that rather than nothing.
+    const galleryOrThumbnail = () => {
+      const gallery = product?.Gallery_Images || [];
+      if (gallery.length > 0) return gallery;
+      const thumbnail = product?.thumbnail_image;
+      return thumbnail && (thumbnail.url || thumbnail.path) ? [thumbnail] : [];
+    };
+
     if (product?.productType?.type === "single") {
-      return product?.Gallery_Images || [];
+      return galleryOrThumbnail();
     } else {
       // For variant products, show variant images if selected, otherwise show default product images
       const hasVariantImages = selectedVariant?.variantImages && selectedVariant.variantImages.length > 0;
@@ -250,7 +258,7 @@ export default function ProductPage({
         }
       }
 
-      return product?.Gallery_Images || [];
+      return galleryOrThumbnail();
     }
   }, [product, selectedVariant, selectedOptions]);
   // if (isLoading) {

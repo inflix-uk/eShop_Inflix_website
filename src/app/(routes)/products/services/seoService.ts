@@ -11,6 +11,7 @@ import {
   isPlainObject,
   toSchemaOrgShortEnum,
 } from "@/app/lib/jsonLdMerge";
+import { cleanCmsText } from "@/app/lib/cleanCmsText";
 
 type ProductVariantLike = {
   name?: string;
@@ -61,8 +62,7 @@ function resolveAssetUrl(asset: { url?: string; path?: string } | string | null 
 }
 
 function stripHtml(html: string | undefined | null): string {
-  if (!html) return "";
-  return html
+  return cleanCmsText(html)
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -274,7 +274,7 @@ export async function generateProductSchema(
   const gtin = normalizeGtinDigits(variant?.EIN);
   const brandName = String(product.brand || sellerName).trim();
   const conditionSource =
-    product.condition ||
+    cleanCmsText(product.condition) ||
     variant?.name ||
     "";
 

@@ -12,7 +12,6 @@ import { EmblaOptionsType } from "embla-carousel";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import { Product } from "../../../../../types";
 import { useRouter } from "next/navigation";
-import Loading from "@/app/components/Loading";
 
 interface ProductsYouMayLikeProps {
   productId: string;
@@ -253,8 +252,10 @@ const ProductsYouMayLike: React.FC<ProductsYouMayLikeProps> = ({
     return (
       <div className="max-w-screen-xl mx-auto w-full border-t border-gray-200 px-4 my-5">
         <h2 className="text-2xl font-bold mb-4 mt-2">Products You May Like</h2>
-        <div className="flex justify-center items-center h-48">
-          <Loading />
+        {/* A spinner in this section only: the shared Loading component covers
+            the whole screen, so a slow request here hid the entire product page. */}
+        <div className="flex justify-center items-center h-48" role="status" aria-label="Loading">
+          <div className="h-10 w-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin" />
         </div>
       </div>
     );
