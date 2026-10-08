@@ -279,6 +279,12 @@ export interface WidgetActiveDealsContent {
   widgetType: "activeDeals";
 }
 
+/** The customer's own cart (same data as the navbar cart drawer). */
+export interface WidgetCartContent {
+  widgetType: "cart";
+  heading?: string;
+}
+
 /** Fragment HTML + scoped CSS (rendered in a shadow root on the public site). */
 export interface WidgetHtmlCssContent {
   widgetType: "htmlCss";
@@ -369,6 +375,7 @@ export interface ContentBlock {
     | WidgetPromotionalSectionsContent
     | WidgetLatestBlogsContent
     | WidgetActiveDealsContent
+    | WidgetCartContent
     | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
     | WidgetNavbarContent

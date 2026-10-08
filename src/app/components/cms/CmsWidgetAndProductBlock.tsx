@@ -18,6 +18,7 @@ import {
   type WidgetPromotionalSectionsContent,
   type WidgetLatestBlogsContent,
   type WidgetActiveDealsContent,
+  type WidgetCartContent,
   type WidgetDealsDiscountCardsContent,
   type WidgetHtmlCssContent,
   type WidgetNavbarContent,
@@ -96,6 +97,11 @@ const ActiveDealsWidget = dynamic(
   () => import("@/app/components/deals/ActiveDealsWidget"),
   { loading: WidgetChunkFallback, ssr: false }
 );
+// Client only: the cart is read from this browser's localStorage.
+const CartWidget = dynamic(() => import("@/app/components/cart/CartWidget"), {
+  loading: WidgetChunkFallback,
+  ssr: false,
+});
 const DealsDiscountCardsWidget = dynamic(
   () => import("@/app/components/deals/DealsDiscountCardsWidget"),
   { loading: WidgetChunkFallback, ssr: false }
@@ -163,6 +169,7 @@ export function CmsWidgetAndProductBlock({
     | WidgetPromotionalSectionsContent
     | WidgetLatestBlogsContent
     | WidgetActiveDealsContent
+    | WidgetCartContent
     | WidgetDealsDiscountCardsContent
     | WidgetHtmlCssContent
     | WidgetNavbarContent
@@ -306,6 +313,9 @@ export function CmsWidgetAndProductBlock({
   }
   if (w?.widgetType === "activeDeals") {
     return <ActiveDealsWidget />;
+  }
+  if (w?.widgetType === "cart") {
+    return <CartWidget heading={(w as WidgetCartContent).heading} />;
   }
   if (w?.widgetType === "dealsDiscountCards") {
     const dd = w as WidgetDealsDiscountCardsContent;

@@ -7,6 +7,7 @@ import {
 } from "@/app/services/footerPageService";
 import { mergeAdminJsonLdWithAutoBusiness } from "@/app/lib/businessJsonLd";
 import { getStoreIdentity, shareImagesForPage } from "@/lib/storeIdentity";
+import { CART_PAGE_SLUG } from "@/app/lib/cartPage";
 
 /**
  * CMS often stores a full <script type="application/ld+json">…</script> snippet.
@@ -191,6 +192,16 @@ export async function generateMetadata({
     }
 
     return metadata;
+  }
+
+  // Built-in cart page (no published CMS page at /cart): each visitor sees
+  // their own cart, so there is nothing for search engines to index.
+  if (decodedSlug.toLowerCase().trim() === CART_PAGE_SLUG) {
+    return {
+      title: "Shopping Cart",
+      description: "",
+      robots: "noindex, follow",
+    };
   }
 
   // Fallback - still allow indexing
