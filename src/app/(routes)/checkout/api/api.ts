@@ -508,6 +508,7 @@ export class CheckoutApi {
     paymentDetails: any;
     orderNumber: string;
     status: string;
+    shippingMethod?: ShippingMethodData | null;
     marketingAttribution?: MarketingAttributionPayload;
   }): Promise<CreateOrderResponse> {
     const payload = withMarketingAttribution(orderData);

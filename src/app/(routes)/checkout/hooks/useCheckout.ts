@@ -893,6 +893,14 @@ export const useCheckout = () => {
             paymentDetails: paymentDetailsPayload,
             orderNumber: orderNum,
             status: 'Pending',
+            // Without this the backend prices the order with £0 shipping and
+            // rejects the payment as an amount mismatch whenever shipping was paid.
+            shippingMethod: selectedShippingMethod ? {
+              name: selectedShippingMethod.name,
+              price: shippingCost,
+              estimatedDays: selectedShippingMethod.estimatedDays,
+              methodId: selectedShippingMethod._id,
+            } : null,
           });
           console.log('✅ Order updated to Pending');
         } catch (updateError: any) {

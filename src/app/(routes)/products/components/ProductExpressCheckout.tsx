@@ -10,6 +10,13 @@ import {
 } from "@stripe/react-stripe-js";
 import { useRouter } from "next/navigation";
 import { resolveProductLineItem } from "../utils/variantUtils";
+import {
+  api,
+  getActiveShippingMethods,
+  logCheckoutEvent,
+  type ShippingMethod,
+} from "../../checkout/api";
+import { OrderService } from "../../checkout/services";
 
 interface ProductExpressCheckoutProps {
   product: any;
@@ -18,35 +25,88 @@ interface ProductExpressCheckoutProps {
   disabled?: boolean;
 }
 
+// A wallet shipping option, priced the way the backend's resolveShipping
+// prices it (free-shipping threshold applies to the cheapest method only).
+interface ExpressShippingRate {
+  id: string;
+  displayName: string;
+  amount: number; // pence
+  method: ShippingMethod;
+}
+
+function buildShippingRates(
+  methods: ShippingMethod[],
+  subtotal: number,
+  freeShippingEnabled: boolean,
+  freeShippingThreshold: number | null
+): ExpressShippingRate[] {
+  const sorted = [...methods].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const qualifiesForFree =
+    freeShippingEnabled &&
+    Number(freeShippingThreshold) > 0 &&
+    subtotal >= Number(freeShippingThreshold);
+
+  return sorted.map((m, i) => ({
+    id: m._id,
+    displayName: m.name,
+    amount: qualifiesForFree && i === 0 ? 0 : Math.round((m.price || 0) * 100),
+    method: m,
+  }));
+}
+
 // Inner component that uses Stripe hooks
 function ExpressCheckoutInner({
   product,
   selectedVariant,
   updatedPrice,
+  shippingRates,
   onSuccess,
   onError,
 }: {
   product: any;
   selectedVariant: any;
   updatedPrice: number;
+  shippingRates: ExpressShippingRate[];
   onSuccess: (paymentIntent: any) => void;
   onError: (error: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isReady, setIsReady] = useState(false);
+  const productAmount = Math.round(updatedPrice * 100);
 
-  // Handle click - request user details from Apple Pay / Google Pay wallet
+  // Handle click - request user details from Apple Pay / Google Pay wallet.
+  // Google Pay needs shippingRates whenever a shipping address is requested.
   const handleClick = useCallback(
     (event: { resolve: (options: any) => void }) => {
+      elements?.update({ amount: productAmount + (shippingRates[0]?.amount || 0) });
       event.resolve({
         emailRequired: true,
         phoneNumberRequired: true,
         shippingAddressRequired: true,
         billingAddressRequired: true,
+        ...(shippingRates.length > 0
+          ? {
+              shippingRates: shippingRates.map(({ id, displayName, amount }) => ({
+                id,
+                displayName,
+                amount,
+              })),
+            }
+          : {}),
       });
     },
-    []
+    [elements, productAmount, shippingRates]
+  );
+
+  // Keep the wallet total in step with the shipping option the customer picks.
+  const handleShippingRateChange = useCallback(
+    (event: any) => {
+      const rate = shippingRates.find((r) => r.id === event.shippingRate?.id);
+      elements?.update({ amount: productAmount + (rate?.amount || 0) });
+      event.resolve();
+    },
+    [elements, productAmount, shippingRates]
   );
 
   const handleConfirm = useCallback(async (event: any) => {
@@ -75,43 +135,84 @@ function ExpressCheckoutInner({
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
 
-      // Create PaymentIntent on the server with real user data from wallet
+      if (!payerEmail) {
+        onError("Your wallet did not provide an email. Please try a different payment method.");
+        return;
+      }
+
+      const cart = [
+        {
+          _id: selectedVariant?._id || product._id,
+          productId: product._id,
+          productName: product.name,
+          name: selectedVariant?.name || product.name,
+          salePrice: updatedPrice,
+          qty: 1,
+          variantImages: selectedVariant?.variantImages || product.Gallery_Images,
+        },
+      ];
+
+      const shippingInformation = {
+        firstName: firstName,
+        lastName: lastName,
+        companyName: "",
+        address: shippingAddress.line1 || shippingAddress.address?.line1 || "",
+        apartment: shippingAddress.line2 || shippingAddress.address?.line2 || "",
+        country: shippingAddress.country || shippingAddress.address?.country || "United Kingdom",
+        city: shippingAddress.city || shippingAddress.address?.city || "",
+        county: shippingAddress.state || shippingAddress.address?.state || "",
+        postalCode: shippingAddress.postal_code || shippingAddress.address?.postal_code || "",
+        phoneNumber: payerPhone,
+      };
+
+      const contactInformation = { email: payerEmail, userId: "express_checkout" };
+
+      const chosenRate =
+        shippingRates.find((r) => r.id === event.shippingRate?.id) || shippingRates[0];
+      const shippingMethod = chosenRate
+        ? {
+            name: chosenRate.method.name,
+            price: chosenRate.amount / 100,
+            estimatedDays: chosenRate.method.estimatedDays || "",
+            methodId: chosenRate.method._id,
+          }
+        : null;
+
+      // 1. Create the order first (status Failed until payment is verified),
+      //    so the charge is always attached to an order the admin can see.
+      const orderResponse = await OrderService.init().createOrder({
+        cart: cart as any,
+        shippingInformation: shippingInformation as any,
+        contactInformation: contactInformation as any,
+        coupon: null,
+        orderNumber: null,
+        status: "Failed",
+        shippingMethod,
+      });
+      const orderNumber = orderResponse ? orderResponse.orderNumber : undefined;
+
+      if (!orderNumber) {
+        logCheckoutEvent({ event: "frontend.product_express.order_create_failed", data: { productId: product._id } });
+        onError("Failed to create order. Please try again.");
+        return;
+      }
+
+      logCheckoutEvent({ event: "frontend.product_express.order_created", orderNumber });
+
+      // 2. Create the PaymentIntent tied to that order
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/create-payment-intent`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            cartproducts: [
-              {
-                _id: selectedVariant?._id || product._id,
-                productId: product._id,
-                productName: product.name,
-                name: selectedVariant?.name || product.name,
-                salePrice: updatedPrice,
-                qty: 1,
-                variantImages: selectedVariant?.variantImages || product.Gallery_Images,
-              },
-            ],
+            cartproducts: cart,
             coupondata: null,
-            shippingInformation: {
-              firstName: firstName,
-              lastName: lastName,
-              companyName: "",
-              address: shippingAddress.line1 || shippingAddress.address?.line1 || "",
-              apartment: shippingAddress.line2 || shippingAddress.address?.line2 || "",
-              country: shippingAddress.country || shippingAddress.address?.country || "United Kingdom",
-              city: shippingAddress.city || shippingAddress.address?.city || "",
-              county: shippingAddress.state || shippingAddress.address?.state || "",
-              postalCode: shippingAddress.postal_code || shippingAddress.address?.postal_code || "",
-              phoneNumber: payerPhone,
-            },
-            contactInformation: {
-              email: payerEmail,
-              userId: "express_checkout",
-            },
-            orderNumber: "",
+            shippingInformation,
+            contactInformation,
+            orderNumber,
             isExpressCheckout: true,
+            shippingMethod,
           }),
         }
       );
@@ -123,7 +224,7 @@ function ExpressCheckoutInner({
         return;
       }
 
-      // Confirm the payment
+      // 3. Confirm the payment
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         clientSecret: data.clientSecret,
@@ -134,11 +235,52 @@ function ExpressCheckoutInner({
       });
 
       if (error) {
+        logCheckoutEvent({
+          event: "frontend.product_express.confirm_failed",
+          orderNumber,
+          paymentIntentId: data.paymentIntentId,
+          data: { message: error.message },
+        });
         onError(error.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        // 4. Mark the order paid — the backend verifies the payment with
+        //    Stripe, reduces stock and sends the confirmation emails. If this
+        //    call is lost, the Stripe webhook still moves the order to Pending.
+        try {
+          await api.updateOrderAfterPayment({
+            cart,
+            shippingInformation,
+            contactInformation,
+            coupon: null,
+            paymentDetails: {
+              paymentIntentId: paymentIntent.id,
+              paymentMethodId:
+                typeof paymentIntent.payment_method === "string"
+                  ? paymentIntent.payment_method
+                  : paymentIntent.payment_method?.id || null,
+              amount: paymentIntent.amount / 100,
+              currency: paymentIntent.currency,
+              status: paymentIntent.status,
+              paidAt: new Date(),
+            },
+            orderNumber,
+            status: "Pending",
+            shippingMethod,
+          });
+        } catch (updateError: any) {
+          logCheckoutEvent({
+            event: "frontend.product_express.mark_paid_failed",
+            orderNumber,
+            paymentIntentId: paymentIntent.id,
+            data: { message: updateError?.response?.data?.message || updateError?.message },
+          });
+        }
+
         // Pass customer data along with payment intent for order storage
         onSuccess({
           ...paymentIntent,
+          orderNumber,
+          totalOrderValue: updatedPrice + (chosenRate ? chosenRate.amount / 100 : 0),
           customerData: {
             email: payerEmail,
             name: payerName,
@@ -153,12 +295,13 @@ function ExpressCheckoutInner({
       console.error("Express checkout error:", err);
       onError(err.message || "Payment failed");
     }
-  }, [stripe, elements, product, selectedVariant, updatedPrice, onSuccess, onError]);
+  }, [stripe, elements, product, selectedVariant, updatedPrice, shippingRates, onSuccess, onError]);
 
   return (
     <div className="w-full">
       <ExpressCheckoutElement
         onClick={handleClick}
+        onShippingRateChange={handleShippingRateChange}
         onConfirm={handleConfirm}
         onReady={() => setIsReady(true)}
         onLoadError={(error) => {
@@ -209,6 +352,12 @@ export default function ProductExpressCheckout({
     [product, selectedVariant]
   );
 
+  const [shippingSettings, setShippingSettings] = useState<{
+    methods: ShippingMethod[];
+    freeShippingEnabled: boolean;
+    freeShippingThreshold: number | null;
+  } | null>(null);
+
   // Initialize Stripe
   useEffect(() => {
     const initStripe = async () => {
@@ -225,6 +374,35 @@ export default function ProductExpressCheckout({
     initStripe();
   }, []);
 
+  // Shipping methods, so wallet buyers pay for delivery like checkout buyers do
+  useEffect(() => {
+    getActiveShippingMethods()
+      .then((response) => {
+        setShippingSettings({
+          methods: response.success ? response.data.methods || [] : [],
+          freeShippingEnabled: !!response.data?.freeShippingEnabled,
+          freeShippingThreshold: response.data?.freeShippingThreshold ?? null,
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load shipping methods:", err);
+        setShippingSettings({ methods: [], freeShippingEnabled: false, freeShippingThreshold: null });
+      });
+  }, []);
+
+  const shippingRates = useMemo(
+    () =>
+      shippingSettings
+        ? buildShippingRates(
+            shippingSettings.methods,
+            updatedPrice,
+            shippingSettings.freeShippingEnabled,
+            shippingSettings.freeShippingThreshold
+          )
+        : [],
+    [shippingSettings, updatedPrice]
+  );
+
   const handleSuccess = useCallback(
     (paymentIntent: any) => {
       console.log("Express payment successful:", paymentIntent.id);
@@ -234,8 +412,8 @@ export default function ProductExpressCheckout({
 
       // Store order data for thank-you page with real customer info
       const orderData = {
-        totalOrderValue: updatedPrice,
-        orderNumber: paymentIntent.id,
+        totalOrderValue: paymentIntent.totalOrderValue ?? updatedPrice,
+        orderNumber: paymentIntent.orderNumber || paymentIntent.id,
         cart: [
           {
             productName: product.name,
@@ -269,12 +447,13 @@ export default function ProductExpressCheckout({
     return null;
   }
 
-  // Don't render until Stripe is loaded
-  if (!stripePromise) {
+  // Don't render until Stripe and shipping options are loaded
+  if (!stripePromise || !shippingSettings) {
     return null;
   }
 
-  const amount = Math.round(updatedPrice * 100); // Convert to pence
+  // Product plus the default (first) shipping option, in pence
+  const amount = Math.round(updatedPrice * 100) + (shippingRates[0]?.amount || 0);
 
   return (
     <div className="mt-4 mb-2">
@@ -296,6 +475,7 @@ export default function ProductExpressCheckout({
           product={product}
           selectedVariant={lineItem}
           updatedPrice={updatedPrice}
+          shippingRates={shippingRates}
           onSuccess={handleSuccess}
           onError={handleError}
         />
