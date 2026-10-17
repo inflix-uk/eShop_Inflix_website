@@ -5,84 +5,40 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/app/context/Auth";
 import NewsletterSignupWidget from "@/app/(routes)/blogs/new/[slug]/NewsletterSignupWidget";
+import { FaEnvelope, FaMapMarkerAlt, FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
+import type { IconType } from "react-icons";
 import type {
+  FooterBaseColumnKey,
+  FooterContactItem,
+  FooterContactType,
   FooterLink,
   FooterSection2,
   FooterSettings,
-  FooterSectionCustom,
-  FooterCustomPlacement,
   SocialMediaItem,
 } from "./footerTypes";
 import { DEFAULT_FOOTER } from "./footerDefaults";
+import {
+  activeInOrder,
+  buildFooterColumnOrder,
+  contactHref,
+  footerColorVars,
+} from "./footerLayout";
+import FooterCustomHtml from "./FooterCustomHtml";
+import FooterPaymentMethods from "./FooterPaymentMethods";
 import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
 import { openConsentSettings } from "@/app/lib/cookieConsent";
 import { normalizeCustomSectionsList } from "@/app/services/footerPublicService";
 
 const FOOTER_PUBLIC_PATH = "/footer/settings/public";
 
-type FooterBaseColumnKey =
-  | "section1"
-  | "section2"
-  | "section3"
-  | "sectionNewsletter";
-
-type FooterColumnKey = FooterBaseColumnKey | `custom:${number}`;
-
-const BASE_FOOTER_COLUMNS: FooterBaseColumnKey[] = [
-  "section1",
-  "section2",
-  "section3",
-  "sectionNewsletter",
-];
-
-const PLACEMENT_AFTER: Record<FooterCustomPlacement, FooterBaseColumnKey> = {
-  after_logo: "section1",
-  after_useful_links: "section2",
-  after_customer_care: "section3",
-  after_newsletter: "sectionNewsletter",
+const CONTACT_ICONS: Record<FooterContactType, IconType> = {
+  phone: FaPhoneAlt,
+  email: FaEnvelope,
+  whatsapp: FaWhatsapp,
+  address: FaMapMarkerAlt,
 };
 
-function buildFooterColumnOrder(
-  customSections: FooterSectionCustom[]
-): FooterColumnKey[] {
-  const enabled = customSections
-    .map((section, index) => ({ section, index }))
-    .filter(
-      ({ section }) =>
-        section.isEnabled === true && Boolean(section.title?.trim())
-    )
-    .sort(
-      (a, b) =>
-        (a.section.order ?? a.index) - (b.section.order ?? b.index)
-    );
-
-  const byPlacement = new Map<FooterCustomPlacement, number[]>();
-  for (const { section, index } of enabled) {
-    const placement =
-      (section.placement as FooterCustomPlacement) || "after_useful_links";
-    const list = byPlacement.get(placement) || [];
-    list.push(index);
-    byPlacement.set(placement, list);
-  }
-
-  const columns: FooterColumnKey[] = [];
-  for (const key of BASE_FOOTER_COLUMNS) {
-    columns.push(key);
-    const placementEntry = (
-      Object.entries(PLACEMENT_AFTER) as [
-        FooterCustomPlacement,
-        FooterBaseColumnKey,
-      ][]
-    ).find(([, afterKey]) => afterKey === key);
-    if (!placementEntry) continue;
-    const customIndexes = byPlacement.get(placementEntry[0]) || [];
-    for (const customIndex of customIndexes) {
-      columns.push(`custom:${customIndex}`);
-    }
-  }
-  return columns;
-}
-
+type FooterColumnKey = ReturnType<typeof buildFooterColumnOrder>[number];
 
 // Social media SVG components for fallback
 const SocialMediaIcons: Record<string, JSX.Element> = {
@@ -268,7 +224,10 @@ function footerLogoAltText(
 const footerCol =
   "flex min-w-0 w-full flex-col gap-1.5 self-start";
 const footerColTitle =
-  "m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-white";
+  "m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-[color:var(--footer-heading,#fff)]";
+/** Body text / links: admin colours (Footer Settings → Layout) or the theme default. */
+const footerText = "text-[color:var(--footer-text,#9ca3af)]";
+const footerTextHover = "hover:text-[color:var(--footer-hover,#fff)]";
 const footerLinkStack = "flex flex-col gap-0.5";
 
 type FooterProps = {
@@ -438,6 +397,38 @@ const Footer: React.FC<FooterProps> = ({
     [footer.sectionCustom]
   );
 
+  const contactItems = useMemo(
+    () => activeInOrder<FooterContactItem>(footer.sectionContact?.items),
+    [footer.sectionContact?.items]
+  );
+  const showContact =
+    footer.sectionContact?.isEnabled === true && contactItems.length > 0;
+
+  const paymentLogoCount = activeInOrder(footer.sectionPayments?.logos).length;
+  const showPayments =
+    footer.sectionPayments?.isEnabled === true &&
+    (paymentLogoCount > 0 ||
+      Boolean(footer.sectionPayments?.heading?.trim()) ||
+      Boolean(footer.sectionPayments?.description?.trim()));
+
+  const customHtml = footer.customHtml;
+  const showCustomHtml =
+    customHtml?.isEnabled === true &&
+    Boolean(customHtml.html?.trim() || customHtml.css?.trim());
+  const customHtmlPosition = customHtml?.position || "below_columns";
+  /** The admin's own HTML stands in for the standard columns. */
+  const replaceColumns =
+    showCustomHtml && customHtmlPosition === "replace_columns";
+
+  const hiddenColumns = useMemo(
+    () => new Set<string>(footer.layout?.hiddenColumns ?? []),
+    [footer.layout?.hiddenColumns]
+  );
+  const colorVars = useMemo(
+    () => footerColorVars(footer.layout?.colors) as React.CSSProperties,
+    [footer.layout?.colors]
+  );
+
   const hasFooterContent = useMemo(() => {
     const hasSection1 =
       Boolean(footer.section1?.description?.trim()) ||
@@ -466,9 +457,19 @@ const Footer: React.FC<FooterProps> = ({
       hasSection3 ||
       hasNewsletter ||
       hasCustom ||
-      hasBottomBar
+      hasBottomBar ||
+      showContact ||
+      showPayments ||
+      showCustomHtml
     );
-  }, [footer, bottomBarDisplay, customSections]);
+  }, [
+    footer,
+    bottomBarDisplay,
+    customSections,
+    showContact,
+    showPayments,
+    showCustomHtml,
+  ]);
 
   // Handle image error
   const handleImageError = useCallback((imagePath: string) => {
@@ -479,8 +480,7 @@ const Footer: React.FC<FooterProps> = ({
   const renderLink = useCallback((link: FooterLink, index: number) => {
     const href = link.link;
     const isExternal = isExternalUrl(href);
-    const className =
-      "text-gray-400 hover:text-white transition-colors text-[13px] leading-normal py-px";
+    const className = `${footerText} ${footerTextHover} transition-colors text-[13px] leading-normal py-px`;
     const props = {
       className,
       ...(link.ariaLabel && { "aria-label": link.ariaLabel }),
@@ -516,7 +516,7 @@ const Footer: React.FC<FooterProps> = ({
             href={social.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#212121] [&>img]:h-5 [&>img]:w-5 [&>svg]:h-5 [&>svg]:w-5"
+            className="inline-flex h-5 w-5 items-center justify-center rounded text-[color:var(--footer-text,#9ca3af)] transition-colors hover:text-[color:var(--footer-hover,#fff)] focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#212121] [&>img]:h-5 [&>img]:w-5 [&>svg]:h-5 [&>svg]:w-5"
             // Source of footer social aria labels:
             // - Preferred: CMS/admin-provided `social.ariaLabel`
             // - Fallback: generic text below (keep brand-neutral, avoid hardcoded store names)
@@ -605,11 +605,16 @@ const Footer: React.FC<FooterProps> = ({
     sectionNewsletter?.isEnabled === true &&
     Boolean(newsletterHeading || newsletterDescription || newsletterButtonLabel);
 
-  const orderedColumns = buildFooterColumnOrder(customSections).filter((key) => {
+  const orderedColumns = buildFooterColumnOrder(
+    customSections,
+    footer.layout
+  ).filter((key) => {
+    if (hiddenColumns.has(key)) return false;
     if (key === "section1") return true;
     if (key === "section2") return Boolean(footer.section2?.title);
     if (key === "section3") return Boolean(footer.section3?.title);
     if (key === "sectionNewsletter") return showFooterNewsletter;
+    if (key === "sectionContact") return showContact;
     if (key.startsWith("custom:")) {
       const index = Number(key.slice("custom:".length));
       const section = customSections[index];
@@ -662,7 +667,7 @@ const Footer: React.FC<FooterProps> = ({
       );
     }
 
-    switch (key) {
+    switch (key as FooterBaseColumnKey) {
       case "section1":
         return (
           <section
@@ -700,7 +705,7 @@ const Footer: React.FC<FooterProps> = ({
 
             {footer.section1?.description?.trim() ? (
               <p
-                className="max-w-[170px] mt-2 whitespace-pre-line text-center text-xs leading-snug text-gray-400 sm:text-left"
+                className={`max-w-[170px] mt-2 whitespace-pre-line text-center text-xs leading-snug ${footerText} sm:text-left`}
                 id="footer-description"
               >
                 {footer.section1.description.trim()}
@@ -711,7 +716,7 @@ const Footer: React.FC<FooterProps> = ({
               <div className="flex min-w-0 flex-col items-center sm:items-start gap-0.5 mt-2">
                 <span
                   className="text-[11px] font-medium uppercase tracking-wide"
-                  style={{ color: navbarVariant?.toLowerCase() === "podcast" ? "#c2fc12" : "#9ca3af" }}
+                  style={{ color: navbarVariant?.toLowerCase() === "podcast" ? "#c2fc12" : "var(--footer-text, #9ca3af)" }}
                 >
                   Follow Us
                 </span>
@@ -782,9 +787,70 @@ const Footer: React.FC<FooterProps> = ({
             />
           </section>
         );
+      case "sectionContact":
+        return (
+          <section
+            key="sectionContact"
+            aria-labelledby={
+              footer.sectionContact?.title?.trim() ? "footer-contact" : undefined
+            }
+            aria-label={
+              footer.sectionContact?.title?.trim() ? undefined : "Contact"
+            }
+            className={footerCol}
+          >
+            {footer.sectionContact?.title?.trim() ? (
+              <h3 id="footer-contact" className={footerColTitle}>
+                {footer.sectionContact.title.trim()}
+              </h3>
+            ) : null}
+            <ul className="flex flex-col gap-1.5" role="list">
+              {contactItems.map((item, index) => {
+                const Icon = CONTACT_ICONS[item.type] ?? FaPhoneAlt;
+                const href = contactHref(item);
+                const text = item.label?.trim() || item.value;
+                const rowClass = `inline-flex items-start gap-2 text-[13px] leading-normal ${footerText}`;
+                const content = (
+                  <>
+                    <Icon
+                      aria-hidden
+                      className="mt-[3px] h-3.5 w-3.5 shrink-0"
+                    />
+                    <span className="min-w-0 whitespace-pre-line break-words">
+                      {text}
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={index}>
+                    {href ? (
+                      <a
+                        href={href}
+                        className={`${rowClass} ${footerTextHover} transition-colors`}
+                        {...(item.type === "whatsapp"
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {content}
+                      </a>
+                    ) : (
+                      <span className={rowClass}>{content}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
       default:
         return null;
     }
+  };
+
+  /** Payment icons may be uploads (relative path) or Media Library URLs. */
+  const resolvePaymentImageUrl = (path: string): string => {
+    const url = getImageUrl(path, getBackendUrl());
+    return url.includes("localhost") && !siteHostIsLocal ? "" : url;
   };
 
   if (
@@ -802,9 +868,16 @@ const Footer: React.FC<FooterProps> = ({
   return (
     <footer
       id="site-footer"
-      className="bg-[#212121] py-5 text-gray-400 md:py-6"
+      className="bg-[var(--footer-bg,#212121)] py-5 text-[color:var(--footer-text,#9ca3af)] md:py-6"
+      style={colorVars}
       aria-label="Footer"
     >
+      {showCustomHtml && customHtmlPosition !== "below_columns" ? (
+        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 md:pt-5 lg:px-8">
+          <FooterCustomHtml html={customHtml?.html} css={customHtml?.css} />
+        </div>
+      ) : null}
+      {replaceColumns ? null : (
       <div className="mx-auto max-w-7xl px-4 pb-4 pt-4 sm:px-6 md:pb-0 md:pt-5 lg:px-8">
           <div
             className={`grid grid-cols-1 items-start gap-y-6 lg:gap-x-6 xl:gap-x-8 ${gridColsClass}`}
@@ -933,10 +1006,20 @@ const Footer: React.FC<FooterProps> = ({
             </div> */}
           </div>
       </div>
+      )}
+      {showCustomHtml && customHtmlPosition === "below_columns" ? (
+        <div className="mx-auto max-w-7xl px-4 pb-4 pt-2 sm:px-6 lg:px-8">
+          <FooterCustomHtml html={customHtml?.html} css={customHtml?.css} />
+        </div>
+      ) : null}
+      <FooterPaymentMethods
+        section={footer.sectionPayments}
+        resolveImageUrl={resolvePaymentImageUrl}
+      />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="border-t border-gray-700 pt-4 pb-2">
+        <div className="border-t border-[color:var(--footer-border,#374151)] pt-4 pb-2">
           <div className="flex flex-col items-center justify-center gap-1.5 sm:flex-row sm:gap-3">
-            <p className="text-center text-gray-500 text-xs">
+            <p className="text-center text-[color:var(--footer-text,#6b7280)] text-xs">
             {bottomBarDisplay.before}
             {bottomBarDisplay.label && bottomBarDisplay.isHttpUrl ? (
               <>
@@ -961,7 +1044,7 @@ const Footer: React.FC<FooterProps> = ({
           <button
             type="button"
             onClick={() => openConsentSettings()}
-            className="text-xs text-gray-500 underline transition hover:text-gray-300"
+            className="text-xs text-[color:var(--footer-text,#6b7280)] underline transition hover:text-[color:var(--footer-hover,#d1d5db)]"
           >
             Cookie settings
           </button>
