@@ -148,12 +148,12 @@ export default function NewsletterSignupWidget({
       <div className="w-full min-w-0 max-w-full">
         <h3
           id="footer-newsletter-heading"
-          className="m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-white"
+          className="m-0 mb-1 text-sm font-semibold uppercase tracking-wide text-[color:var(--footer-heading,#fff)]"
         >
           {heading}
         </h3>
         {description ? (
-          <p className="mb-2.5 text-[13px] leading-relaxed text-gray-400">
+          <p className="mb-2.5 text-[13px] leading-relaxed text-[color:var(--footer-text,#9ca3af)]">
             {description}
           </p>
         ) : null}

@@ -14,6 +14,7 @@ const ALLOWED_CUSTOM_PLACEMENTS = new Set([
   "after_useful_links",
   "after_customer_care",
   "after_newsletter",
+  "after_contact",
 ]);
 
 function apiBase(): string {
@@ -143,6 +144,29 @@ export function mergePartialFooterFromApi(
     sectionCustom: normalizeCustomSectionsList(
       s.sectionCustom !== undefined ? s.sectionCustom : d.sectionCustom
     ),
+    sectionPayments: {
+      ...d.sectionPayments,
+      ...(s.sectionPayments ?? {}),
+      logos: Array.isArray(s.sectionPayments?.logos)
+        ? s.sectionPayments.logos
+        : [],
+    },
+    sectionContact: {
+      ...d.sectionContact,
+      ...(s.sectionContact ?? {}),
+      items: Array.isArray(s.sectionContact?.items)
+        ? s.sectionContact.items
+        : [],
+    },
+    customHtml: {
+      ...d.customHtml,
+      ...(s.customHtml ?? {}),
+    },
+    layout: {
+      ...d.layout,
+      ...(s.layout ?? {}),
+      colors: { ...(s.layout?.colors ?? {}) },
+    },
   };
 }
 
