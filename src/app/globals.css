@@ -210,9 +210,16 @@ html.has-product-sticky-buy-bar #site-footer {
   opacity: 0.85;
 }
 
-.checkout-themed input[type="checkbox"] {
+.checkout-themed input[type="checkbox"]:not(:checked) {
   background-color: var(--checkout-input-bg) !important;
   border-color: var(--checkout-border) !important;
+}
+
+/* @tailwindcss/forms draws the tick in white on currentColor; a forced white
+   background made a ticked box look empty, so customers unticked it again. */
+.checkout-themed input[type="checkbox"]:checked {
+  background-color: var(--primary, currentColor) !important;
+  border-color: transparent !important;
 }
 
 /* Keep primary payment CTA label white (default stores) */
