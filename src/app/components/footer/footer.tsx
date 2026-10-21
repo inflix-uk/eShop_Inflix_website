@@ -392,6 +392,11 @@ const Footer: React.FC<FooterProps> = ({
     return { before, label, url, isHttpUrl };
   }, [footer.bottomBar, copyrightYear]);
 
+  const showCookieSettingsButton = footer.bottomBar?.showCookieSettingsButton !== false;
+  const hasBottomBarText = Boolean(bottomBarDisplay.before.trim() || bottomBarDisplay.label);
+  // No empty strip with a border line when there is nothing to show in it
+  const showBottomBar = hasBottomBarText || showCookieSettingsButton;
+
   const customSections = useMemo(
     () => normalizeCustomSectionsList(footer.sectionCustom),
     [footer.sectionCustom]
@@ -1016,9 +1021,11 @@ const Footer: React.FC<FooterProps> = ({
         section={footer.sectionPayments}
         resolveImageUrl={resolvePaymentImageUrl}
       />
+      {showBottomBar ? (
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="border-t border-[color:var(--footer-border,#374151)] pt-4 pb-2">
           <div className="flex flex-col items-center justify-center gap-1.5 sm:flex-row sm:gap-3">
+            {hasBottomBarText ? (
             <p className="text-center text-[color:var(--footer-text,#6b7280)] text-xs">
             {bottomBarDisplay.before}
             {bottomBarDisplay.label && bottomBarDisplay.isHttpUrl ? (
@@ -1041,6 +1048,8 @@ const Footer: React.FC<FooterProps> = ({
               </>
             ) : null}
           </p>
+            ) : null}
+          {showCookieSettingsButton ? (
           <button
             type="button"
             onClick={() => openConsentSettings()}
@@ -1048,9 +1057,11 @@ const Footer: React.FC<FooterProps> = ({
           >
             Cookie settings
           </button>
+          ) : null}
           </div>
         </div>
       </div>
+      ) : null}
     </footer>
   );
 };

@@ -57,6 +57,8 @@ export interface FooterBottomBar {
   textBeforeCredit?: string;
   creditLabel?: string;
   creditUrl?: string;
+  /** Built-in "Cookie settings" button under the bottom bar (default shown). */
+  showCookieSettingsButton?: boolean;
 }
 
 /** Extra link column with placement relative to the built-in footer columns. */

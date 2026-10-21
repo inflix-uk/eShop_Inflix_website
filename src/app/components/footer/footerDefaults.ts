@@ -25,6 +25,7 @@ export const DEFAULT_FOOTER: FooterSettings = {
     textBeforeCredit: "",
     creditLabel: "",
     creditUrl: "",
+    showCookieSettingsButton: true,
   },
   sectionCustom: [],
   sectionPayments: {

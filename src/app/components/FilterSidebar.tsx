@@ -49,14 +49,20 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     useEffect(() => {
         const filtered = products.filter((product) => {
             // Filter by price range
+            // Prices can arrive as strings, and some products have a sale
+            // price above the list price: a product must never vanish from
+            // the list just because its numbers are odd.
+            const salePrice = Number(product.minSalePrice);
+            const listPrice = Number(product.minPrice);
             const matchesPriceRange =
-                product.minSalePrice >= sliderValues[0] &&
-                product.minSalePrice <= sliderValues[1];
+                !Number.isFinite(salePrice) ||
+                (salePrice >= sliderValues[0] && salePrice <= sliderValues[1]);
 
-            // Calculate discount percentage
-            const discountPercentage = Math.round(
-                ((product.minPrice - product.minSalePrice) / product.minPrice) * 100
-            );
+            // Calculate discount percentage (0–100; no discount when unknown)
+            const rawDiscount = Math.round(((listPrice - salePrice) / listPrice) * 100);
+            const discountPercentage = Number.isFinite(rawDiscount)
+                ? Math.min(100, Math.max(0, rawDiscount))
+                : 0;
             const matchesDiscountRange =
                 discountPercentage >= discountValues[0] &&
                 discountPercentage <= discountValues[1];
