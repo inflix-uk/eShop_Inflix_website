@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, FC } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { EmblaOptionsType } from "embla-carousel";
 import Link from "next/link";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 interface SwiperComponentProps {
   items: Array<{
@@ -90,7 +91,7 @@ const SwiperComponent: FC<SwiperComponentProps> = ({
       <div className="flex items-center gap-3">
         <div className="min-w-0 shrink pr-2">
           {link ? (
-            <Link href={link} className="block min-w-0">
+            <Link href={normalizeInternalHref(link)} className="block min-w-0">
               <h2 className="truncate text-xl font-semibold text-primary sm:text-2xl">
                 {title}
               </h2>
@@ -172,7 +173,7 @@ const SwiperComponent: FC<SwiperComponentProps> = ({
           {isCarouselReady && items.length > 8 && link && (
             <div className="embla__slide min-w-0 flex-[0_0_85%] shrink-0 xs:flex-[0_0_50%] sm:flex-[0_0_46%] md:flex-[0_0_31%] lg:flex-[0_0_24%] px-2">
               <div className="flex flex-col justify-center items-center h-full">
-                <Link href={link}>
+                <Link href={normalizeInternalHref(link)}>
                   <p className="bg-primary-dark text-white py-3 px-4 rounded-lg shadow-lg transition duration-300 ease-in-out flex items-center gap-2">
                     {linkText}
                     <svg

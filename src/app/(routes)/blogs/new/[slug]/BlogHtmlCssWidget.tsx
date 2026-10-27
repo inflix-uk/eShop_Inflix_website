@@ -3,6 +3,7 @@ import {
   extractHtmlDocumentFragment,
   scopeCssToHost,
 } from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
+import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 /** Strip scripts and external stylesheets; keep fragment-only markup safe for innerHTML. */
 function sanitizeHtmlFragment(html: string): string {
@@ -34,7 +35,7 @@ export default function BlogHtmlCssWidget({
   const scopeToken =
     reactId.replace(/[^a-zA-Z0-9]/g, "") || "cmshtmlcss";
 
-  const cleanHtml = sanitizeHtmlFragment(html);
+  const cleanHtml = rewriteInternalHrefsInHtml(sanitizeHtmlFragment(html));
   const hasHtml = cleanHtml.trim().length > 0;
   const rawCss = String(css ?? "");
   const hasCss = rawCss.trim().length > 0;

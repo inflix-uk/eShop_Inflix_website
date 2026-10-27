@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Offer } from "../../../../types";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 export function FilterButton({
   label,
@@ -85,7 +86,7 @@ export function DealsOfferCard({ offer }: { offer: Offer }) {
           </button>
         ) : offer.type === "Deal" && offer.link ? (
           <Link
-            href={offer.link}
+            href={normalizeInternalHref(offer.link)}
             className={`${actionBase} bg-primary text-white hover:bg-primary-dark`}
           >
             {offer.buttonText || "GET DEAL"}

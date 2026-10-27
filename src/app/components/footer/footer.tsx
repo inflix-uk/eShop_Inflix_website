@@ -26,6 +26,7 @@ import {
 import FooterCustomHtml from "./FooterCustomHtml";
 import FooterPaymentMethods from "./FooterPaymentMethods";
 import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 import { openConsentSettings } from "@/app/lib/cookieConsent";
 import { normalizeCustomSectionsList } from "@/app/services/footerPublicService";
 
@@ -483,8 +484,9 @@ const Footer: React.FC<FooterProps> = ({
 
   // Render link component (internal or external)
   const renderLink = useCallback((link: FooterLink, index: number) => {
-    const href = link.link;
-    const isExternal = isExternalUrl(href);
+    const href = normalizeInternalHref(link.link || "");
+    const isExternal =
+      isExternalUrl(href) || /^(mailto:|tel:|sms:)/i.test(href);
     const className = `${footerText} ${footerTextHover} transition-colors text-[13px] leading-normal py-px`;
     const props = {
       className,
@@ -518,7 +520,7 @@ const Footer: React.FC<FooterProps> = ({
       return (
         <li key={index} className="text-center">
           <a
-            href={social.link}
+            href={normalizeInternalHref(social.link || "")}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-5 w-5 items-center justify-center rounded text-[color:var(--footer-text,#9ca3af)] transition-colors hover:text-[color:var(--footer-hover,#fff)] focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#212121] [&>img]:h-5 [&>img]:w-5 [&>svg]:h-5 [&>svg]:w-5"
@@ -564,7 +566,7 @@ const Footer: React.FC<FooterProps> = ({
   const logoLink = useMemo(() => {
     if (!footer.section1?.logo) return "/";
     if (typeof footer.section1.logo === "string") return "/";
-    return footer.section1.logo.link || "/";
+    return normalizeInternalHref(footer.section1.logo.link || "/");
   }, [footer.section1?.logo]);
 
   const logoAltText = useMemo(
