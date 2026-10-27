@@ -1,3 +1,4 @@
+import FooterPageContent from "@/app/components/footer-pages/FooterPageContent";
 import PolicyCmsPageClient from "@/app/components/footer-pages/PolicyCmsPageClient";
 import {
   fetchFooterPageBySlugFresh,
@@ -30,10 +31,11 @@ export default async function PrivacyPolicyPage() {
   }
 
   return (
-    <PolicyCmsPageClient
-      page={page}
-      navbarVariantTestConfig={navbarVariantTestConfig}
-      widgetVisibility={widgetVisibility}
-    />
+    <PolicyCmsPageClient navbarVariantTestConfig={navbarVariantTestConfig}>
+      <FooterPageContent
+        page={page}
+        initialWidgetVisibility={widgetVisibility}
+      />
+    </PolicyCmsPageClient>
   );
 }

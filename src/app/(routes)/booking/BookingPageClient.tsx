@@ -11,6 +11,7 @@ import {
 import BookingPackageCard from "./components/BookingPackageCard";
 import "./components/booking-package-cards.css";
 import BlogHtmlCssWidget from "@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget";
+import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 import {
   bookingModuleRootStyle,
   type BookingModuleUi,
@@ -297,7 +298,9 @@ export default function BookingPageClient({
               ) : null}
               <div
                 className="booking-custom-widget"
-                dangerouslySetInnerHTML={{ __html: content.customWidget.html }}
+                dangerouslySetInnerHTML={{
+                  __html: rewriteInternalHrefsInHtml(content.customWidget.html),
+                }}
               />
             </div>
           </section>

@@ -18,6 +18,7 @@ import {
   extractHeroSocialFromActiveBannersPayload,
   resolveBannerImageDimensions,
 } from "@/app/lib/homepageBannerShared";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 import {
   buildBannerVideoBoxStyle,
   parseBannerVideoLayoutPreset,
@@ -200,7 +201,7 @@ function PodcastLayout({
                 }
               `}</style>
               <a
-                href={content.ctaLink}
+                href={normalizeInternalHref(content.ctaLink)}
                 className={`podcast-cta-${banner.id || "default"} pointer-events-auto mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition-all duration-200 hover:brightness-110 sm:mt-6 sm:px-6 sm:py-3 sm:hover:scale-[1.02] sm:active:scale-[0.98] ${
                   embedded ? "sm:mt-4 sm:px-5 sm:py-2.5" : "lg:px-8 lg:py-3.5"
                 }`}
@@ -859,12 +860,11 @@ const BlackFridayBanner: React.FC<BlackFridayBannerProps> = ({
 
   // Get button link for a banner
   const getButtonLink = (banner: Banner): string => {
-    if (banner.type === "simple") {
-      return banner.buttonLink || "#";
-    } else {
-      // Full type: use content.buynow
-      return banner.content?.buynow || "#";
-    }
+    const raw =
+      banner.type === "simple" ? banner.buttonLink : banner.content?.buynow;
+    const value = String(raw || "").trim();
+    if (!value) return "#";
+    return normalizeInternalHref(value);
   };
 
   // Get button text for a banner
