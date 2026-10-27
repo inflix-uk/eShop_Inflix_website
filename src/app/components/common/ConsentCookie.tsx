@@ -94,8 +94,22 @@ const CookieConsent: FC = () => {
       setShowPreferences(true);
     };
     window.addEventListener(OPEN_CONSENT_SETTINGS_EVENT, onOpenSettings);
+
+    // Stores that hide the built-in footer button can still offer a way back
+    // into the preferences: any link to "#cookie-settings" (e.g. in custom
+    // footer HTML) or element marked data-cookie-settings opens them.
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      const trigger = target?.closest?.('a[href="#cookie-settings"], [data-cookie-settings]');
+      if (!trigger) return;
+      event.preventDefault();
+      onOpenSettings();
+    };
+    document.addEventListener('click', onDocumentClick);
+
     return () => {
       window.removeEventListener(OPEN_CONSENT_SETTINGS_EVENT, onOpenSettings);
+      document.removeEventListener('click', onDocumentClick);
     };
   }, []);
 
