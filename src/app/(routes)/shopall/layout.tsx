@@ -4,6 +4,8 @@ import {
   buildStorePageMetadata,
   fetchStaticMetaByPath,
 } from "@/lib/pageMetadata";
+import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
+import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 
 export async function generateMetadata(): Promise<Metadata> {
   const metaData = await fetchStaticMetaByPath("/shopall");
@@ -15,14 +17,17 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function ShopAllLayout({
+// Same navbar as every other page (managed in admin: Product Central > Navbar).
+export default async function ShopAllLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const navbarVariantTestConfig = await getNavbarVariantTestPublicServer().catch(() => null);
   return (
     <>
       <SpeedInsights />
+      <NavbarVariantTestBar config={navbarVariantTestConfig} />
       {children}
     </>
   );
