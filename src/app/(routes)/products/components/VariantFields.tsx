@@ -246,6 +246,22 @@ export default function VariantFields({
   // No hardcoded sorting - respects the order defined in product.variantNames
   const reorderedVariants = product?.variantNames;
 
+  // Options such as "SIM Options" are free text ("Dual Sim (Physical Dual Sim)").
+  // Show the name the admin typed instead of rebuilding it from the URL slug, which
+  // drops brackets, "+" and capitals. Colour / storage / condition keep their formatting.
+  const optionLabel = (variantName: string, optionName: string): string => {
+    if (getVariantKind(variantName) === "other") {
+      const entry = product?.variantNames?.find((v: any) => v?.name === variantName);
+      const match = (entry?.options || []).find(
+        (o: any) =>
+          o && typeof o === "object" && processOptionValue(variantName, o) === optionName
+      );
+      const text = match && typeof match.value === "string" ? match.value.trim() : "";
+      if (text) return text;
+    }
+    return formatVariantOptionDisplay(variantName, optionName);
+  };
+
   // Number of options to show as buttons before switching to dropdown
   const BUTTON_LIMIT = 4;
 
@@ -519,8 +535,8 @@ export default function VariantFields({
                           optionCode ? "flex-row gap-3" : "flex-col"
                         }`}
                       >
-                        <span className="block md:text-sm text-[11px] font-medium text-gray-900 text-center">
-                          {formatVariantOptionDisplay(variantName, optionName)}
+                        <span className="block md:text-sm text-[11px] font-medium text-gray-900 text-center normal-case">
+                          {optionLabel(variantName, optionName)}
                         </span>
                         {optionCode && (
                           <span
@@ -636,7 +652,7 @@ export default function VariantFields({
                 isSelectionInDropdown
                   ? {
                       value: currentSelection,
-                      label: formatVariantOptionDisplay(variantName, currentSelection),
+                      label: optionLabel(variantName, currentSelection),
                       image: getImageForOption(currentSelection),
                     }
                   : null
@@ -653,7 +669,7 @@ export default function VariantFields({
                   const imageUrl = getImageForOption(optionName);
                   return {
                     value: optionName,
-                    label: formatVariantOptionDisplay(variantName, optionName),
+                    label: optionLabel(variantName, optionName),
                     image: imageUrl,
                   };
                 })}

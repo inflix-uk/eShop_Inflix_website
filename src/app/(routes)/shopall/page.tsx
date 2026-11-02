@@ -10,8 +10,6 @@ import ProductCardWithStockClient from "@/app/components/ProductCardWithStockCli
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import SortMenu from "@/app/components/SortMenu";
-import TopBar from "@/app/topbar/page";
-import Nav from "@/app/components/navbar/Nav";
 import { useAuth } from "@/app/context/Auth";
 export default function ShopAll() {
   const dispatch = useAppDispatch();
@@ -60,10 +58,6 @@ export default function ShopAll() {
 
   return (
     <>
-      <header className="relative">
-        <TopBar />
-        <Nav />
-      </header>
       <main className="max-w-7xl mx-auto p-4">
         <nav className="mb-4 text-sm text-gray-600">
           <Link href="/" className="hover:underline">

@@ -47,7 +47,12 @@ export function formatVariantDisplayName(name: string): string {
     .replace(/-/g, " ")
     .split(" ")
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => {
+      const lower = word.toLowerCase();
+      if (lower === "sim") return "SIM";
+      if (lower === "esim") return "eSIM";
+      return word.charAt(0).toUpperCase() + lower.slice(1);
+    })
     .join(" ");
 }
 
