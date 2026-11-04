@@ -49,6 +49,11 @@ export function mapHomepageAggregateToProduct(p: Record<string, unknown>): Produ
     subCategory: String(p.subCategory ?? ""),
     brand: p.brand != null ? String(p.brand) : undefined,
     condition: String(p.condition ?? "Refurbished"),
+    conditions: Array.isArray(p.conditions)
+      ? p.conditions.map(String).filter(Boolean)
+      : undefined,
+    cheapestCondition:
+      typeof p.cheapestCondition === "string" ? p.cheapestCondition : null,
     is_featured: Boolean(p.is_featured),
     thumbnail_image: {
       filename: "",

@@ -20,7 +20,9 @@ export default function ProductCardView({
 }: ProductCardViewProps) {
   const {
     name,
-    condition,
+    conditionBadges,
+    extraConditionCount,
+    conditionsLabel,
     productHref,
     thumbnailSrc,
     thumbnailAlt,
@@ -99,10 +101,12 @@ export default function ProductCardView({
       <div className="max-w-screen-xl mx-auto py-5 sm:py-10">
         <div className="relative bg-white rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-105 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full">
           <div className="mb-2 flex justify-between align-middle">
-            <div>
-              <span className="bg-gray-200 text-black xs:px-2 px-1 py-1 rounded-lg text-sm text-nowrap">
-                {condition}
-              </span>
+            <div className="min-w-0">
+              <ProductCardConditions
+                badges={conditionBadges}
+                extraCount={extraConditionCount}
+                label={conditionsLabel}
+              />
             </div>
             <div className="sm:text-sm text-[10px] bg-black px-2 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
               <span>{discountPercentage}% OFF</span>
@@ -163,10 +167,12 @@ export default function ProductCardView({
     <div className="w-full min-w-0 max-w-full py-3 sm:py-5">
       <div className="relative rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-100 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full min-w-0">
         <div className="mb-2 flex justify-between align-middle">
-          <div>
-            <span className="bg-gray-200 text-black xs:px-2 px-1 py-1 rounded-lg text-sm text-nowrap">
-              {condition}
-            </span>
+          <div className="min-w-0">
+            <ProductCardConditions
+              badges={conditionBadges}
+              extraCount={extraConditionCount}
+              label={conditionsLabel}
+            />
           </div>
           <div className="sm:text-sm text-[10px] bg-black px-2 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
             <span>{discountPercentage}% OFF</span>
@@ -223,6 +229,38 @@ export default function ProductCardView({
           <ProductCardStars averageRating={averageRating} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProductCardConditions({
+  badges,
+  extraCount,
+  label,
+}: {
+  badges: string[];
+  extraCount: number;
+  label: string;
+}) {
+  if (badges.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1" title={label}>
+      {badges.map((badge) => (
+        <span
+          key={badge}
+          className="bg-gray-200 text-black xs:px-2 px-1 py-1 rounded-lg text-sm text-nowrap"
+        >
+          {badge}
+        </span>
+      ))}
+      {extraCount > 0 && (
+        <span
+          className="bg-gray-200 text-black px-1 py-1 rounded-lg text-sm text-nowrap"
+          aria-label={`${extraCount} more conditions`}
+        >
+          +{extraCount}
+        </span>
+      )}
     </div>
   );
 }

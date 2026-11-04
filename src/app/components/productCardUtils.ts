@@ -4,6 +4,14 @@ import { buildProductHref } from "@/app/utils/productUrl";
 export type ProductCardDisplay = {
   name: string;
   condition: string;
+  /** Up to 2 condition badges for the card (best first). */
+  conditionBadges: string[];
+  /** Count of further conditions beyond the badges ("+N"). */
+  extraConditionCount: number;
+  /** Full list, e.g. for a tooltip. */
+  conditionsLabel: string;
+  /** Condition of the cheapest in-stock variant, shown with "From £X" when several conditions exist. */
+  cheapestCondition: string | null;
   productHref: string;
   thumbnailSrc: string | null;
   thumbnailAlt: string;
@@ -43,6 +51,16 @@ export function getPaginatedProducts<T>(
   return list.slice(start, start + perPage);
 }
 
+const MAX_CONDITION_BADGES = 2;
+
+export function getProductConditions(product: Product): string[] {
+  const list = Array.isArray(product.conditions)
+    ? product.conditions.filter((c) => typeof c === "string" && c.trim())
+    : [];
+  if (list.length > 0) return list;
+  return product.condition ? [product.condition] : [];
+}
+
 function firstPositivePrice(...values: unknown[]): number {
   for (const value of values) {
     const amount = typeof value === "number" ? value : Number(value);
@@ -73,9 +91,17 @@ export function getProductCardDisplayData(product: Product): ProductCardDisplay 
         )
       : 0;
 
+  const conditions = getProductConditions(product);
+  const conditionBadges = conditions.slice(0, MAX_CONDITION_BADGES);
+
   return {
     name: product.name,
     condition: product.condition,
+    conditionBadges,
+    extraConditionCount: conditions.length - conditionBadges.length,
+    conditionsLabel: conditions.join(", "),
+    cheapestCondition:
+      conditions.length > 1 ? product.cheapestCondition || null : null,
     productHref: buildProductHref(product.producturl),
     thumbnailSrc: getProductThumbnailSrc(product),
     thumbnailAlt: product.thumbnail_image?.altText || product.name || "Product Image",
