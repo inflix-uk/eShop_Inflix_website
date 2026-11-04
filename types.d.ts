@@ -21,6 +21,9 @@ export interface Product {
   brand?: string;
   subCategory: string; // You might want to type this more specifically if needed
   condition: string;
+  // All conditions the product is sold in (best first) and the cheapest in-stock one
+  conditions?: string[];
+  cheapestCondition?: string | null;
   is_featured: boolean;
   thumbnail_image: ThumbnailImage;
   image?: ThumbnailImage | null; // For navbar suggestions
