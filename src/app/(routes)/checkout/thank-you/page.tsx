@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { OrderService } from "../services/orderService";
 import {
   ensureTrackingReady,
@@ -11,8 +10,6 @@ import {
   getConsentPreferences,
   hasMarketingConsent,
 } from "@/app/lib/cookieConsent";
-const Nav = dynamic(() => import("@/app/components/navbar/Nav"), { ssr: false });
-const TopBar = dynamic(() => import("@/app/topbar/page"), { ssr: false });
 
 
 export interface OrderItem {
@@ -156,100 +153,101 @@ export default function ThankYouPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Header/navbar and the `checkout-themed` wrapper come from ./layout.tsx so this
+  // page shares the checkout's brand chrome and CMS theme tokens.
   return (
-    <>
-      <header className="relative">
-        <TopBar />
-        <Nav />
-      </header>
+    <main className="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl">
+        <div className="checkout-billing-panel shadow-sm">
+          {/* Success icon — brand primary, not a hard-coded colour */}
+          <div className="mb-8 flex flex-col items-center justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 ring-8 ring-primary/5">
+              <svg
+                className="h-12 w-12 stroke-primary"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+          </div>
 
-      <main className="mx-auto max-w-7xl px-4 pb-14 pt-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            {/* Success Icon with Confetti Animation */}
-            <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative inline-block">
-                <div className="relative z-10 w-36 h-36 background-check-confetti"></div>
-                <div className="absolute top-0 left-0 w-36 h-36 background-confeti-square"></div>
+          {/* Thank You Message */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Thank you for your order!
+            </h1>
+            <p className="text-lg text-gray-600">
+              Your order has been confirmed. You will receive an email confirmation shortly.
+            </p>
+
+            {order && order.orderNumber && (
+              <div className="mt-6 p-4 rounded-md border border-[var(--checkout-border)] bg-[var(--checkout-panel-shell)] hidden">
+                <p className="text-sm text-gray-600">Order Number:</p>
+                <p className="text-xl font-semibold text-primary">#{order.orderNumber}</p>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Thank You Message */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                Thank you for your order!
-              </h1>
-              <p className="text-lg text-gray-600">
-                Your order has been confirmed. You will receive an email confirmation shortly.
-              </p>
-
-              {order && order.orderNumber && (
-                <div className="mt-6 p-4 bg-gray-50 rounded-md hidden">
-                  <p className="text-sm text-gray-600">Order Number:</p>
-                  <p className="text-xl font-semibold text-primary">#{order.orderNumber}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Order Details (if available) */}
-            {order && order.cart && order.cart.length > 0 && (
-              <div className="border-t border-gray-200 pt-6 mb-6 hidden">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
-                <div className="space-y-3">
-                  {order.cart.map((item, index) => (
-                    <div key={index} className="flex justify-between py-2">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {item.productName}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Qty: {item.qty}
-                        </p>
-                      </div>
+          {/* Order Details (if available) */}
+          {order && order.cart && order.cart.length > 0 && (
+            <div className="border-t border-[var(--checkout-border)] pt-6 mb-6 hidden">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+              <div className="space-y-3">
+                {order.cart.map((item, index) => (
+                  <div key={index} className="flex justify-between py-2">
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">
-                        £{(item.salePrice * item.qty).toFixed(2)}
+                        {item.productName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Qty: {item.qty}
                       </p>
                     </div>
-                  ))}
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between">
-                      <p className="text-base font-semibold text-gray-900">Total</p>
-                      <p className="text-base font-semibold text-primary">
-                        £{order.totalOrderValue.toFixed(2)}
-                      </p>
-                    </div>
+                    <p className="text-sm font-medium text-gray-900">
+                      £{(item.salePrice * item.qty).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+                <div className="border-t border-[var(--checkout-border)] pt-3">
+                  <div className="flex justify-between">
+                    <p className="text-base font-semibold text-gray-900">Total</p>
+                    <p className="text-base font-semibold text-primary">
+                      £{order.totalOrderValue.toFixed(2)}
+                    </p>
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/customer/my-orders"
-                className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-6 py-3 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                View My Orders
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-6 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                Continue Shopping
-              </Link>
             </div>
+          )}
 
-            {/* Additional Information */}
-            <div className="mt-8 p-4 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-800 text-center">
-                A confirmation email has been sent to your registered email address.
-                Please check your inbox for order details and tracking information.
-              </p>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/customer/my-orders"
+              className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-6 py-3 bg-primary text-base font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              View My Orders
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex justify-center rounded-md border border-[var(--checkout-border)] shadow-sm px-6 py-3 bg-[var(--checkout-input-bg)] text-base font-medium hover:border-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              Continue Shopping
+            </Link>
+          </div>
+
+          {/* Additional Information */}
+          <div className="mt-8 p-4 rounded-md border border-[var(--checkout-border)] bg-[var(--checkout-panel-shell)]">
+            <p className="text-sm text-gray-600 text-center">
+              A confirmation email has been sent to your registered email address.
+              Please check your inbox for order details and tracking information.
+            </p>
           </div>
         </div>
-      </main>
-
-      </>
+      </div>
+    </main>
   );
 }

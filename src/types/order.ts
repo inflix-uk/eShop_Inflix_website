@@ -21,6 +21,7 @@ export interface Order {
   shippingDetails?: {
     provider?: string;
     trackingNumber?: string;
+    trackingUrl?: string;
   };
   contactDetails?: {
     userId: string;

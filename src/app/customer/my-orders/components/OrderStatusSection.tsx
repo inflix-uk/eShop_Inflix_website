@@ -4,6 +4,7 @@ import type { FC } from 'react';
 import type { Order } from '../types';
 import { isReturnInitiated, getReturnStatusLabel } from '../utils';
 import ReturnItemModal from './ReturnModal';
+import { getTrackingUrl } from '@/utils/courierTracking';
 
 interface OrderStatusSectionProps {
   order: Order;
@@ -146,12 +147,17 @@ const OrderStatusSection: FC<OrderStatusSectionProps> = ({
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <a
-              href={`https://www.royalmail.com/track-your-item#/${order.orderNumber}`}
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-            >
-              Order Tracker
-            </a>
+            {/* Link for the courier the seller selected (was hard-coded to Royal Mail + order number). */}
+            {getTrackingUrl(order.shippingDetails) && (
+              <a
+                href={getTrackingUrl(order.shippingDetails)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+              >
+                Track with {order.shippingDetails.provider || 'courier'}
+              </a>
+            )}
             <ReturnButton order={order} onOpenReturnModal={onOpenReturnModal} />
             <ChatButton onClick={handleStartChat} />
           </div>

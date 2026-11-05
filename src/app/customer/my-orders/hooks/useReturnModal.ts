@@ -46,6 +46,10 @@ interface UseReturnModalReturn {
 
   // Modal close
   closeModal: () => void;
+
+  // Return (replacement/repair) or refund — picks the confirmation email template
+  requestType: 'return' | 'refund';
+  setRequestType: (t: 'return' | 'refund') => void;
 }
 
 export const useReturnModal = ({
@@ -60,6 +64,7 @@ export const useReturnModal = ({
 }: UseReturnModalProps): UseReturnModalReturn => {
   // Step state
   const [step, setStep] = useState<number>(1);
+  const [requestType, setRequestType] = useState<'return' | 'refund'>('return');
 
   // Image preview state
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState<boolean>(false);
@@ -168,7 +173,8 @@ export const useReturnModal = ({
         selectedReason,
         orderDetails,
         orderImages,
-        'Pending'
+        'Pending',
+        requestType
       );
 
       if (response.status === 200) {
@@ -192,6 +198,7 @@ export const useReturnModal = ({
     selectedReason,
     orderDetails,
     orderImages,
+    requestType,
     closeModal,
   ]);
 
@@ -213,6 +220,8 @@ export const useReturnModal = ({
     isSuccessModalOpen,
     closeSuccessModal,
     closeModal,
+    requestType,
+    setRequestType,
   };
 };
 

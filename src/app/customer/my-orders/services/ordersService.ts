@@ -30,7 +30,8 @@ export const submitReturnRequest = async (
   reason: string,
   additionalDetails: string,
   images: ImageFile[],
-  status: string = 'Pending'
+  status: string = 'Pending',
+  requestType: 'return' | 'refund' = 'return'
 ): Promise<ReturnItemResponse> => {
   try {
     const formData = new FormData();
@@ -38,6 +39,7 @@ export const submitReturnRequest = async (
     formData.append('reason', reason);
     formData.append('status', status);
     formData.append('additionalDetails', additionalDetails);
+    formData.append('requestType', requestType);
 
     images.forEach((image) => {
       formData.append('images', image.file);

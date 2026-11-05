@@ -28,6 +28,8 @@ export interface OrderItem {
 export interface ShippingDetails {
   provider?: string;
   trackingNumber?: string;
+  /** Courier tracking link stored by the backend (courier map or seller's custom URL). */
+  trackingUrl?: string;
   firstName?: string;
   lastName?: string;
   address?: string;
