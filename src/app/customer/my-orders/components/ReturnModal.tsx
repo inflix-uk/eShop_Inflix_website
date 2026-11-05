@@ -51,6 +51,8 @@ const ReturnItemModal: FC<ReturnItemModalProps> = ({
     isSuccessModalOpen,
     closeSuccessModal,
     closeModal,
+    requestType,
+    setRequestType,
   } = useReturnModal({
     order,
     selectedReason,
@@ -97,6 +99,8 @@ const ReturnItemModal: FC<ReturnItemModalProps> = ({
               <ReasonSelector
                 selectedReason={selectedReason}
                 onSelectReason={setSelectedReason}
+                requestType={requestType}
+                onSelectRequestType={setRequestType}
                 onNext={goToNextStep}
               />
             )}

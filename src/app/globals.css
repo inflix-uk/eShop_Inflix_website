@@ -224,7 +224,9 @@ html.has-product-sticky-buy-bar #site-footer {
 
 /* Keep primary payment CTA label white (default stores) */
 .checkout-themed button.bg-primary,
-.checkout-themed button.bg-primary * {
+.checkout-themed button.bg-primary *,
+.checkout-themed a.bg-primary,
+.checkout-themed a.bg-primary * {
   color: #ffffff !important;
 }
 
