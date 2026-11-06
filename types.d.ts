@@ -242,6 +242,8 @@ export interface ConditionPrices {
   condition: string;
   price: number;
   salePrice: string;
+  /** false when the variant is switched off in the admin. */
+  active?: boolean;
 }
 export interface SelectedOptions {
   [key: string]: string;

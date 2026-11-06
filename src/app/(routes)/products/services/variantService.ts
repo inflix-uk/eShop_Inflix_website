@@ -317,6 +317,7 @@ export const updateSelectedVariant = (
         condition: `${condition} - ${color} - ${storage}`,
         price: variant.Price,
         salePrice: variant.salePrice,
+        active: (variant as any).status !== false && (variant as any).status !== "false",
       };
     });
 
