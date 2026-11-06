@@ -10,6 +10,7 @@ import {
 import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { CmsWidgetAndProductBlock } from "@/app/components/cms/CmsWidgetAndProductBlock";
+import { normalizeInternalHref, rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 import type { Product } from "../../../types";
 import type { Blog } from "../../../types";
 
@@ -20,7 +21,7 @@ function TextBlock({ content }: { content: string }) {
   return (
     <div
       className="prose prose-lg max-w-none prose-headings:text-primary prose-a:text-primary prose-strong:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700"
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: rewriteInternalHrefsInHtml(content) }}
     />
   );
 }
@@ -36,7 +37,9 @@ function ImageBlock({
   };
 }) {
   const imageUrl = getHomepageImageUrl(block.content.url);
-  const hasLink = block.content.externalLink;
+  const hasLink = block.content.externalLink
+    ? normalizeInternalHref(block.content.externalLink)
+    : "";
 
   const imageElement = (
     <div className="my-6">

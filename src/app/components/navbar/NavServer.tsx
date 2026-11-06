@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { NavbarItem } from "@/app/lib/features/navbarcategories/navbarTypes";
 import { isNavbarCustom } from "@/app/lib/features/navbarcategories/navbarTypes";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 interface NavServerProps {
   categories: NavbarItem[];
@@ -25,7 +26,9 @@ export default function NavServer({ categories }: NavServerProps) {
       <ul>
         {categories.map((item) => {
           if (isNavbarCustom(item)) {
-            const href = item.path.trim();
+            const href = /^https?:\/\//i.test(item.path.trim())
+              ? item.path.trim()
+              : normalizeInternalHref(item.path);
             const external = /^https?:\/\//i.test(href);
             return (
               <li key={item._id}>

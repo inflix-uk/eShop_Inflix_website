@@ -24,6 +24,7 @@ import {
   useFlaticonStylesheets,
 } from "@/app/lib/navbarFlaticonIcon";
 import { resolveCmsApiBase } from "@/app/lib/cmsApiBase";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 import { getLogoUrl } from "@/app/services/logoService";
 import {
   createContext,
@@ -128,16 +129,7 @@ const NAVBAR_REACT_ICON_MAP: Record<string, IconType> = {
 function resolveHref(raw?: string): string {
   const value = String(raw || "").trim();
   if (!value) return "#";
-  if (
-    value.startsWith("http://") ||
-    value.startsWith("https://") ||
-    value.startsWith("mailto:") ||
-    value.startsWith("tel:")
-  ) {
-    return value;
-  }
-  if (value.startsWith("/")) return value;
-  return `/${value}`;
+  return normalizeInternalHref(value);
 }
 
 /** True when hex is near-black (unreadable on blue business navbar). */
@@ -736,6 +728,8 @@ function NavLinkItemNode({
 
   const [flyoutOpen, setFlyoutOpen] = useState(false);
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Keep the flyout mounted through a click so mouseup still lands on the link. */
+  const pointerHoldingRef = useRef(false);
   const triggerRef = useRef<HTMLAnchorElement>(null);
   const triggerWrapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -767,12 +761,19 @@ function NavLinkItemNode({
   const scheduleHoverClose = useCallback(() => {
     clearHoverClose();
     hoverCloseTimer.current = setTimeout(() => {
+      // A click in progress must not unmount the link before mouseup.
+      if (pointerHoldingRef.current) return;
       // Portal can mount under the cursor and fire mouseleave on the trigger without
       // mouseenter on the panel — only close when the pointer has actually left both.
       if (isPointerOverFlyout()) return;
       setFlyoutOpen(false);
     }, NAV_FLYOUT_HOVER_CLOSE_MS);
   }, [isPointerOverFlyout]);
+
+  const holdFlyoutForClick = () => {
+    pointerHoldingRef.current = true;
+    clearHoverClose();
+  };
 
   const openFlyout = useCallback(() => {
     clearHoverClose();
@@ -790,7 +791,9 @@ function NavLinkItemNode({
     if (left + minWidth > window.innerWidth - margin) {
       left = Math.max(margin, window.innerWidth - margin - minWidth);
     }
-    setFlyoutPos({ top: r.bottom - overlap, left, minWidth, overlap });
+    // Start the panel at the trigger's bottom edge. The bridge is padding
+    // below that edge, so it does not cover the label and steal the click.
+    setFlyoutPos({ top: r.bottom, left, minWidth, overlap });
   }, []);
 
   useLayoutEffect(() => {
@@ -810,6 +813,20 @@ function NavLinkItemNode({
   useEffect(() => {
     return () => clearHoverClose();
   }, []);
+
+  useEffect(() => {
+    const release = () => {
+      if (!pointerHoldingRef.current) return;
+      pointerHoldingRef.current = false;
+      if (!isPointerOverFlyout()) scheduleHoverClose();
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, [isPointerOverFlyout, scheduleHoverClose]);
 
   useEffect(() => {
     if (!bodyPortalFlyout || !flyoutOpen) return;
@@ -918,13 +935,15 @@ function NavLinkItemNode({
           updateFlyoutPosition();
         }}
         onMouseLeave={scheduleHoverClose}
+        onPointerDown={holdFlyoutForClick}
       >
         <a
           ref={triggerRef}
           href={resolveHref(link.url)}
           data-nav-link="1"
-          className={linkClassName}
+          className={`${linkClassName} relative z-[2]`}
           onClick={onNavigate}
+          onPointerDown={holdFlyoutForClick}
           aria-expanded={flyoutOpen}
           aria-haspopup="true"
           aria-controls={flyoutPanelId}
@@ -964,6 +983,7 @@ function NavLinkItemNode({
               }}
               onMouseEnter={openFlyout}
               onMouseLeave={scheduleHoverClose}
+              onPointerDown={holdFlyoutForClick}
             >
               {flyoutInner}
             </div>,
@@ -1198,7 +1218,7 @@ function NavbarModern({
                 {showIcons ? (
                   <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <ActionIconLink
-                      href={content?.actionIcon1Url}
+                      href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                       openCartOnClick={content?.actionIcon1OpenCart === true}
                       onOpenCart={content?.onOpenCart}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
@@ -1207,7 +1227,7 @@ function NavbarModern({
                       <ActionIcon1 className="h-4 w-4" />
                     </ActionIconLink>
                     <ActionIconLink
-                      href={content?.actionIcon2Url}
+                      href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                       openCartOnClick={content?.actionIcon2OpenCart === true}
                       onOpenCart={content?.onOpenCart}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
@@ -1294,10 +1314,10 @@ function NavbarModern({
         ) : null}
         {showIcons ? (
           <div className="flex gap-2">
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm" style={actionIcon1Style}>
+            <ActionIconLink href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm" style={actionIcon1Style}>
               <ActionIcon1 className="h-4 w-4" />
             </ActionIconLink>
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm" style={actionIcon2Style}>
+            <ActionIconLink href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white shadow-sm" style={actionIcon2Style}>
               <ActionIcon2 className="h-4 w-4" />
             </ActionIconLink>
           </div>
@@ -1417,7 +1437,7 @@ function NavbarMinimalist({
           {showIcons ? (
             <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
               <ActionIconLink
-                href={content?.actionIcon1Url}
+                href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                 openCartOnClick={content?.actionIcon1OpenCart === true}
                 onOpenCart={content?.onOpenCart}
                 className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -1429,7 +1449,7 @@ function NavbarMinimalist({
                 </span>
               </ActionIconLink>
               <ActionIconLink
-                href={content?.actionIcon2Url}
+                href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                 openCartOnClick={content?.actionIcon2OpenCart === true}
                 onOpenCart={content?.onOpenCart}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -1501,13 +1521,13 @@ function NavbarMinimalist({
         ) : null}
         {showIcons ? (
           <div className="flex gap-2">
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700" style={actionIcon1Style}>
+            <ActionIconLink href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700" style={actionIcon1Style}>
               <ActionIcon1 className="h-4 w-4" />
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                 1
               </span>
             </ActionIconLink>
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700" style={actionIcon2Style}>
+            <ActionIconLink href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700" style={actionIcon2Style}>
               <ActionIcon2 className="h-4 w-4" />
             </ActionIconLink>
           </div>
@@ -1630,7 +1650,7 @@ function NavbarDarkSidebar({
             {showIcons ? (
               <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
                 <ActionIconLink
-                  href={content?.actionIcon1Url}
+                  href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                   openCartOnClick={content?.actionIcon1OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-visible rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30 sm:h-9 sm:w-9"
@@ -1642,7 +1662,7 @@ function NavbarDarkSidebar({
                   </span>
                 </ActionIconLink>
                 <ActionIconLink
-                  href={content?.actionIcon2Url}
+                  href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                   openCartOnClick={content?.actionIcon2OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/35 bg-white/20 text-white shadow-sm backdrop-blur-sm hover:bg-white/30 sm:h-9 sm:w-9"
@@ -1713,7 +1733,7 @@ function NavbarDarkSidebar({
         {showIcons ? (
           <div className="flex gap-2">
             <ActionIconLink
-              href={content?.actionIcon1Url}
+              href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
               openCartOnClick={content?.actionIcon1OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm hover:bg-slate-100"
@@ -1725,7 +1745,7 @@ function NavbarDarkSidebar({
               </span>
             </ActionIconLink>
             <ActionIconLink
-              href={content?.actionIcon2Url}
+              href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
               openCartOnClick={content?.actionIcon2OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 shadow-sm hover:bg-slate-100"
@@ -1861,7 +1881,7 @@ function NavbarBusiness({
             {showIcons ? (
               <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <ActionIconLink
-                  href={content?.actionIcon1Url}
+                  href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                   openCartOnClick={content?.actionIcon1OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className={`relative flex ${NAVBAR_BUSINESS_BTN_H} w-8 shrink-0 items-center justify-center overflow-visible rounded-full`}
@@ -1873,7 +1893,7 @@ function NavbarBusiness({
                   </span>
                 </ActionIconLink>
                 <ActionIconLink
-                  href={content?.actionIcon2Url}
+                  href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                   openCartOnClick={content?.actionIcon2OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className={`flex ${NAVBAR_BUSINESS_BTN_H} w-8 shrink-0 items-center justify-center overflow-visible rounded-full`}
@@ -1958,13 +1978,13 @@ function NavbarBusiness({
         ) : null}
         {showIcons ? (
           <div className="flex gap-2">
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon1Style}>
+            <ActionIconLink href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon1Style}>
               <ActionIcon1 className="h-4 w-4" />
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                 2
               </span>
             </ActionIconLink>
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon2Style}>
+            <ActionIconLink href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon2Style}>
               <ActionIcon2 className="h-4 w-4" />
             </ActionIconLink>
           </div>
@@ -2082,7 +2102,7 @@ function NavbarBusiness2({
             {showIcons ? (
               <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <ActionIconLink
-                  href={content?.actionIcon1Url}
+                  href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                   openCartOnClick={content?.actionIcon1OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className={`relative flex ${NAVBAR_BUSINESS_BTN_H} w-8 shrink-0 items-center justify-center overflow-visible rounded-full`}
@@ -2094,7 +2114,7 @@ function NavbarBusiness2({
                   </span>
                 </ActionIconLink>
                 <ActionIconLink
-                  href={content?.actionIcon2Url}
+                  href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                   openCartOnClick={content?.actionIcon2OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className={`flex ${NAVBAR_BUSINESS_BTN_H} w-8 shrink-0 items-center justify-center overflow-visible rounded-full`}
@@ -2174,13 +2194,13 @@ function NavbarBusiness2({
         ) : null}
         {showIcons ? (
           <div className="flex gap-2">
-            <ActionIconLink href={content?.actionIcon1Url} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon1Style}>
+            <ActionIconLink href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined} openCartOnClick={content?.actionIcon1OpenCart === true} onOpenCart={content?.onOpenCart} className="relative flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon1Style}>
               <ActionIcon1 className="h-4 w-4" />
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">
                 2
               </span>
             </ActionIconLink>
-            <ActionIconLink href={content?.actionIcon2Url} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon2Style}>
+            <ActionIconLink href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined} openCartOnClick={content?.actionIcon2OpenCart === true} onOpenCart={content?.onOpenCart} className="flex h-10 w-10 items-center justify-center rounded-full" style={actionIcon2Style}>
               <ActionIcon2 className="h-4 w-4" />
             </ActionIconLink>
           </div>
@@ -2814,7 +2834,7 @@ function NavbarPillBlack({
                     {showIcons ? (
                       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                         <ActionIconLink
-                          href={content?.actionIcon1Url}
+                          href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                           openCartOnClick={content?.actionIcon1OpenCart === true}
                           onOpenCart={content?.onOpenCart}
                           className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 ring-white/40 transition hover:opacity-90"
@@ -2824,7 +2844,7 @@ function NavbarPillBlack({
                           <ActionIcon1 className="h-4 w-4 shrink-0" />
                         </ActionIconLink>
                         <ActionIconLink
-                          href={content?.actionIcon2Url}
+                          href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                           openCartOnClick={content?.actionIcon2OpenCart === true}
                           onOpenCart={content?.onOpenCart}
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 ring-white/40 transition hover:opacity-90"
@@ -2906,7 +2926,7 @@ function NavbarPillBlack({
         {showIcons ? (
           <div className="mt-2 flex gap-2">
             <ActionIconLink
-              href={content?.actionIcon1Url}
+              href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
               openCartOnClick={content?.actionIcon1OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm ring-1 ring-slate-200"
@@ -2915,7 +2935,7 @@ function NavbarPillBlack({
               <ActionIcon1 className="h-4 w-4 shrink-0" />
             </ActionIconLink>
             <ActionIconLink
-              href={content?.actionIcon2Url}
+              href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
               openCartOnClick={content?.actionIcon2OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm ring-1 ring-slate-200"
@@ -3105,7 +3125,7 @@ function NavbarWingSplit({
                 {showIcons ? (
                   <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <ActionIconLink
-                      href={content?.actionIcon1Url}
+                      href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                       openCartOnClick={content?.actionIcon1OpenCart === true}
                       onOpenCart={content?.onOpenCart}
                       className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
@@ -3115,7 +3135,7 @@ function NavbarWingSplit({
                       <ActionIcon1 className="h-4 w-4" />
                     </ActionIconLink>
                     <ActionIconLink
-                      href={content?.actionIcon2Url}
+                      href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                       openCartOnClick={content?.actionIcon2OpenCart === true}
                       onOpenCart={content?.onOpenCart}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/45 transition hover:bg-white/20"
@@ -3203,7 +3223,7 @@ function NavbarWingSplit({
         {showIcons ? (
           <div className="mt-2 flex gap-2">
             <ActionIconLink
-              href={content?.actionIcon1Url}
+              href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
               openCartOnClick={content?.actionIcon1OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
@@ -3212,7 +3232,7 @@ function NavbarWingSplit({
               <ActionIcon1 className="h-4 w-4" />
             </ActionIconLink>
             <ActionIconLink
-              href={content?.actionIcon2Url}
+              href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
               openCartOnClick={content?.actionIcon2OpenCart === true}
               onOpenCart={content?.onOpenCart}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
@@ -3319,7 +3339,7 @@ function NavbarRetailTwoRow({
             {showIcons ? (
               <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <ActionIconLink
-                  href={content?.actionIcon2Url}
+                  href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                   openCartOnClick={content?.actionIcon2OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className="relative inline-flex items-center gap-0 p-0.5"
@@ -3337,7 +3357,7 @@ function NavbarRetailTwoRow({
                   </p>
                 </div>
                 <ActionIconLink
-                  href={content?.actionIcon1Url}
+                  href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                   openCartOnClick={content?.actionIcon1OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className="relative inline-flex items-center justify-center p-0.5"
@@ -3391,7 +3411,7 @@ function NavbarRetailTwoRow({
           {showIcons ? (
             <div className="flex items-center gap-5 xl:gap-2">
               <ActionIconLink
-                href={content?.actionIcon2Url}
+                href={content?.actionIcon2Url ? resolveHref(content.actionIcon2Url) : undefined}
                 openCartOnClick={content?.actionIcon2OpenCart === true}
                 onOpenCart={content?.onOpenCart}
                 className="relative inline-flex items-center gap-1 p-0.5"
@@ -3410,7 +3430,7 @@ function NavbarRetailTwoRow({
                 </div>
 
                 <ActionIconLink
-                  href={content?.actionIcon1Url}
+                  href={content?.actionIcon1Url ? resolveHref(content.actionIcon1Url) : undefined}
                   openCartOnClick={content?.actionIcon1OpenCart === true}
                   onOpenCart={content?.onOpenCart}
                   className="inline-flex items-center justify-center p-0.5"

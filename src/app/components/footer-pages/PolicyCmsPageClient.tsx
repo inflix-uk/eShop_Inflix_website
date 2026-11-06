@@ -2,9 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import type { FooterPage } from "@/app/services/footerPageService";
+import type { ReactNode } from "react";
 import type { NavbarVariantTestConfig } from "@/app/services/navbarVariantTestPublicService";
-import type { SiteWidgetVisibility } from "@/app/lib/siteWidgetVisibilityDefaults";
 
 const NavbarVariantTestBar = dynamic(
   () => import("@/app/components/navbar/NavbarVariantTestBar"),
@@ -16,27 +15,16 @@ const NavbarVariantTestBar = dynamic(
   }
 );
 
-const FooterPageContent = dynamic(
-  () => import("@/app/components/footer-pages/FooterPageContent"),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="min-h-[40vh] w-full animate-pulse rounded-md bg-gray-50"
-        aria-hidden="true"
-      />
-    ),
-  }
-);
-
+/**
+ * Navbar stays client-only. Page body is passed in from the server page so the
+ * HTML/CSS widget is in the initial HTML for crawlers.
+ */
 export default function PolicyCmsPageClient({
-  page,
   navbarVariantTestConfig,
-  widgetVisibility,
+  children,
 }: {
-  page: FooterPage;
   navbarVariantTestConfig: NavbarVariantTestConfig | null;
-  widgetVisibility?: SiteWidgetVisibility;
+  children: ReactNode;
 }) {
   return (
     <div>
@@ -47,10 +35,7 @@ export default function PolicyCmsPageClient({
             Home
           </Link>
         </nav>
-        <FooterPageContent
-          page={page}
-          initialWidgetVisibility={widgetVisibility}
-        />
+        {children}
       </div>
     </div>
   );
