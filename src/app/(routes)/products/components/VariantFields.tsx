@@ -23,6 +23,33 @@ import Image from "next/image";
 //     ssr: false,
 //   }
 // );
+
+const positivePrice = (value: unknown): number | null => {
+  const n = typeof value === "number" ? value : parseFloat(String(value ?? "").replace(/[£,\s]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * Prices shown under a condition button, or null when there is none to show:
+ * the variant is switched off or has no price yet. Without this the button
+ * printed "£ £" with nothing after the signs.
+ */
+function conditionPriceDisplay(
+  conditionPrices: ConditionPrices[],
+  optionName: string
+): { was: number | null; now: number } | null {
+  const wanted = optionName.toLowerCase().replace(/_/g, " ");
+  const cond = conditionPrices.find(
+    (c) => c.condition.split(" - ")[0].toLowerCase().replace(/_/g, " ") === wanted
+  );
+  if (!cond || cond.active === false) return null;
+  const price = positivePrice(cond.price);
+  const sale = positivePrice(cond.salePrice);
+  if (sale !== null) return { was: price !== null && price > sale ? price : null, now: sale };
+  if (price !== null) return { was: null, now: price };
+  return null;
+}
+
 export default function VariantFields({
   product,
   setOpenConditionDescription,
@@ -595,42 +622,18 @@ export default function VariantFields({
                         {/* Display condition prices if variant is 'condition' */}
                         {getVariantKind(variantName) === "condition" && (
                           <span className="text-sm text-gray-900 text-center">
-                            {conditionPrices.find((cond) => {
-                              const conditionName =
-                                cond.condition.split(" - ")[0];
-                              // Normalize both values: replace underscores with spaces for comparison
-                              const normalizedConditionName = conditionName.toLowerCase().replace(/_/g, ' ');
-                              const normalizedOptionName = optionName.toLowerCase().replace(/_/g, ' ');
-                              return normalizedConditionName === normalizedOptionName;
-                            }) && (
-                              <div className="flex justify-center items-center gap-5">
-                                <s className="text-gray-700 font-medium">
-                                  £
-                                  {
-                                    conditionPrices.find((cond: any) => {
-                                      const conditionName =
-                                        cond.condition.split(" - ")[0];
-                                      const normalizedConditionName = conditionName.toLowerCase().replace(/_/g, ' ');
-                                      const normalizedOptionName = optionName.toLowerCase().replace(/_/g, ' ');
-                                      return normalizedConditionName === normalizedOptionName;
-                                    })?.price
-                                  }
-                                </s>
-                                <p className="text-base font-medium">
-                                  {" "}
-                                  £
-                                  {
-                                    conditionPrices.find((cond) => {
-                                      const conditionName =
-                                        cond.condition.split(" - ")[0];
-                                      const normalizedConditionName = conditionName.toLowerCase().replace(/_/g, ' ');
-                                      const normalizedOptionName = optionName.toLowerCase().replace(/_/g, ' ');
-                                      return normalizedConditionName === normalizedOptionName;
-                                    })?.salePrice
-                                  }
-                                </p>
-                              </div>
-                            )}
+                            {(() => {
+                              const shown = conditionPriceDisplay(conditionPrices, optionName);
+                              if (!shown) return null;
+                              return (
+                                <div className="flex justify-center items-center gap-5">
+                                  {shown.was !== null && (
+                                    <s className="text-gray-700 font-medium">£{shown.was}</s>
+                                  )}
+                                  <p className="text-base font-medium">£{shown.now}</p>
+                                </div>
+                              );
+                            })()}
                           </span>
                         )}
                       </span>

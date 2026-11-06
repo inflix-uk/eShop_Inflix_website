@@ -66,13 +66,42 @@ const productContentStyles = `
   }
 `;
 
+// HTML that shows something even without text (pictures, embeds, tables).
+const VISIBLE_TAGS = /<(img|iframe|video|svg|table|hr)\b/i;
+const htmlShows = (html: unknown) =>
+  typeof html === "string" &&
+  (VISIBLE_TAGS.test(html) ||
+    html.replace(/<[^>]*>/g, "").replace(/&nbsp;|&#160;| /gi, " ").trim() !== "");
+
+function blockShows(block: any): boolean {
+  if (!block) return false;
+  if (block.type === "text") return htmlShows(block.content);
+  if (block.type === "image") return !!block.content?.url;
+  return block.type === "products" || block.type === "widget";
+}
+
+/**
+ * Whether the description layout shows anything. Empty rows (e.g. a row added in
+ * the admin and left blank) must not hide the HTML description, which is where
+ * the spreadsheet import writes. Keep in step with blocksShow in the backend's
+ * bulkSheet.js.
+ */
+function blocksShow(blocks: unknown): boolean {
+  if (!Array.isArray(blocks)) return false;
+  return blocks.some(
+    (row: any) =>
+      Array.isArray(row?.columns) &&
+      row.columns.some((col: any) => Array.isArray(col?.blocks) && col.blocks.some(blockShows))
+  );
+}
+
 export default function ProductDescription({
   product,
 }: {
   product: any;
 }) {
   const blocks = product?.Product_description_blocks;
-  const hasBlocks = Array.isArray(blocks) && blocks.length > 0;
+  const hasBlocks = blocksShow(blocks);
   const descriptionHtml = cleanCmsText(product?.Product_description);
   const fontClass = ZEXTONS_DESCRIPTION_FONT ? " product-description-zextons" : "";
 
