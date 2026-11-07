@@ -33,12 +33,14 @@ export default function ProductCardView({
     hasGroupPrice,
     averageRating,
   } = display;
+  // No price on record: show no price rather than "£0" / "From £0".
+  const hasPrice = displayPrice > 0;
 
   // Modern Card Design - Clean & Minimal
   if (cardDesign === "modern") {
     return (
-      <div className="w-full py-2 sm:py-3">
-        <div className="relative group cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md">
+      <div className="w-full h-full py-2 sm:py-3">
+        <div className="relative group cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md h-full">
           {/* Product Image */}
           <div className="relative w-full aspect-[9/16] overflow-hidden bg-white rounded-sm flex items-center justify-center">
             {/* Discount Badge - Top Left */}
@@ -80,15 +82,15 @@ export default function ProductCardView({
 
           {/* Product Info */}
           <div className="mt-3 space-y-1 px-2">
-            <h3 className="text-xs sm:text-sm font-semibold text-gray-800 uppercase tracking-wide leading-tight">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-800 uppercase tracking-wide leading-tight min-h-[2.5em]">
               <Link href={productHref} className="line-clamp-2 hover:text-gray-600">
                 {name}
                 <span className="absolute inset-0 z-[1]" aria-hidden="true" />
                 <ProductCardLinkSpinner />
               </Link>
             </h3>
-            <p className="text-xs sm:text-sm font-normal text-gray-600 transition-opacity duration-200">
-              £{displayPrice}
+            <p className="text-xs sm:text-sm font-normal text-gray-600 transition-opacity duration-200 min-h-[1.25rem]">
+              {hasPrice ? `£${displayPrice}` : null}
             </p>
           </div>
         </div>
@@ -98,22 +100,24 @@ export default function ProductCardView({
 
   if (variant === "default") {
     return (
-      <div className="max-w-screen-xl mx-auto py-5 sm:py-10">
-        <div className="relative bg-white rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-105 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full">
-          <div className="mb-2 flex justify-between align-middle">
-            <div className="min-w-0">
+      <div className="max-w-screen-xl h-full mx-auto py-5 sm:py-10">
+        <div className="relative bg-white rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-105 hover:shadow-card-shadow group cursor-pointer flex flex-col h-full">
+          <div className="mb-2 flex justify-between items-start gap-1 h-7 shrink-0 overflow-hidden">
+            <div className="min-w-0 flex-1">
               <ProductCardConditions
                 badges={conditionBadges}
                 extraCount={extraConditionCount}
                 label={conditionsLabel}
               />
             </div>
-            <div className="sm:text-sm text-[10px] bg-black px-2 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
-              <span>{discountPercentage}% OFF</span>
-            </div>
+            {discountPercentage > 0 && (
+              <div className="sm:text-sm text-[10px] bg-black px-2 h-7 shrink-0 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
+                <span>{discountPercentage}% OFF</span>
+              </div>
+            )}
           </div>
 
-          <h3 className="text-lg mb-2 h-16 flex items-start font-normal">
+          <h3 className="text-lg mb-2 h-16 shrink-0 overflow-hidden flex items-start font-normal">
             <Link href={productHref} className="line-clamp-2 md:line-clamp-2">
               {name}
               <span className="absolute inset-0 z-[1]" aria-hidden="true" />
@@ -149,12 +153,16 @@ export default function ProductCardView({
             )}
           </div>
 
-          <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
+          <div className="flex flex-row justify-between items-end mt-auto md:pt-5 w-full">
             <div className="transition-opacity duration-200">
-              <small className="text-gray-500 flex gap-1">
-                {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
+              <small className="text-gray-500 flex gap-1 h-5">
+                {hasPrice && (
+                  <>
+                    {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
+                  </>
+                )}
               </small>
-              <div className="text-xl sm:text-2xl">£{displayPrice}</div>
+              <div className="text-xl sm:text-2xl h-7 sm:h-8">{hasPrice ? `£${displayPrice}` : null}</div>
             </div>
             <ProductCardStars averageRating={averageRating} />
           </div>
@@ -164,22 +172,24 @@ export default function ProductCardView({
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full py-3 sm:py-5">
-      <div className="relative rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-100 hover:shadow-card-shadow group cursor-pointer flex flex-col justify-between h-full min-w-0">
-        <div className="mb-2 flex justify-between align-middle">
-          <div className="min-w-0">
+    <div className="w-full h-full min-w-0 max-w-full py-3 sm:py-5">
+      <div className="relative rounded-lg shadow-xl sm:p-5 p-2 md:mb-0 mb-5 transition-all duration-500 ease-in-out hover:scale-100 hover:shadow-card-shadow group cursor-pointer flex flex-col h-full min-w-0">
+        <div className="mb-2 flex justify-between items-start gap-1 h-7 shrink-0 overflow-hidden">
+          <div className="min-w-0 flex-1">
             <ProductCardConditions
               badges={conditionBadges}
               extraCount={extraConditionCount}
               label={conditionsLabel}
             />
           </div>
-          <div className="sm:text-sm text-[10px] bg-black px-2 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
-            <span>{discountPercentage}% OFF</span>
-          </div>
+          {discountPercentage > 0 && (
+            <div className="sm:text-sm text-[10px] bg-black px-2 h-7 shrink-0 text-white rounded-lg flex flex-col items-center justify-center ms-1 text-nowrap">
+              <span>{discountPercentage}% OFF</span>
+            </div>
+          )}
         </div>
 
-        <h3 className="text-lg mb-2 h-16 flex items-start font-normal m-0">
+        <h3 className="text-lg mb-2 h-16 shrink-0 overflow-hidden flex items-start font-normal m-0">
           <Link href={productHref} className="line-clamp-2 md:line-clamp-2">
             {name}
             <span className="absolute inset-0 z-[1]" aria-hidden="true" />
@@ -219,12 +229,16 @@ export default function ProductCardView({
           )}
         </div>
 
-        <div className="flex flex-row justify-between items-end md:mt-5 mt-auto w-full">
+        <div className="flex flex-row justify-between items-end mt-auto md:pt-5 w-full">
           <div className="transition-opacity duration-200">
-            <small className="text-gray-500 flex gap-1">
-              {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
+            <small className="text-gray-500 flex gap-1 h-5">
+              {hasPrice && (
+                <>
+                  {hasGroupPrice ? "Was" : "From"} <del>£{displayOriginalPrice}</del>
+                </>
+              )}
             </small>
-            <div className="text-xl sm:text-2xl">£{displayPrice}</div>
+            <div className="text-xl sm:text-2xl h-7 sm:h-8">{hasPrice ? `£${displayPrice}` : null}</div>
           </div>
           <ProductCardStars averageRating={averageRating} />
         </div>
@@ -243,19 +257,21 @@ function ProductCardConditions({
   label: string;
 }) {
   if (badges.length === 0) return null;
+  // One line only: long chips truncate instead of wrapping, so every card's
+  // header row is the same height.
   return (
-    <div className="flex flex-wrap gap-1" title={label}>
+    <div className="flex flex-nowrap gap-1 min-w-0 overflow-hidden" title={label}>
       {badges.map((badge) => (
         <span
           key={badge}
-          className="bg-gray-200 text-black xs:px-2 px-1 py-1 rounded-lg text-sm text-nowrap"
+          className="bg-gray-200 text-black xs:px-2 px-1 py-1 rounded-lg text-sm text-nowrap truncate min-w-0"
         >
           {badge}
         </span>
       ))}
       {extraCount > 0 && (
         <span
-          className="bg-gray-200 text-black px-1 py-1 rounded-lg text-sm text-nowrap"
+          className="bg-gray-200 text-black px-1 py-1 rounded-lg text-sm text-nowrap shrink-0"
           aria-label={`${extraCount} more conditions`}
         >
           +{extraCount}

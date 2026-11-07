@@ -7,6 +7,7 @@
 import { MinusIcon, PlusIcon } from "@heroicons/react/24/solid";
 import React from "react";
 import Link from "next/link";
+import { isOutOfStock } from "../utils/stock";
 export default function DialogList({
   isBuyButtonDisabled,
   openSpecs,
@@ -203,7 +204,12 @@ export default function DialogList({
                   className="bg-gray-500 text-white text-lg font-medium py-2.5 text-center px-4 rounded-md w-full cursor-not-allowed opacity-50"
                   disabled
                 >
-                  Out of Stock
+                  {/* Only quantity 0 is "Out of Stock"; a blank quantity isn't on sale yet */}
+                  {isOutOfStock(
+                    product?.productType?.type === "single" ? product?.variantValues?.[0] : selectedVariant
+                  )
+                    ? "Out of Stock"
+                    : "Currently Unavailable"}
                 </button>
                 <Link
                   href="/shopall"
