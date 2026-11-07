@@ -26,6 +26,7 @@ import ProductsYouMayLike from "@/app/(routes)/products/components/ProductsYouMa
 import ProductSummary from "@/app/(routes)/products/components/ProductSummary";
 import ProductDescription from "@/app/(routes)/products/components/ProductDescription";
 import DialogList from "@/app/(routes)/products/components/DialogList";
+import { isPurchasable, withOnlyActiveVariants } from "@/app/(routes)/products/utils/stock";
 import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
 import { useParams } from "next/navigation";
 import {
@@ -136,7 +137,9 @@ export default function ProductPage({
   navbarVariantTestConfig?: NavbarVariantTestConfig | null;
 }) {
   const auth = useAuth();
-  const [product, setProduct] = useState<ProductData>(initialProduct);
+  const [rawProduct, setProduct] = useState<ProductData>(initialProduct);
+  // Switched-off variants (and buttons only they used) never reach the page.
+  const product = useMemo(() => withOnlyActiveVariants(rawProduct), [rawProduct]);
 
   useEffect(() => {
     setProduct(initialProduct);
@@ -310,15 +313,10 @@ export default function ProductPage({
 
     return matchedSlugs;
   };
-  const checkIfSoldOut = (variantCombination: {
-    Quantity: number | null;
-  }): boolean => {
-    return (
-      variantCombination &&
-      (variantCombination.Quantity === null ||
-        variantCombination.Quantity === 0)
-    );
-  };
+  // True when the variant can't be bought: missing, switched off, quantity 0 or
+  // blank. Only quantity 0 is labelled "Out of Stock" (see utils/stock.ts).
+  const checkIfSoldOut = (variantCombination: any): boolean =>
+    !isPurchasable(variantCombination);
 
   const updateSelectedVariant = (selectedOptions: Record<string, string>) => {
     // Normalize function for matching
@@ -675,7 +673,7 @@ export default function ProductPage({
           });
         }) ?? null;
       const isSelectedVariantSoldOut = selectedVariantCombination
-        ? checkIfSoldOut({ Quantity: selectedVariantCombination.Quantity })
+        ? checkIfSoldOut(selectedVariantCombination)
         : true;
 
       setSelectedVariant(selectedVariantCombination as VariantDetails | null);

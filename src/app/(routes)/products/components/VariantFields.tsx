@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ConditionPrices } from "../../../../../types";
+import { isOutOfStock } from "../utils/stock";
 import { RadioGroup, Radio } from "@headlessui/react";
 import {
   readableToSlug,
@@ -426,6 +427,8 @@ export default function VariantFields({
 
               // Determine if the option is sold out
               let isOptionSoldOut = false;
+              // Variants behind this option; the "Sold Out" tag needs all of them at quantity 0.
+              let optionVariants: any[] = [];
               const isVariantDisabledState = isVariantDisabled(variantName);
 
               // Only check sold out status if the variant is enabled (not disabled)
@@ -456,47 +459,47 @@ export default function VariantFields({
                   );
 
                   isOptionSoldOut = checkIfSoldOut(variantCombination);
+                  optionVariants = variantCombination ? [variantCombination] : [];
                 } else if (getVariantKind(variantName) === "storage") {
                   // Check if all color options are sold out for this storage and condition
                   const normalizedOptionName = normalize(optionName);
                   const normalizedCondition = normalize(currentCondition);
 
-                  const allColorsSoldOut = product.variantValues
-                    .filter(
-                      (v: { name: string }) => {
-                        const normalizedVariantName = normalize(v.name);
-                        return normalizedVariantName.includes(normalizedOptionName) &&
-                          normalizedVariantName.includes(normalizedCondition);
-                      }
-                    )
-                    .every((v: { name: string }) => checkIfSoldOut(v));
-
-                  isOptionSoldOut = allColorsSoldOut;
+                  optionVariants = product.variantValues.filter(
+                    (v: { name: string }) => {
+                      const normalizedVariantName = normalize(v.name);
+                      return normalizedVariantName.includes(normalizedOptionName) &&
+                        normalizedVariantName.includes(normalizedCondition);
+                    }
+                  );
+                  isOptionSoldOut = optionVariants.every((v: any) => checkIfSoldOut(v));
                 } else if (getVariantKind(variantName) === "condition") {
                   // Check if all color and storage options are sold out for this condition
                   const normalizedOptionName = normalize(optionName);
                   const normalizedStorage = normalize(currentStorage);
 
-                  const allColorsSoldOut = product.variantValues
-                    .filter(
-                      (v: { name: string }) => {
-                        const normalizedVariantName = normalize(v.name);
-                        return normalizedVariantName.includes(normalizedStorage) &&
-                          normalizedVariantName.includes(normalizedOptionName);
-                      }
-                    )
-                    .every((v: { name: string }) => checkIfSoldOut(v));
-
-                  const allStorageSoldOut = product.variantValues
-                    .filter((v: { name: string }) => {
+                  const withStorage = product.variantValues.filter(
+                    (v: { name: string }) => {
                       const normalizedVariantName = normalize(v.name);
-                      return normalizedVariantName.includes(normalizedOptionName);
-                    })
-                    .every((v: { name: string }) => checkIfSoldOut(v));
-
-                  isOptionSoldOut = allColorsSoldOut && allStorageSoldOut;
+                      return normalizedVariantName.includes(normalizedStorage) &&
+                        normalizedVariantName.includes(normalizedOptionName);
+                    }
+                  );
+                  const anyStorage = product.variantValues.filter((v: { name: string }) =>
+                    normalize(v.name).includes(normalizedOptionName)
+                  );
+                  isOptionSoldOut =
+                    withStorage.every((v: any) => checkIfSoldOut(v)) &&
+                    anyStorage.every((v: any) => checkIfSoldOut(v));
+                  optionVariants = anyStorage;
                 }
               }
+
+              // Quantity 0 shows "Sold Out"; a blank quantity is just greyed out.
+              const isOptionOutOfStock =
+                isOptionSoldOut &&
+                optionVariants.length > 0 &&
+                optionVariants.every((v: any) => isOutOfStock(v));
 
               return (
                 <Radio
@@ -551,7 +554,7 @@ export default function VariantFields({
                           }
                         }}
                         aria-label={`Select ${variantName}: ${optionName}${
-                          isOptionSoldOut ? " (Sold Out)" : ""
+                          isOptionOutOfStock ? " (Sold Out)" : isOptionSoldOut ? " (Unavailable)" : ""
                         }`}
                         tabIndex={
                           isVariantDisabledState || isOptionSoldOut ? -1 : 0
@@ -573,7 +576,7 @@ export default function VariantFields({
                         )}
 
                         {/* Show Sold Out tag for individual colors */}
-                        {isOptionSoldOut &&
+                        {isOptionOutOfStock &&
                           getVariantKind(variant.name) === "color" && (
                             <span
                               className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
@@ -589,7 +592,7 @@ export default function VariantFields({
                             </span>
                           )}
 
-                        {isOptionSoldOut &&
+                        {isOptionOutOfStock &&
                           getVariantKind(variant.name) === "storage" && (
                             <span
                               className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
@@ -604,7 +607,7 @@ export default function VariantFields({
                               Sold Out
                             </span>
                           )}
-                        {isOptionSoldOut &&
+                        {isOptionOutOfStock &&
                           getVariantKind(variant.name) === "condition" && (
                             <span
                               className="w-[90px] absolute bottom-0 left-0 bg-red-600 text-white text-xs font-normal ps-6 py-0.5 transform -z-10 origin-bottom-left overflow-clip"

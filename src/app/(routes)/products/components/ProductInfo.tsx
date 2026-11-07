@@ -55,6 +55,13 @@ export default function ProductInfo({
           <h1 className="md:text-2xl sm:text-xl text-lg font-bold text-gray-900">
             {getSelectedVariantName()}
           </h1>
+          {/* "Select Options" from the product form; the name comes from the API */}
+          {typeof product?.selectOptionName === "string" && product.selectOptionName.trim() && (
+            <p className="mt-1 text-sm text-gray-700">
+              <span className="font-medium text-gray-900">SIM Option:</span>{" "}
+              {product.selectOptionName}
+            </p>
+          )}
           <SingleProductPrice
             product={product}
             groupOverridePrice={groupOverridePrice}
