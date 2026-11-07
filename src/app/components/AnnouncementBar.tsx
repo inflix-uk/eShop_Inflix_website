@@ -10,6 +10,7 @@ import type {
   AnnouncementBarItemPublic,
   AnnouncementSocialLinkPublic,
 } from "@/app/services/announcementBannerService";
+import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 const STORAGE_KEY = "store_announcement_dismissed_updated_at";
 
@@ -80,7 +81,7 @@ function AnnouncementSlide({
         </a>
       ) : (
         <Link
-          href={item.linkUrl}
+          href={normalizeInternalHref(item.linkUrl)}
           className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-90"
         >
           {item.linkLabel}

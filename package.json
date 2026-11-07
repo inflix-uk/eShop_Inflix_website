@@ -16,7 +16,8 @@
     "sync-favicon": "node scripts/sync-favicon.mjs",
     "test:sitemap": "node scripts/test-sitemap-fetch.mjs",
     "test:sitemap-products": "node scripts/test-sitemap-product-urls.mjs",
-    "test:consent": "node scripts/verifyConsentLogic.mjs"
+    "test:consent": "node scripts/verifyConsentLogic.mjs",
+    "test:crawl-ssr": "node scripts/crawl-ssr-check.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^7.26.0",

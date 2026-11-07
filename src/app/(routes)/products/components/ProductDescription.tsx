@@ -2,6 +2,7 @@ import React from "react";
 import HomepageContent from "@/app/components/HomepageContent";
 import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { cleanCmsText } from "@/app/lib/cleanCmsText";
+import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 /**
  * NEXT_PUBLIC_PRODUCT_DESCRIPTION_FONT=zextons shows the description in the
@@ -101,8 +102,10 @@ export default function ProductDescription({
   product: any;
 }) {
   const blocks = product?.Product_description_blocks;
-  const hasBlocks = blocksShow(blocks);
-  const descriptionHtml = cleanCmsText(product?.Product_description);
+  const hasBlocks = Array.isArray(blocks) && blocks.length > 0;
+  const descriptionHtml = rewriteInternalHrefsInHtml(
+    cleanCmsText(product?.Product_description)
+  );
   const fontClass = ZEXTONS_DESCRIPTION_FONT ? " product-description-zextons" : "";
 
   return (
