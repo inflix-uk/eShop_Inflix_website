@@ -21,6 +21,10 @@ import {
   buildProductItemListJsonLdString,
 } from "@/app/lib/itemListJsonLd";
 import type { Product } from "../../../../../../types";
+import {
+  isRealSubcategory,
+  subcategoryDetailsUrl,
+} from "./subcategoryData";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -28,16 +32,15 @@ function toOriginalCase(slug: string) {
     .join("-");
 }
 
-async function getSubCategoryData(subCategoryName: string) {
+async function getSubCategoryData(parentSlug: string, subCategoryName: string) {
   try {
-    let res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subCategoryName)}`,
-      { cache: "no-store" }
-    );
+    let res = await fetch(subcategoryDetailsUrl(parentSlug, subCategoryName), {
+      cache: "no-store",
+    });
 
     if (!res.ok && subCategoryName !== toOriginalCase(subCategoryName)) {
       res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(toOriginalCase(subCategoryName))}`,
+        subcategoryDetailsUrl(parentSlug, toOriginalCase(subCategoryName)),
         { cache: "no-store" }
       );
     }
@@ -45,7 +48,7 @@ async function getSubCategoryData(subCategoryName: string) {
     if (!res.ok) return null;
 
     const data = await res.json();
-    return data.subcategoryDetails || null;
+    return isRealSubcategory(data.subcategoryDetails) ? data.subcategoryDetails : null;
   } catch (error) {
     console.error("Error fetching category data:", error);
     return null;
@@ -87,7 +90,7 @@ export default async function SubCategoryPage({
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
-    getSubCategoryData(subcategory),
+    getSubCategoryData(slug, subcategory),
     getProducts(subcategory),
     getNavbarVariantTestPublicServer(),
   ]);
