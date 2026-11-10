@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isDisabledMarketingSlug } from "@/app/lib/disabledMarketingRoutes";
-import { normalizeSitePathname } from "@/lib/siteTrailingSlash";
+import { apexHostFromWww, normalizeSitePathname } from "@/lib/siteTrailingSlash";
 import { getSuperadminControlsPublic } from "@/app/lib/superadminControlsPublic";
 
 function nextWithPathname(request: NextRequest) {
@@ -12,7 +12,30 @@ function nextWithPathname(request: NextRequest) {
   });
 }
 
+function hostnameFromHeader(value: string | null): string {
+  return (value || "").split(",")[0].trim().toLowerCase().split(":")[0];
+}
+
+/** One 301 from www to the apex host, with the canonical path in the same hop. */
+function redirectWwwToApex(request: NextRequest): NextResponse | null {
+  const forwarded = hostnameFromHeader(request.headers.get("x-forwarded-host"));
+  const host = hostnameFromHeader(request.headers.get("host"));
+  const apex = apexHostFromWww(forwarded.startsWith("www.") ? forwarded : host);
+  if (!apex) return null;
+
+  const url = request.nextUrl.clone();
+  const local = apex === "localhost" || apex === "127.0.0.1";
+  url.protocol = local ? url.protocol : "https:";
+  url.hostname = apex;
+  if (!local) url.port = "";
+  url.pathname = normalizeSitePathname(url.pathname);
+  return NextResponse.redirect(url, 301);
+}
+
 export async function middleware(request: NextRequest) {
+  const wwwRedirect = redirectWwwToApex(request);
+  if (wwwRedirect) return wwwRedirect;
+
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
@@ -60,7 +83,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Apply middleware broadly, excluding Next internals/API/static files.
-    "/((?!api|_next|.*\\..*).*)",
+    // Include dotted paths (sitemap.xml, robots.txt) so www redirects those too.
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

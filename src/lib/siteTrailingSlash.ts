@@ -54,7 +54,16 @@ function internalHostnames(): Set<string> {
   return hosts;
 }
 
-/** Keep the same origin. Add the site trailing slash on same-site absolute page URLs. */
+/** Apex host for an internal www URL. External hosts stay unchanged. */
+function apexHostname(hostname: string): string | null {
+  const host = hostname.toLowerCase();
+  const apex = host.startsWith("www.") ? host.slice(4) : host;
+  const known = internalHostnames();
+  if (!known.has(host) && !known.has(apex)) return null;
+  return apex;
+}
+
+/** Keep one origin (non-www). Lowercase the path and add the site trailing slash. */
 function normalizeSameSiteAbsoluteHref(value: string): string {
   let url: URL;
   try {
@@ -62,9 +71,11 @@ function normalizeSameSiteAbsoluteHref(value: string): string {
   } catch {
     return value;
   }
-  if (!internalHostnames().has(url.hostname.toLowerCase())) return value;
+  const apex = apexHostname(url.hostname);
+  if (!apex) return value;
+  url.hostname = apex;
 
-  let path = url.pathname || "/";
+  let path = (url.pathname || "/").toLowerCase();
   if (!looksLikeFilePath(path)) {
     if (SITE_USES_TRAILING_SLASH) {
       if (path !== "/" && !path.endsWith("/")) path = `${path}/`;
@@ -111,6 +122,7 @@ export function normalizeInternalHref(raw: string): string {
 
   const { path: rawPath, suffix } = splitHrefSuffix(value);
   let path = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  path = path.toLowerCase();
 
   if (looksLikeFilePath(path)) {
     return `${path}${suffix}`;
@@ -125,9 +137,64 @@ export function normalizeInternalHref(raw: string): string {
   return `${path}${suffix}`;
 }
 
+/** CMS heading typo on the home-fragrances page. Corrected at render time. */
+export function fixKnownCmsCopy(html: string): string {
+  return String(html ?? "").replace(
+    /Space Feal Like Premium/g,
+    "Space Feel Like Premium"
+  );
+}
+
+/**
+ * Hanging products are refillable glass bottles. The shared "no liquids" line
+ * describes the solid vent clip, so it is wrong on hanging pages.
+ */
+export function fixHangingProductCopy(html: string): string {
+  return String(html ?? "").replace(
+    /No sprays, no liquids to spill\./g,
+    "No sprays. Scent releases through the wooden cap."
+  );
+}
+
+/** Product pages already render the product name as the only H1. */
+export function demoteCmsH1(html: string): string {
+  return String(html ?? "").replace(/<(\/?)h1\b/gi, "<$1h2");
+}
+
+export function isHangingProduct(product: {
+  producturl?: string;
+  subCategory?: unknown;
+} | null | undefined): boolean {
+  const url = String(product?.producturl || "").toLowerCase();
+  if (/(^|-)hanging($|-)/.test(url)) return true;
+  const sub =
+    typeof product?.subCategory === "string"
+      ? product.subCategory
+      : JSON.stringify(product?.subCategory ?? "");
+  return /hanging/i.test(sub);
+}
+
+/** Sitemap line in robots.txt should use the apex host. */
+export function canonicalizeRobotsSitemap(content: string): string {
+  return String(content || "").replace(
+    /^(Sitemap:\s*https?:\/\/)www\./gim,
+    "$1"
+  );
+}
+
+/** www.example.com → example.com. Already-apex hosts return null. */
+export function apexHostFromWww(hostname: string): string | null {
+  const host = String(hostname || "").toLowerCase().split(":")[0];
+  if (!host.startsWith("www.")) return null;
+  let apex = host;
+  while (apex.startsWith("www.")) apex = apex.slice(4);
+  if (!apex || (!apex.includes(".") && apex !== "localhost")) return null;
+  return apex;
+}
+
 /** Rewrite `<a href>` values inside admin HTML. Image `src` is left alone. */
 export function rewriteInternalHrefsInHtml(html: string): string {
-  const source = String(html ?? "");
+  const source = fixKnownCmsCopy(String(html ?? ""));
   if (!source || !/href\s*=/i.test(source)) return source;
   return source.replace(
     /(\bhref\s*=\s*)(["'])([^"']*)\2/gi,
