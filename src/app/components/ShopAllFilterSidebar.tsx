@@ -91,8 +91,10 @@ useEffect(() => {
       );
     // Prices can arrive as strings, and some products have a sale price above
     // the list price: a product must never vanish because its numbers are odd.
-    const salePrice = Number(product.minSalePrice);
-    const listPrice = Number(product.minPrice);
+    // Fall back to the resolved/list price when there is no sale price (Number(null) is 0).
+    const p = product as Product & { price?: unknown; originalPrice?: unknown };
+    const listPrice = Number(product.minPrice) || Number(p.originalPrice);
+    const salePrice = Number(product.minSalePrice) || Number(p.price) || listPrice;
     const matchesPriceRange =
       !Number.isFinite(salePrice) ||
       (salePrice >= sliderValues[0] && salePrice <= sliderValues[1]);

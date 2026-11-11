@@ -160,14 +160,18 @@ export default function NavbarSearch({
         .trim()
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-");
-      router.push(`/searchproduct/${formattedSearchTerm}`);
+      setFilteredSuggestions([]);
+      router.push(`/searchproduct/${encodeURIComponent(formattedSearchTerm)}`);
       onSearchNavigate?.();
     }
   };
 
   const handleSuggestionClick = (suggestion: SuggestionProduct) => {
-    setSearchTerm(suggestion.producturl);
+    // Clear the box: putting the product slug in it re-opened the dropdown on the product page.
+    setSearchTerm("");
+    setFilteredSuggestions([]);
     const cleanSlug = suggestion.producturl?.replace(/-\d{13}$/, "") ?? "";
+    if (!cleanSlug) return;
     const productUrl = `/products/${cleanSlug}`;
     if (pathname !== productUrl) {
       router.push(productUrl);

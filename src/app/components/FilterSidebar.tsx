@@ -52,8 +52,11 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
             // Prices can arrive as strings, and some products have a sale
             // price above the list price: a product must never vanish from
             // the list just because its numbers are odd.
-            const salePrice = Number(product.minSalePrice);
-            const listPrice = Number(product.minPrice);
+            // Fall back to the resolved/list price when there is no sale price
+            // (Number(null) is 0, which hid those products once the minimum was raised).
+            const listPrice = Number(product.minPrice) || Number(product.originalPrice);
+            const salePrice =
+                Number(product.minSalePrice) || Number(product.price) || listPrice;
             const matchesPriceRange =
                 !Number.isFinite(salePrice) ||
                 (salePrice >= sliderValues[0] && salePrice <= sliderValues[1]);
