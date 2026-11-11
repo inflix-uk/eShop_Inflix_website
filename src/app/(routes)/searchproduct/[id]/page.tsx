@@ -1,9 +1,7 @@
 "use client";
-import Nav from "@/app/components/navbar/Nav";
 import { useAuth } from "@/app/context/Auth";
-import TopBar from "@/app/topbar/page";
 import { useParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Product, SortOption } from "../../../../../types";
 import Link from "next/link";
 import ClipLoader from "react-spinners/ClipLoader";
@@ -20,13 +18,24 @@ function telHref(phone: string): string | null {
   return digits ? `tel:${digits}` : null;
 }
 
+/** Route params can arrive URL-encoded; decode once so we never double-encode ("%2520"). */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export default function SearchPage() {
   const auth = useAuth();
-  const { id: searchTerm } = useParams();
-  const formatSearchTerm = (term: string | string[] | undefined) => {
+  const params = useParams();
+  const rawParam = Array.isArray(params?.id) ? params.id.join("-") : String(params?.id ?? "");
+  const searchTerm = safeDecode(rawParam);
+  const formatSearchTerm = (term: string) => {
     if (!term) return "";
 
-    const termString = Array.isArray(term) ? term.join(" ") : term;
+    const termString = term;
 
     return (
       termString
@@ -42,12 +51,21 @@ export default function SearchPage() {
   };
   const formattedSearchTerm = formatSearchTerm(searchTerm);
 
-  const encodedTerm = encodeURIComponent(searchTerm as string);
+  const encodedTerm = encodeURIComponent(searchTerm);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProductsState] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  // Whenever filters / sort change the list, go back to page 1 so results aren't hidden
+  // on a page that no longer exists.
+  const setFilteredProducts = useCallback(
+    (value: React.SetStateAction<Product[]>) => {
+      setFilteredProductsState(value);
+      setCurrentPage(1);
+    },
+    []
+  );
   const [supportEmail, setSupportEmail] = useState("");
   const [supportPhone, setSupportPhone] = useState("");
   const productsPerPage = 50;
@@ -69,55 +87,63 @@ export default function SearchPage() {
   }, []);
 
   useEffect(() => {
-    const getSearchedProduct = () => {
-      setLoading(true);
-      axios
-        .get(`${auth.ip}get/product/by/search/${encodedTerm}`)
-        .then((response) => {
-          if (response.data.status === 201) {
-            setProducts(response.data.products);
-            setFilteredProducts(response.data.products);
-          } else {
-            // No products found or other error status
-            setProducts([]);
-            setFilteredProducts([]);
-            console.log(response.data.message);
-          }
-          setLoading(false);
-        })
-        .catch((error) => {
-          // Handle network errors or other exceptions
-          console.error("Error fetching products:", error);
-          setProducts([]);
-          setFilteredProducts([]);
-          setLoading(false);
-        });
+    if (!encodedTerm) {
+      setProducts([]);
+      setFilteredProducts([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    axios
+      // withCredentials so logged-in customers get their pricing-group prices (as on category pages)
+      .get(`${auth.ip}get/product/by/search/${encodedTerm}`, { withCredentials: true })
+      .then((response) => {
+        if (cancelled) return;
+        const list: Product[] =
+          response.data?.status === 201 && Array.isArray(response.data.products)
+            ? response.data.products
+            : [];
+        setProducts(list);
+        setFilteredProducts(list);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Error fetching products:", error);
+        setProducts([]);
+        setFilteredProducts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-    getSearchedProduct(); // Call the function to fetch products for the category
-  }, [encodedTerm, auth.ip]);
-  const noProducts = filteredProducts.length === 0;
+  }, [encodedTerm, auth.ip, setFilteredProducts]);
+  // "No results" means the search itself found nothing. If filters hide everything we keep
+  // the sidebar usable instead of blurring the page behind the "contact us" card.
+  const noProducts = products.length === 0;
   const supportPhoneHref = telHref(supportPhone);
   return (
     <>
-      <header className="relative">
-        <nav className="" aria-label="Top">
-          <TopBar />
-          <Nav />
-        </nav>
-      </header>
       <div className="max-w-7xl mx-auto p-3">
         <nav className="mb-4 text-sm text-gray-600">
           <Link href="/" className="hover:underline">
             Home
           </Link>
           <span className="mx-2">»</span>
-          <Link
-            href={`/searchproduct/${encodedTerm}`}
-            className="hover:underline"
-          >
-            {formattedSearchTerm}
-          </Link>
+          <span>Search</span>
+          <span className="mx-2">»</span>
+          <span aria-current="page">{formattedSearchTerm}</span>
         </nav>
+        {!loading && !noProducts && (
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">
+            Results for &ldquo;{formattedSearchTerm}&rdquo;
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({filteredProducts.length} of {products.length} products)
+            </span>
+          </h1>
+        )}
         <div className="relative">
           <div className="relative">
             {loading && (
@@ -227,11 +253,13 @@ export default function SearchPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:p-5">
                   {currentProducts.length === 0 ? (
-                    <div>No products found</div>
+                    <div className="col-span-full text-gray-600">
+                      {loading ? null : "No products match the selected filters."}
+                    </div>
                   ) : (
                     currentProducts.map((product, index) => (
                       <ProductCardWithStockClient
-                        key={index}
+                        key={product._id ?? index}
                         product={product}
                         checkStockRealTime={true}
                       />
