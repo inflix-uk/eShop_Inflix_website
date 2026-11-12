@@ -1,9 +1,9 @@
 /**
  * Stock and on/off rules for product variants on the product page:
  *  - A variant switched off in the admin (status false) is not shown at all.
- *  - Quantity 0: shown, marked "Out of Stock", cannot be bought.
- *  - Quantity blank: shown without an "Out of Stock" label, but cannot be bought
- *    until stock is added.
+ *  - Quantity 0 or blank: shown, marked "Out of Stock" / "Sold Out", cannot be bought.
+ *    (Blank used to show no label, so imported / generated variants with an empty
+ *    quantity looked buyable but did nothing when clicked.)
  *  - Quantity above 0: can be bought.
  */
 
@@ -25,9 +25,11 @@ export function isPurchasable(variant: any): boolean {
   return isVariantOn(variant) && q !== null && q > 0;
 }
 
-/** Only an explicit quantity of 0 is "Out of Stock". */
+/** A quantity of 0 or a blank quantity is "Out of Stock". */
 export function isOutOfStock(variant: any): boolean {
-  return !!variant && variantQuantity(variant) === 0;
+  if (!variant) return false;
+  const q = variantQuantity(variant);
+  return q === null || q <= 0;
 }
 
 const words = (text: unknown) =>

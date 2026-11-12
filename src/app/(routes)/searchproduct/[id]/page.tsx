@@ -8,6 +8,10 @@ import ClipLoader from "react-spinners/ClipLoader";
 import SortMenu from "@/app/components/SortMenu";
 import Pagination from "@/app/components/Pagination";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
+import {
+  expandProductsByCondition,
+  productListingKey,
+} from "@/app/components/productCardUtils";
 import { SortOptions } from "@/app/components/SortOptions";
 import SidebarCommon from "@/app/components/SidebarCommon";
 import axios from "axios";
@@ -100,10 +104,12 @@ export default function SearchPage() {
       .get(`${auth.ip}get/product/by/search/${encodedTerm}`, { withCredentials: true })
       .then((response) => {
         if (cancelled) return;
-        const list: Product[] =
+        // One card per condition, each with its own price & stock.
+        const list: Product[] = expandProductsByCondition<Product>(
           response.data?.status === 201 && Array.isArray(response.data.products)
             ? response.data.products
-            : [];
+            : []
+        );
         setProducts(list);
         setFilteredProducts(list);
       })
@@ -259,7 +265,7 @@ export default function SearchPage() {
                   ) : (
                     currentProducts.map((product, index) => (
                       <ProductCardWithStockClient
-                        key={product._id ?? index}
+                        key={productListingKey(product, index)}
                         product={product}
                         checkStockRealTime={true}
                       />

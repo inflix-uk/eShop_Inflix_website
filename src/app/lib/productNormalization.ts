@@ -75,6 +75,10 @@ export function mapHomepageAggregateToProduct(p: Record<string, unknown>): Produ
         ? p.averageRating
         : null,
     hasStock,
+    // Keep per-condition data so sliders can show one card per condition.
+    conditionListings: Array.isArray(p.conditionListings)
+      ? (p.conditionListings as Product["conditionListings"])
+      : undefined,
   };
 }
 

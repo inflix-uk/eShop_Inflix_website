@@ -21,8 +21,10 @@ export default function ProductCardWithStockClient({
 }: ProductCardWithStockClientProps) {
   const display = getProductCardDisplayData(product);
   const initialInStock = getInitialStockStatus(product);
-  const stockStatus = useStockStatus(checkStockRealTime ? product._id : "");
-  const isInStock = checkStockRealTime ? stockStatus.hasStock : initialInStock;
+  // Per-condition cards carry their own stock; the live check is product-wide.
+  const useLiveStock = checkStockRealTime && !product.listing;
+  const stockStatus = useStockStatus(useLiveStock ? product._id : "");
+  const isInStock = useLiveStock ? stockStatus.hasStock : initialInStock;
   const cardDesign = useProductCardDesign();
 
   return (
