@@ -37,6 +37,53 @@ export function getInitialStockStatus(product: Product): boolean {
   return product.hasStock !== undefined ? product.hasStock : true;
 }
 
+/**
+ * One listing card per condition: a product sold as Brand New / Excellent / Good / Fair
+ * becomes four cards, each with that condition's own price, stock and a link that opens
+ * the product page on that condition. Products with one (or unknown) condition are
+ * returned unchanged. Safe to call twice: already-split cards are left alone.
+ */
+export function expandProductsByCondition<T extends Product>(
+  products: T[] | null | undefined
+): T[] {
+  const list = Array.isArray(products) ? products : [];
+  const out: T[] = [];
+  for (const product of list) {
+    const listings = product?.conditionListings;
+    if (product?.listing || !Array.isArray(listings) || listings.length < 2) {
+      out.push(product);
+      continue;
+    }
+    for (const l of listings) {
+      const price = Number(l.price) > 0 ? Number(l.price) : 0;
+      const original = Number(l.originalPrice) > 0 ? Number(l.originalPrice) : price;
+      out.push({
+        ...product,
+        condition: l.label,
+        conditions: [l.label],
+        cheapestCondition: null,
+        price: price || undefined,
+        minSalePrice: price,
+        minPrice: Number(l.minPrice) > 0 ? Number(l.minPrice) : original,
+        originalPrice: original || undefined,
+        hasStock: l.inStock,
+        // Used by "Most Popular" sort: share of this condition's variants in stock.
+        availabilityPercentage:
+          l.variantCount > 0 ? Math.round((l.inStockCount / l.variantCount) * 100) : 0,
+        availableVariants: l.inStockCount,
+        listing: { conditionSlug: l.slug, variantSlug: l.variantSlug || "" },
+      } as T);
+    }
+  }
+  return out;
+}
+
+/** Unique React key for a card (split cards share the product _id). */
+export function productListingKey(product: Product, index?: number): string {
+  const base = product?._id ?? String(index ?? "");
+  return product?.listing ? `${base}:${product.listing.conditionSlug}` : base;
+}
+
 export const PRODUCT_CARDS_PER_PAGE = 50;
 
 export function getPaginatedProducts<T>(
@@ -102,7 +149,10 @@ export function getProductCardDisplayData(product: Product): ProductCardDisplay 
     conditionsLabel: conditions.join(", "),
     cheapestCondition:
       conditions.length > 1 ? product.cheapestCondition || null : null,
-    productHref: buildProductHref(product.producturl),
+    // Split per-condition cards open the product page on that condition's variant.
+    productHref: product.listing?.variantSlug
+      ? `${buildProductHref(product.producturl)}/${encodeURIComponent(product.listing.variantSlug)}`
+      : buildProductHref(product.producturl),
     thumbnailSrc: getProductThumbnailSrc(product),
     thumbnailAlt: product.thumbnail_image?.altText || product.name || "Product Image",
     thumbnailTitle: product.thumbnail_image?.description || undefined,

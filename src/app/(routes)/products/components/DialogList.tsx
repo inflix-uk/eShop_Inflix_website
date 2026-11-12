@@ -204,7 +204,7 @@ export default function DialogList({
                   className="bg-gray-500 text-white text-lg font-medium py-2.5 text-center px-4 rounded-md w-full cursor-not-allowed opacity-50"
                   disabled
                 >
-                  {/* Only quantity 0 is "Out of Stock"; a blank quantity isn't on sale yet */}
+                  {/* Quantity 0 or blank is "Out of Stock"; "Currently Unavailable" covers a missing combination */}
                   {isOutOfStock(
                     product?.productType?.type === "single" ? product?.variantValues?.[0] : selectedVariant
                   )

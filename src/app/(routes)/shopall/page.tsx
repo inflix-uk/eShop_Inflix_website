@@ -7,6 +7,10 @@ import { SortOptions } from "@/app/components/SortOptions";
 import { Product, SortOption } from "../../../../types";
 import Pagination from "@/app/components/Pagination";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
+import {
+  expandProductsByCondition,
+  productListingKey,
+} from "@/app/components/productCardUtils";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import SortMenu from "@/app/components/SortMenu";
@@ -14,7 +18,12 @@ import { useAuth } from "@/app/context/Auth";
 export default function ShopAll() {
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { products } = useAppSelector((state: RootState) => state.products);
+  const { products: storeProducts } = useAppSelector((state: RootState) => state.products);
+  // One card per condition, each with its own price & stock.
+  const products = useMemo(
+    () => expandProductsByCondition<Product>(storeProducts),
+    [storeProducts]
+  );
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedSort, setSelectedSort] = useState<SortOption>(SortOptions[0]);
@@ -28,7 +37,7 @@ export default function ShopAll() {
   useEffect(() => {
     const scopeKey = `${pricingGroupId ?? "nogroup"}|${userId ?? "nouid"}`;
     const shouldRefetch =
-      lastFetchedPricingScopeRef.current !== scopeKey || products.length === 0;
+      lastFetchedPricingScopeRef.current !== scopeKey || storeProducts.length === 0;
 
     if (shouldRefetch) {
       lastFetchedPricingScopeRef.current = scopeKey;
@@ -43,7 +52,7 @@ export default function ShopAll() {
         )
       );
     }
-  }, [dispatch, userId, pricingGroupId, products.length]);
+  }, [dispatch, userId, pricingGroupId, storeProducts.length]);
 
   useEffect(() => {
     setFilteredProducts(products);
@@ -93,7 +102,7 @@ export default function ShopAll() {
               ) : (
                 currentProducts.map((product, index) => (
                   <ProductCardWithStockClient
-                    key={index}
+                    key={productListingKey(product, index)}
                     product={product}
                     checkStockRealTime={true}
                   />

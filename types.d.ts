@@ -37,6 +37,21 @@ export interface Product {
   groupPrice?: number | null;
   averageRating: number | null;
   hasStock?: boolean; // Indicates if product has any available variants
+  /** Per-condition card data from the API (price, stock, variant link for each condition). */
+  conditionListings?: ConditionListing[];
+  /** Set on cards split out per condition (see expandProductsByCondition). */
+  listing?: { conditionSlug: string; variantSlug: string };
+}
+export interface ConditionListing {
+  label: string;
+  slug: string;
+  price: number | null;
+  originalPrice: number | null;
+  minPrice: number | null;
+  inStock: boolean;
+  inStockCount: number;
+  variantCount: number;
+  variantSlug: string;
 }
 export interface ProductData {
   is_refundable: {

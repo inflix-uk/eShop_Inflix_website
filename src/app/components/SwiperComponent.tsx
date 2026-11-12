@@ -162,7 +162,7 @@ const SwiperComponent: FC<SwiperComponentProps> = ({
         <div className={`embla__container ${isCarouselReady ? 'flex' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3'}`}>
           {items.slice(0, isCarouselReady ? 8 : 4).map((item) => (
             <div
-              key={item._id}
+              key={item.listing ? `${item._id}:${item.listing.conditionSlug}` : item._id}
               className={`embla__slide min-w-0 ${isCarouselReady ? 'flex-[0_0_85%] shrink-0 xs:flex-[0_0_50%] sm:flex-[0_0_46%] md:flex-[0_0_31%] lg:flex-[0_0_24%] xl:flex-[0_0_25%] px-1.5' : ''}`}
             >
               <div className="h-full min-h-[22rem] min-w-0">

@@ -10,6 +10,10 @@ import React, {
 import useEmblaCarousel from "embla-carousel-react";
 import { EmblaOptionsType } from "embla-carousel";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
+import {
+  expandProductsByCondition,
+  productListingKey,
+} from "@/app/components/productCardUtils";
 import { Product } from "../../../../../types";
 import { useRouter } from "next/navigation";
 
@@ -203,7 +207,10 @@ const ProductsYouMayLike: React.FC<ProductsYouMayLikeProps> = ({
     event: React.MouseEvent<HTMLElement>
   ) => {
     const productNameSlug = product.producturl?.replace(/-\d{13}$/, "") ?? "";
-    const productUrl = `/products/${productNameSlug}`;
+    // Per-condition cards open the product page on that condition.
+    const productUrl = product.listing?.variantSlug
+      ? `/products/${productNameSlug}/${encodeURIComponent(product.listing.variantSlug)}`
+      : `/products/${productNameSlug}`;
 
     // Only navigate if the current URL is different
     if (window.location.pathname !== productUrl) {
@@ -261,15 +268,18 @@ const ProductsYouMayLike: React.FC<ProductsYouMayLikeProps> = ({
     );
   }
 
-  // Filter products to only show in-stock ones and remove duplicates
-  const availableProducts = relatedProducts
-    .filter(
-      (product) => product && product.name && inStockProducts.has(product._id)
-    )
-    .filter(
-      (product, index, self) =>
-        index === self.findIndex((p) => p._id === product._id)
-    );
+  // Filter products to only show in-stock ones and remove duplicates, then show
+  // one card per in-stock condition.
+  const availableProducts = expandProductsByCondition<Product>(
+    relatedProducts
+      .filter(
+        (product) => product && product.name && inStockProducts.has(product._id)
+      )
+      .filter(
+        (product, index, self) =>
+          index === self.findIndex((p) => p._id === product._id)
+      )
+  ).filter((product) => !product.listing || product.hasStock !== false);
 
   if (error || availableProducts.length === 0) {
     return (
@@ -293,9 +303,9 @@ const ProductsYouMayLike: React.FC<ProductsYouMayLikeProps> = ({
           onMouseLeave={handleMouseLeave}
         >
           <div className="embla__container flex">
-            {availableProducts.map((product) => (
+            {availableProducts.map((product, index) => (
               <div
-                key={product._id}
+                key={productListingKey(product, index)}
                 className={`embla__slide flex-[0_0_50%] md:flex-[0_0_75%] lg:flex-[0_0_50%] xl:flex-[0_0_25%] px-1.5`}
                 onClick={(event) => handleProductClick(product, event)}
               >
