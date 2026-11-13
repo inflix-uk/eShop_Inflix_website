@@ -14,7 +14,8 @@ type ProductCardViewProps = {
 
 export default function ProductCardView({
   display,
-  isInStock,
+  // isInStock is accepted but not shown: stock status lives on the product page only
+  // (client request: an "Out of Stock" card made customers leave before clicking).
   variant = "withStock",
   cardDesign = "classic",
 }: ProductCardViewProps) {
@@ -52,7 +53,7 @@ export default function ProductCardView({
             
             {thumbnailSrc ? (
               <Image
-                className={`object-contain ${!isInStock ? "opacity-50" : ""}`}
+                className={`object-contain`}
                 src={thumbnailSrc}
                 alt={thumbnailAlt}
                 title={thumbnailTitle}
@@ -128,9 +129,7 @@ export default function ProductCardView({
           <div className="relative w-full h-56 min-h-[14rem] shrink-0 overflow-hidden flex items-center justify-center bg-gray-50">
             {thumbnailSrc ? (
               <Image
-                className={`object-contain transform transition-transform duration-1500 ease-in-out scale-105 group-hover:scale-110 ${
-                  !isInStock ? "opacity-60" : ""
-                }`}
+                className="object-contain transform transition-transform duration-1500 ease-in-out scale-105 group-hover:scale-110"
                 src={thumbnailSrc}
                 alt={thumbnailAlt}
                 title={thumbnailTitle}
@@ -142,14 +141,6 @@ export default function ProductCardView({
               />
             ) : (
               <span className="text-sm text-gray-400">Image not available</span>
-            )}
-
-            {!isInStock && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg transform -rotate-12">
-                  <span className="text-lg font-bold">Out of Stock</span>
-                </div>
-              </div>
             )}
           </div>
 
@@ -200,9 +191,7 @@ export default function ProductCardView({
         <div className="relative w-full h-56 min-h-[14rem] shrink-0 overflow-hidden flex items-center justify-center">
           {thumbnailSrc ? (
             <Image
-              className={`object-contain transform transition-transform duration-1500 ease-in-out scale-100 group-hover:scale-105 ${
-                !isInStock ? "opacity-60" : ""
-              }`}
+              className="object-contain transform transition-transform duration-1500 ease-in-out scale-100 group-hover:scale-105"
               src={thumbnailSrc}
               alt={thumbnailAlt}
               title={thumbnailTitle}
@@ -211,20 +200,8 @@ export default function ProductCardView({
               loading="lazy"
             />
           ) : (
-            <div
-              className={`w-full h-full bg-gray-100 flex items-center justify-center ${
-                !isInStock ? "opacity-60" : ""
-              }`}
-            >
+            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
               <span className="text-gray-400 text-sm">No image</span>
-            </div>
-          )}
-
-          {!isInStock && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="bg-black bg-opacity-70 text-white px-4 py-2 rounded-lg transform -rotate-12">
-                <span className="text-lg font-bold">Out of Stock</span>
-              </div>
             </div>
           )}
         </div>
