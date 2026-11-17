@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FC } from "react";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 interface BreadCrumbItem {
   name: string;
@@ -33,7 +32,7 @@ const BreadCrumb: FC<BreadCrumbProps> = ({ breadcrumb }) => {
             <li key={page.name}>
               <div className="flex items-center">
                 <Link
-                  href={normalizeInternalHref(page.link)}
+                  href={page.link}
                   className="text-sm font-medium text-gray-500 hover:text-gray-700 hover:underline"
                   aria-current={page.current ? "page" : undefined}
                 >

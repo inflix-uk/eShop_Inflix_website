@@ -10,7 +10,6 @@ import {
   DEFAULT_SITE_WIDGET_VISIBILITY,
   type SiteWidgetVisibility,
 } from "@/app/lib/siteWidgetVisibilityDefaults";
-import { normalizeInternalHref, rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 type CmsRow = { columns?: { width?: number; blocks?: any[] }[] };
 
@@ -61,9 +60,7 @@ function TextBlock({ content }: { content: string }) {
   return (
     <div
       className={TEXT_BLOCK_CLASS}
-      {...(html != null
-        ? { dangerouslySetInnerHTML: { __html: rewriteInternalHrefsInHtml(html) } }
-        : {})}
+      {...(html != null ? { dangerouslySetInnerHTML: { __html: html } } : {})}
     />
   );
 }
@@ -84,9 +81,7 @@ function ImageBlock({
   };
 }) {
   const imageUrl = getImageUrl(block.content.url);
-  const hasLink = block.content.externalLink
-    ? normalizeInternalHref(block.content.externalLink)
-    : "";
+  const hasLink = block.content.externalLink;
 
   const imageElement = (
     <div className="my-6">

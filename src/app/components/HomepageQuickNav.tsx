@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { HomeNavLink } from "@/app/services/homeNavLinksService";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 export default function HomepageQuickNav({ links }: { links: HomeNavLink[] }) {
   if (!links.length) return null;
@@ -28,7 +27,7 @@ export default function HomepageQuickNav({ links }: { links: HomeNavLink[] }) {
                 </a>
               ) : (
                 <Link
-                  href={normalizeInternalHref(item.path)}
+                  href={item.path}
                   className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-primary hover:bg-gray-50 transition-colors"
                 >
                   {item.label}

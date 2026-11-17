@@ -15,7 +15,6 @@ import BlogHtmlCssWidget from "@/app/(routes)/blogs/new/[slug]/BlogHtmlCssWidget
 import BlogContactUsWidget from "@/app/(routes)/blogs/new/[slug]/BlogContactUsWidget";
 import NewsletterSignupWidget from "@/app/(routes)/blogs/new/[slug]/NewsletterSignupWidget";
 import FaqWidget from "@/app/(routes)/blogs/new/[slug]/FaqWidget";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 import DealsDiscountCardsWidget from "@/app/components/deals/DealsDiscountCardsWidget";
 import ContentProductSlider from "@/app/components/ContentProductSlider";
 
@@ -71,9 +70,7 @@ export default function ProfileBlocksRenderer({ blocks = [] }: { blocks: any[] }
                       <div
                         key={blockKey}
                         className="prose prose-sm sm:prose-base max-w-none"
-                        dangerouslySetInnerHTML={{
-                          __html: rewriteInternalHrefsInHtml(block.content),
-                        }}
+                        dangerouslySetInnerHTML={{ __html: block.content }}
                       />
                     );
                   }

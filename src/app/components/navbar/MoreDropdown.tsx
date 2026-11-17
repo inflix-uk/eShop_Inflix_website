@@ -3,7 +3,6 @@ import { useState } from "react";
 import Link from "next/link";
 import type { NavbarItem } from "@/app/lib/features/navbarcategories/navbarTypes";
 import { isNavbarCustom } from "@/app/lib/features/navbarcategories/navbarTypes";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 interface MoreDropdownProps {
   items: NavbarItem[];
@@ -48,7 +47,7 @@ const MoreDropdown: React.FC<MoreDropdownProps> = ({ items }) => {
                       {item.label}
                     </a>
                   ) : (
-                    <Link href={normalizeInternalHref(item.path)}>
+                    <Link href={item.path.trim()}>
                       <p className="px-4 py-2 hover:bg-gray-200">{item.label}</p>
                     </Link>
                   )}

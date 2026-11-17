@@ -6,7 +6,6 @@ import {
   bleedStyle,
   useBlogContentFullBleed,
 } from "./useBlogContentFullBleed";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 export type FaqItem = {
   id?: string;
@@ -57,9 +56,7 @@ export default function FaqWidget({ sectionHeading, items }: Props) {
             item.question && String(item.question).trim().length > 0
               ? String(item.question).trim()
               : "Question";
-          const answerHtml = rewriteInternalHrefsInHtml(
-            (item.answer || "").trim() || "&nbsp;"
-          );
+          const answerHtml = (item.answer || "").trim() || "&nbsp;";
 
           return (
             <details key={key} className="group/faq">

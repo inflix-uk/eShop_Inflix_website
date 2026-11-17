@@ -9,7 +9,6 @@ import {
 import { Fragment } from 'react'
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { PRODUCT_SIDE_PANEL_Z } from "../constants/layerClasses";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 export default function ProductPerks({
   openPerks,
@@ -77,11 +76,7 @@ export default function ProductPerks({
                       {hasDynamicPerks ? (
                         <div
                           className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{
-                            __html: rewriteInternalHrefsInHtml(
-                              product.perks_and_benefits.description
-                            ),
-                          }}
+                          dangerouslySetInnerHTML={{ __html: product.perks_and_benefits.description }}
                         />
                       ) : (
                         <p className="text-gray-600 text-sm">

@@ -7,7 +7,6 @@ import type {
   PromotionalSellBuyBlockContent,
   PromotionalTinyPhoneBlockContent,
 } from "@/app/services/homepageDataService";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 export type BlogPromotionalSectionsWidgetProps = {
   buyNowPayLater?: PromotionalBnplBlockContent;
@@ -19,12 +18,6 @@ export type BlogPromotionalSectionsWidgetProps = {
 
 function linkIsExternal(url: string) {
   return /^https?:\/\//i.test((url || "").trim());
-}
-
-function promoHref(url: string | undefined): string {
-  const raw = String(url || "").trim();
-  if (!raw) return "#";
-  return normalizeInternalHref(raw);
 }
 
 function imgSrc(
@@ -167,14 +160,14 @@ export default function BlogPromotionalSectionsWidget({
                 </p>
                 {linkIsExternal(sell.buttonLink || "") ? (
                   <a
-                    href={promoHref(sell.buttonLink)}
+                    href={sell.buttonLink}
                     className="bg-white px-4 py-2 rounded-lg font-semibold text-nowrap"
                   >
                     {sell.buttonName}
                   </a>
                 ) : (
                   <Link
-                    href={promoHref(sell.buttonLink)}
+                    href={sell.buttonLink || "#"}
                     className="bg-white px-4 py-2 rounded-lg font-semibold text-nowrap"
                   >
                     {sell.buttonName}
@@ -228,14 +221,14 @@ export default function BlogPromotionalSectionsWidget({
                 </p>
                 {linkIsExternal(buy.buttonLink || "") ? (
                   <a
-                    href={promoHref(buy.buttonLink)}
+                    href={buy.buttonLink}
                     className="bg-white px-4 py-2 rounded-lg font-semibold text-nowrap"
                   >
                     {buy.buttonName}
                   </a>
                 ) : (
                   <Link
-                    href={promoHref(buy.buttonLink)}
+                    href={buy.buttonLink || "#"}
                     className="bg-white px-4 py-2 rounded-lg font-semibold text-nowrap"
                   >
                     {buy.buttonName}
@@ -297,7 +290,7 @@ export default function BlogPromotionalSectionsWidget({
 
         {linkIsExternal(tiny.buttonLink || "") ? (
           <a
-            href={promoHref(tiny.buttonLink)}
+            href={tiny.buttonLink}
             className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-semibold text-sm shadow-md hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
           >
             {tiny.buttonName}
@@ -305,7 +298,7 @@ export default function BlogPromotionalSectionsWidget({
           </a>
         ) : (
           <Link
-            href={promoHref(tiny.buttonLink)}
+            href={tiny.buttonLink || "#"}
             className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-full font-semibold text-sm shadow-md hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
           >
             {tiny.buttonName}

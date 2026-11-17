@@ -1,5 +1,3 @@
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
-
 /**
  * Server-rendered hidden content for SEO.
  * Specs, Perks, FAQs, and Reviews live inside modals/client components
@@ -43,9 +41,7 @@ export default function ProductSEOContent({ product }: { product: any }) {
           <h2>Perks &amp; Benefits</h2>
           <div
             dangerouslySetInnerHTML={{
-              __html: rewriteInternalHrefsInHtml(
-                product.perks_and_benefits.description
-              ),
+              __html: product.perks_and_benefits.description,
             }}
           />
         </section>
@@ -57,11 +53,7 @@ export default function ProductSEOContent({ product }: { product: any }) {
           {faqs.map((faq: { question: string; answer: string }, i: number) => (
             <div key={i}>
               <h3>{faq.question}</h3>
-              <h6
-                dangerouslySetInnerHTML={{
-                  __html: rewriteInternalHrefsInHtml(faq.answer),
-                }}
-              />
+              <h6 dangerouslySetInnerHTML={{ __html: faq.answer }} />
             </div>
           ))}
         </section>

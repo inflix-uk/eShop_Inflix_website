@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { scopeCssToHost } from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
 import { sanitizeFooterHtml, type CleanFooterHtml } from "./footerHtmlSanitize";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 
 const HOST_SELECTOR = "[data-footer-custom-html]";
 
@@ -46,7 +45,7 @@ export default function FooterCustomHtml({ html = "", css = "" }: Props) {
         <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
       ) : null}
       {clean.html ? (
-        <div dangerouslySetInnerHTML={{ __html: rewriteInternalHrefsInHtml(clean.html) }} />
+        <div dangerouslySetInnerHTML={{ __html: clean.html }} />
       ) : null}
     </div>
   );

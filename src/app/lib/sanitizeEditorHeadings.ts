@@ -1,5 +1,3 @@
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
-
 /**
  * True if HTML fragment has no visible text (handles &nbsp;, <br>, empty spans, etc.).
  */
@@ -29,7 +27,7 @@ export function sanitizeEditorHeadings(html: string): string {
       headingInnerIsEffectivelyEmpty(inner) ? "" : full
     );
   } while (out !== prev);
-  return rewriteInternalHrefsInHtml(out);
+  return out;
 }
 
 function normalizeHeadingPlainText(s: string): string {

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { bookingService, BookingPackage, getPackageUrlKey } from "../../services/bookingService";
 import { hasRichDescription } from "../../utils/description";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 import { formatDuration } from "../../utils/formatDuration";
 
 const LoadingBar = dynamic(() => import("react-top-loading-bar"), { ssr: false });
@@ -151,18 +150,14 @@ ${pkg.detailPageCss.replace(/([^{}]+)(\{[^{}]*\})/g, (match, selector, rules) =>
                   )}
                   <div
                     className="booking-widget-container"
-                    dangerouslySetInnerHTML={{
-                      __html: rewriteInternalHrefsInHtml(pkg.detailPageHtml),
-                    }}
+                    dangerouslySetInnerHTML={{ __html: pkg.detailPageHtml }}
                   />
                 </div>
               ) : hasRichDescription(pkg.detailPage) ? (
                 <div className="bg-bookingCardBg rounded-2xl border border-gray-200 shadow-[0_4px_24px_rgba(0,0,0,0.06)] px-6 sm:px-10 py-8 sm:py-10">
                   <div
                     className="prose prose-sm sm:prose-lg max-w-none blog-content text-gray-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{
-                      __html: rewriteInternalHrefsInHtml(pkg.detailPage),
-                    }}
+                    dangerouslySetInnerHTML={{ __html: pkg.detailPage }}
                   />
                 </div>
               ) : (
