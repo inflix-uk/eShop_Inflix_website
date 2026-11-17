@@ -14,8 +14,6 @@ import ProductCardWithStock from "@/app/components/ProductCardWithStock";
 import {
   getPaginatedProducts,
   PRODUCT_CARDS_PER_PAGE,
-  expandProductsByCondition,
-  productListingKey,
 } from "@/app/components/productCardUtils";
 import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 import {
@@ -23,10 +21,6 @@ import {
   buildProductItemListJsonLdString,
 } from "@/app/lib/itemListJsonLd";
 import type { Product } from "../../../../../../types";
-import {
-  isRealSubcategory,
-  subcategoryDetailsUrl,
-} from "./subcategoryData";
 function toOriginalCase(slug: string) {
   return slug
     .split("-")
@@ -34,15 +28,16 @@ function toOriginalCase(slug: string) {
     .join("-");
 }
 
-async function getSubCategoryData(parentSlug: string, subCategoryName: string) {
+async function getSubCategoryData(subCategoryName: string) {
   try {
-    let res = await fetch(subcategoryDetailsUrl(parentSlug, subCategoryName), {
-      cache: "no-store",
-    });
+    let res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subCategoryName)}`,
+      { cache: "no-store" }
+    );
 
     if (!res.ok && subCategoryName !== toOriginalCase(subCategoryName)) {
       res = await fetch(
-        subcategoryDetailsUrl(parentSlug, toOriginalCase(subCategoryName)),
+        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(toOriginalCase(subCategoryName))}`,
         { cache: "no-store" }
       );
     }
@@ -50,7 +45,7 @@ async function getSubCategoryData(parentSlug: string, subCategoryName: string) {
     if (!res.ok) return null;
 
     const data = await res.json();
-    return isRealSubcategory(data.subcategoryDetails) ? data.subcategoryDetails : null;
+    return data.subcategoryDetails || null;
   } catch (error) {
     console.error("Error fetching category data:", error);
     return null;
@@ -91,8 +86,8 @@ export default async function SubCategoryPage({
   const pageRaw = Number((await searchParams).page || "1");
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
-  const [categoryData, rawProducts, navbarVariantTestConfig] = await Promise.all([
-    getSubCategoryData(slug, subcategory),
+  const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
+    getSubCategoryData(subcategory),
     getProducts(subcategory),
     getNavbarVariantTestPublicServer(),
   ]);
@@ -100,16 +95,14 @@ export default async function SubCategoryPage({
     notFound();
   }
   const bannerSrc = resolveCategoryImageSrc(categoryData.banner);
-  // One card per condition, each with its own price & stock.
-  const products = expandProductsByCondition<Product>(rawProducts);
   const pageProducts = getPaginatedProducts<Product>(
     products,
     currentPage,
     PRODUCT_CARDS_PER_PAGE
   );
-  const serverProductCards = pageProducts.map((product, index) => (
+  const serverProductCards = pageProducts.map((product) => (
     <ProductCardWithStock
-      key={productListingKey(product, index)}
+      key={product._id}
       product={product}
       checkStockRealTime={true}
     />
@@ -126,10 +119,7 @@ export default async function SubCategoryPage({
       listPath: `categories/${slug}/${subcategory}`,
       name: categoryData.metaTitle,
       description: categoryData.metaDescription,
-      // Condition cards repeat the same product; list each product once for SEO.
-      products: pageProducts.filter(
-        (p, i, arr) => arr.findIndex((q) => q._id === p._id) === i
-      ),
+      products: pageProducts,
     });
   }
 

@@ -7,7 +7,6 @@ import Pagination from "@/app/components/Pagination";
 import SidebarCommon from "@/app/components/SidebarCommon";
 import { Product, SortOption } from "../../../../../types";
 import { SortOptions } from "@/app/components/SortOptions";
-import { productListingKey } from "@/app/components/productCardUtils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function ProductList({
@@ -46,9 +45,7 @@ export default function ProductList({
     () =>
       filteredProducts.length === baselineSortedProducts.length &&
       filteredProducts.every(
-        (product, index) =>
-          !!baselineSortedProducts[index] &&
-          productListingKey(product) === productListingKey(baselineSortedProducts[index])
+        (product, index) => product._id === baselineSortedProducts[index]?._id
       ),
     [filteredProducts, baselineSortedProducts]
   );
@@ -127,7 +124,7 @@ export default function ProductList({
           ) : (
             currentProducts.map((product, index) => (
               <ProductCardWithStockClient
-                key={productListingKey(product, index)}
+                key={product._id ?? index}
                 product={product}
                 checkStockRealTime={true}
               />

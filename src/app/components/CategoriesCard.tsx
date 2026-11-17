@@ -9,7 +9,6 @@ import {
   getCategoryCardImageUrl,
   type CategoryCard,
 } from "@/app/services/categoryCardsService";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 /**
  * Background overlay from admin (hex). 8- and 4-digit hex include alpha.
@@ -230,10 +229,9 @@ const CategoriesCard: React.FC<CategoriesCardProps> = ({
   const renderCard = (card: CategoryCard) => {
     const bgUrl = getCategoryCardImageUrl(card.backgroundImage);
     const imgUrl = getCategoryCardImageUrl(card.categoryImage);
-    const shopLink = normalizeInternalHref(
+    const shopLink =
       card.shopNowLink ||
-        `/categories/${encodeURIComponent(card.categoryName)}`
-    );
+      `/categories/${encodeURIComponent(card.categoryName)}`;
     const displayName = card.categoryName.replace(/-/g, " ");
     return (
       <Link href={shopLink} className="block h-full">

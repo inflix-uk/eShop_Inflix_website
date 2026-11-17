@@ -2,12 +2,6 @@ import React from "react";
 import HomepageContent from "@/app/components/HomepageContent";
 import { DEFAULT_SITE_WIDGET_VISIBILITY } from "@/app/lib/siteWidgetVisibilityDefaults";
 import { cleanCmsText } from "@/app/lib/cleanCmsText";
-import {
-  demoteCmsH1,
-  fixHangingProductCopy,
-  isHangingProduct,
-  rewriteInternalHrefsInHtml,
-} from "@/lib/siteTrailingSlash";
 
 /**
  * NEXT_PUBLIC_PRODUCT_DESCRIPTION_FONT=zextons shows the description in the
@@ -86,25 +80,6 @@ function blockShows(block: any): boolean {
   return block.type === "products" || block.type === "widget";
 }
 
-/** The product name is already the page H1. Description headings drop to H2. */
-function prepareProductHtml(html: string, hanging: boolean): string {
-  const copy = hanging ? fixHangingProductCopy(html) : html;
-  return demoteCmsH1(copy);
-}
-
-function prepareProductValue(value: unknown, hanging: boolean): unknown {
-  if (typeof value === "string") return prepareProductHtml(value, hanging);
-  if (Array.isArray(value)) return value.map((item) => prepareProductValue(item, hanging));
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = prepareProductValue(child, hanging);
-    }
-    return out;
-  }
-  return value;
-}
-
 /**
  * Whether the description layout shows anything. Empty rows (e.g. a row added in
  * the admin and left blank) must not hide the HTML description, which is where
@@ -125,12 +100,9 @@ export default function ProductDescription({
 }: {
   product: any;
 }) {
-  const hanging = isHangingProduct(product);
-  const blocks = prepareProductValue(product?.Product_description_blocks, hanging);
+  const blocks = product?.Product_description_blocks;
   const hasBlocks = Array.isArray(blocks) && blocks.length > 0;
-  const descriptionHtml = rewriteInternalHrefsInHtml(
-    prepareProductHtml(cleanCmsText(product?.Product_description), hanging)
-  );
+  const descriptionHtml = cleanCmsText(product?.Product_description);
   const fontClass = ZEXTONS_DESCRIPTION_FONT ? " product-description-zextons" : "";
 
   return (
@@ -147,7 +119,7 @@ export default function ProductDescription({
             {hasBlocks ? (
               <div className={`product-content max-w-none rounded-xl break-words text-black${fontClass}`}>
                 <HomepageContent
-                  blocks={blocks as any}
+                  blocks={blocks}
                   widgetVisibility={DEFAULT_SITE_WIDGET_VISIBILITY}
                 />
               </div>

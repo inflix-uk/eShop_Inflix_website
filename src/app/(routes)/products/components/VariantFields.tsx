@@ -495,8 +495,7 @@ export default function VariantFields({
                 }
               }
 
-              // Quantity 0 or blank shows "Sold Out" (blank used to show nothing, which
-              // made imported variants look buyable).
+              // Quantity 0 shows "Sold Out"; a blank quantity is just greyed out.
               const isOptionOutOfStock =
                 isOptionSoldOut &&
                 optionVariants.length > 0 &&

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { resolveApiBase } from "@/app/lib/backendAvailability";
-import { canonicalizeRobotsSitemap } from "@/lib/siteTrailingSlash";
 
 const DEFAULT_ROBOTS_TXT = `User-agent: *
 Allow: /
@@ -65,9 +64,8 @@ export async function GET() {
 
     const json = await res.json();
     const raw = json?.data?.content;
-    const content = canonicalizeRobotsSitemap(
-      typeof raw === "string" && raw.length > 0 ? raw : DEFAULT_ROBOTS_TXT
-    );
+    const content =
+      typeof raw === "string" && raw.length > 0 ? raw : DEFAULT_ROBOTS_TXT;
 
     return robotsResponse(content, "api");
   } catch (error) {

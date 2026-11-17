@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { HomeNavLink } from "@/app/services/homeNavLinksService";
-import { normalizeInternalHref } from "@/lib/siteTrailingSlash";
 
 /** Desktop primary bar — same structure as CategoryItem (no submenu). */
 export function NavbarCustomLinkItem({
@@ -29,7 +28,7 @@ export function NavbarCustomLinkItem({
             <p className="hover:text-gray-200">{link.label}</p>
           </a>
         ) : (
-          <Link href={normalizeInternalHref(link.path)}>
+          <Link href={link.path.trim()}>
             <p className="hover:text-gray-200">{link.label}</p>
           </Link>
         )}
@@ -71,7 +70,7 @@ export function NavbarCustomLinkDrawerRow({
   return (
     <li key={`drawer-custom-${index}`}>
       <Link
-        href={normalizeInternalHref(link.path)}
+        href={link.path.trim()}
         className={className}
         onClick={onNavigate}
       >

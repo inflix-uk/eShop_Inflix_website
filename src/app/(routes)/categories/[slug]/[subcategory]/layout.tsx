@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { getCanonical } from "@/lib/getCanonical";
 import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
-import {
-  isRealSubcategory,
-  subcategoryDetailsUrl,
-} from "./subcategoryData";
 
 function toOriginalCase(slug: string) {
   return slug
@@ -14,15 +9,16 @@ function toOriginalCase(slug: string) {
     .join("-");
 }
 
-async function getSubCategoryData(parentSlug: string, subcategoryName: string) {
+async function getSubCategoryData(subcategoryName: string) {
   try {
-    let res = await fetch(subcategoryDetailsUrl(parentSlug, subcategoryName), {
-      cache: "no-store",
-    });
+    let res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(subcategoryName)}`,
+      { cache: "no-store" }
+    );
 
     if (!res.ok && subcategoryName !== toOriginalCase(subcategoryName)) {
       res = await fetch(
-        subcategoryDetailsUrl(parentSlug, toOriginalCase(subcategoryName)),
+        `${process.env.NEXT_PUBLIC_API_URL}/get/subcategory/somedetails/${encodeURIComponent(toOriginalCase(subcategoryName))}`,
         { cache: "no-store" }
       );
     }
@@ -30,7 +26,7 @@ async function getSubCategoryData(parentSlug: string, subcategoryName: string) {
     if (!res.ok) return null;
 
     const data = await res.json();
-    return isRealSubcategory(data?.subcategoryDetails) ? data.subcategoryDetails : null;
+    return data?.subcategoryDetails || null;
   } catch (error) {
     console.error("Error fetching subcategory data:", error);
     return null;
@@ -48,10 +44,13 @@ export async function generateMetadata({
     throw new Error("Invalid slug provided for subcategory.");
   }
 
-  const subcategoryData = await getSubCategoryData(slug, subcategory);
+  const subcategoryData = await getSubCategoryData(subcategory);
 
   if (!subcategoryData) {
-    notFound();
+    return {
+      title: "",
+      description: "",
+    };
   }
   const metaTitle = String(subcategoryData?.metaTitle || "").trim();
   const metaDescription = String(subcategoryData?.metaDescription || "").trim();

@@ -11,7 +11,6 @@ import NavbarVariantTestBar from "@/app/components/navbar/NavbarVariantTestBar";
 import { getFullImageUrl } from "../new/[slug]/blogUtils";
 import { metaSchemaEntryToJsonLdString } from "@/app/lib/homepageJsonLd";
 import { getCanonical } from "@/lib/getCanonical";
-import { rewriteInternalHrefsInHtml } from "@/lib/siteTrailingSlash";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import CategoryBlogsClient from "../CategoryBlogsClient";
 import {
@@ -109,13 +108,12 @@ const getLegacyBlog = cache(async (slug: string): Promise<BlogData | null> => {
 
 function getStaticContent(html: string): string {
   if (!html) return "<p>No content available</p>";
-  const cleaned = html
+  return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
     .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, "")
     .replace(/javascript:/gi, "")
     .trim();
-  return rewriteInternalHrefsInHtml(cleaned);
 }
 
 function formatDateGB(dateStr: string): string {
