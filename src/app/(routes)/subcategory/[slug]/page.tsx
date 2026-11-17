@@ -11,8 +11,6 @@ import ProductCardWithStock from "@/app/components/ProductCardWithStock";
 import {
   getPaginatedProducts,
   PRODUCT_CARDS_PER_PAGE,
-  expandProductsByCondition,
-  productListingKey,
 } from "@/app/components/productCardUtils";
 import type { Product } from "../../../../../types";
 async function getSubCategoryData(subCategoryName: string) {
@@ -71,8 +69,7 @@ export default async function SubCategoryPage({
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const categoryData = await getSubCategoryData(subCategoryName);
-  // One card per condition, each with its own price & stock.
-  const products = expandProductsByCondition<Product>(await getProducts(subCategoryName));
+  const products = await getProducts(subCategoryName);
   if (!categoryData) {
     notFound();
   }
@@ -81,9 +78,9 @@ export default async function SubCategoryPage({
     currentPage,
     PRODUCT_CARDS_PER_PAGE
   );
-  const serverProductCards = pageProducts.map((product, index) => (
+  const serverProductCards = pageProducts.map((product) => (
     <ProductCardWithStock
-      key={productListingKey(product, index)}
+      key={product._id}
       product={product}
       checkStockRealTime={true}
     />

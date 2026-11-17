@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import SwiperComponent from "@/app/components/SwiperComponent";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
-import { expandProductsByCondition } from "@/app/components/productCardUtils";
 import type { Product } from "../../../types";
 import { type ProductSliderBlockContent } from "@/app/services/homepageDataService";
 import {
@@ -124,8 +123,6 @@ export default function ContentProductSlider({
 
   const hasUserPricing = Boolean(auth?.user?.pricingGroup);
   const needsRefetch = initialProducts.length === 0 || hasUserPricing;
-  // One card per condition, each with its own price & stock.
-  const cardItems = useMemo(() => expandProductsByCondition<Product>(items), [items]);
 
   useEffect(() => {
     if (!shouldFetch) return;
@@ -151,7 +148,7 @@ export default function ContentProductSlider({
     );
   }
 
-  if (cardItems.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
@@ -163,7 +160,7 @@ export default function ContentProductSlider({
     >
       <SwiperComponent
         title={title}
-        items={cardItems}
+        items={items}
         renderCard={(product) => (
           <ProductCardWithStockClient product={product} checkStockRealTime={true} />
         )}

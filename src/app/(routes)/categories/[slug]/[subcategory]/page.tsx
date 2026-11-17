@@ -14,8 +14,6 @@ import ProductCardWithStock from "@/app/components/ProductCardWithStock";
 import {
   getPaginatedProducts,
   PRODUCT_CARDS_PER_PAGE,
-  expandProductsByCondition,
-  productListingKey,
 } from "@/app/components/productCardUtils";
 import { normalizeMetaSchemaJsonLdStrings } from "@/app/lib/homepageJsonLd";
 import {
@@ -91,7 +89,7 @@ export default async function SubCategoryPage({
   const pageRaw = Number((await searchParams).page || "1");
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
-  const [categoryData, rawProducts, navbarVariantTestConfig] = await Promise.all([
+  const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getSubCategoryData(slug, subcategory),
     getProducts(subcategory),
     getNavbarVariantTestPublicServer(),
@@ -100,16 +98,14 @@ export default async function SubCategoryPage({
     notFound();
   }
   const bannerSrc = resolveCategoryImageSrc(categoryData.banner);
-  // One card per condition, each with its own price & stock.
-  const products = expandProductsByCondition<Product>(rawProducts);
   const pageProducts = getPaginatedProducts<Product>(
     products,
     currentPage,
     PRODUCT_CARDS_PER_PAGE
   );
-  const serverProductCards = pageProducts.map((product, index) => (
+  const serverProductCards = pageProducts.map((product) => (
     <ProductCardWithStock
-      key={productListingKey(product, index)}
+      key={product._id}
       product={product}
       checkStockRealTime={true}
     />
@@ -126,10 +122,7 @@ export default async function SubCategoryPage({
       listPath: `categories/${slug}/${subcategory}`,
       name: categoryData.metaTitle,
       description: categoryData.metaDescription,
-      // Condition cards repeat the same product; list each product once for SEO.
-      products: pageProducts.filter(
-        (p, i, arr) => arr.findIndex((q) => q._id === p._id) === i
-      ),
+      products: pageProducts,
     });
   }
 

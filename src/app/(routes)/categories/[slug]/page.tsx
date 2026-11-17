@@ -11,9 +11,7 @@ import { resolveCategoryImageSrc } from "@/lib/categoryBannerSrc";
 import { getNavbarVariantTestPublicServer } from "@/app/services/navbarVariantTestPublicService";
 import ProductCardWithStock from "@/app/components/ProductCardWithStock";
 import {
-  expandProductsByCondition,
   getPaginatedProducts,
-  productListingKey,
   PRODUCT_CARDS_PER_PAGE,
 } from "@/app/components/productCardUtils";
 import {
@@ -95,13 +93,11 @@ export default async function CategoryPage({
   const currentPage =
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const decodedSlug = normalizeFooterSlug(categoryName);
-  const [categoryData, rawProducts, navbarVariantTestConfig] = await Promise.all([
+  const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getCategoryData(categoryName),
     getProducts(categoryName),
     getNavbarVariantTestPublicServer(),
   ]);
-  // One card per condition (Brand New / Excellent / ...), each with its own price & stock.
-  const products = expandProductsByCondition<Product>(rawProducts);
 
   if (!categoryData) {
     const footerPage = await fetchNestedFooterPage("categories", decodedSlug);
@@ -122,9 +118,9 @@ export default async function CategoryPage({
     currentPage,
     PRODUCT_CARDS_PER_PAGE
   );
-  const serverProductCards = pageProducts.map((product, index) => (
+  const serverProductCards = pageProducts.map((product) => (
     <ProductCardWithStock
-      key={productListingKey(product, index)}
+      key={product._id}
       product={product}
       checkStockRealTime={true}
     />
@@ -142,10 +138,7 @@ export default async function CategoryPage({
       listPath: `categories/${categoryName}`,
       name: categoryData.metaTitle,
       description: categoryData.metaDescription,
-      // Condition cards repeat the same product; list each product once for SEO.
-      products: pageProducts.filter(
-        (p, i, arr) => arr.findIndex((q) => q._id === p._id) === i
-      ),
+      products: pageProducts,
     });
   }
 
