@@ -4,6 +4,42 @@ import {
   scopeCssToHost,
 } from "@/app/(routes)/blogs/lib/blogHtmlCssUtils";
 
+/**
+ * Tags whose content the browser reads as raw text up to the matching close
+ * tag. Left open (e.g. a stray "<style>" at the end of pasted HTML, its CSS
+ * having gone into the CSS field), one swallows the rest of the page: footer,
+ * menus and every script after it.
+ */
+const RAW_TEXT_TAGS = ["style", "textarea", "title", "xmp", "noscript", "iframe", "noembed", "noframes", "plaintext"];
+
+function dropUnclosedRawTextTags(html: string): string {
+  let s = html;
+  for (const tag of RAW_TEXT_TAGS) {
+    const open = new RegExp(`<${tag}\\b[^>]*>`, "gi");
+    const close = new RegExp(`</${tag}\\s*>`, "i");
+    let out = "";
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = open.exec(s))) {
+      const after = s.slice(m.index + m[0].length);
+      const closeAt = after.search(close);
+      if (closeAt < 0) {
+        // No closing tag anywhere after it: drop just the opening tag
+        out += s.slice(last, m.index);
+        last = m.index + m[0].length;
+      } else {
+        // Well-formed: keep it and jump past its close tag
+        const end = m.index + m[0].length + closeAt;
+        out += s.slice(last, end);
+        last = end;
+        open.lastIndex = end;
+      }
+    }
+    s = out + s.slice(last);
+  }
+  return s;
+}
+
 /** Strip scripts and external stylesheets; keep fragment-only markup safe for innerHTML. */
 function sanitizeHtmlFragment(html: string): string {
   let s = extractHtmlDocumentFragment(html);
@@ -12,6 +48,7 @@ function sanitizeHtmlFragment(html: string): string {
   s = s.replace(/<link\b[^>]*>/gi, "");
   s = s.replace(/<meta\b[^>]*>/gi, "");
   s = s.replace(/<title\b[^<]*(?:(?!<\/title>)<[^<]*)*<\/title>/gi, "");
+  s = dropUnclosedRawTextTags(s);
   return s;
 }
 
