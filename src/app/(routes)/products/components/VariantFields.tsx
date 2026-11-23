@@ -517,6 +517,11 @@ export default function VariantFields({
                   ? Math.min(...inStockPrices).toFixed(2)
                   : null;
               const showOutOfStockPill = isOptionOutOfStock && !isVariantDisabledState;
+              // Can't be bought but not "out of stock": no variant exists for this
+              // option (e.g. a condition ticked in admin with no variants), or its
+              // variants are switched off / have a blank quantity.
+              const showUnavailablePill =
+                isOptionSoldOut && !isOptionOutOfStock && !isVariantDisabledState;
 
               return (
                 <Radio
@@ -559,7 +564,7 @@ export default function VariantFields({
                         ? "border-primary ring-1 ring-primary bg-[#e7f0ea] opacity relative z-10 overflow-hidden capitalize "
                         : "",
                       isOptionSoldOut
-                        ? "opacity-90 cursor-not-allowed relative z-10 overflow-hidden"
+                        ? "opacity-60 bg-gray-50 cursor-not-allowed relative z-10 overflow-hidden"
                         : isVariantDisabledState
                         ? "opacity-50 cursor-not-allowed relative z-10 overflow-hidden"
                         : "cursor-pointer",
@@ -618,6 +623,11 @@ export default function VariantFields({
                               Out of stock
                             </span>
                           )}
+                          {showUnavailablePill && (
+                            <span className="whitespace-nowrap rounded-sm bg-gray-400 px-1 py-px text-[7px] font-semibold uppercase leading-tight tracking-wide text-white">
+                              Unavailable
+                            </span>
+                          )}
                         </span>
                       ) : (
                       <span
@@ -638,6 +648,11 @@ export default function VariantFields({
                           {showOutOfStockPill && optionKind !== "color" && (
                             <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
                               Out of stock
+                            </span>
+                          )}
+                          {showUnavailablePill && optionKind !== "color" && (
+                            <span className="rounded bg-gray-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
+                              Unavailable
                             </span>
                           )}
                         </span>
