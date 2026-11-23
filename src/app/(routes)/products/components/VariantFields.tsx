@@ -25,6 +25,15 @@ import Image from "next/image";
 //   }
 // );
 
+// Swatch fill: the colour code saved in admin (or a "(#hex)" in the name).
+// Null means no code, and the swatch falls back to plain grey.
+function swatchHex(option: any, rawValue: string): string | null {
+  const saved = typeof option === "object" && option ? String(option.colorCode || "").trim() : "";
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(saved)) return saved;
+  const inName = rawValue.match(/\((#[0-9a-f]{3,6})\)/i);
+  return inName ? inName[1] : null;
+}
+
 export default function VariantFields({
   product,
   setOpenConditionDescription,
@@ -270,10 +279,12 @@ export default function VariantFields({
   const variantFields = reorderedVariants?.map((variant: any) => {
     const variantName = variant?.name?.trim();
     const availableOptions = getAvailableOptionsForVariant(variant);
-    const hasMoreOptions = availableOptions.length > BUTTON_LIMIT;
+    // Colours are small round swatches, so show them all instead of a dropdown
+    const isColourVariant = getVariantKind(variantName) === "color";
+    const hasMoreOptions = !isColourVariant && availableOptions.length > BUTTON_LIMIT;
 
     // Split options: first 4 as buttons, rest in dropdown
-    const buttonOptions = availableOptions.slice(0, BUTTON_LIMIT);
+    const buttonOptions = hasMoreOptions ? availableOptions.slice(0, BUTTON_LIMIT) : availableOptions;
     const dropdownOptions = hasMoreOptions ? availableOptions.slice(BUTTON_LIMIT) : [];
 
     // Check if currently selected option is in the dropdown
@@ -369,7 +380,9 @@ export default function VariantFields({
             handleOptionChange(variantName, selectedOption);
           }}
           disabled={isVariantDisabled(variantName)}
-          className={`mt-2 grid gap-y-6 grid-cols-2 gap-x-4 ${
+          className={`mt-2 ${
+            isColourVariant ? "flex flex-wrap gap-x-4 gap-y-3" : "grid gap-y-6 grid-cols-2 gap-x-4"
+          } ${
             isVariantDisabled(variantName)
               ? "opacity-50 pointer-events-none"
               : ""
@@ -523,7 +536,16 @@ export default function VariantFields({
                     }
                   }}
                   className={({ checked }: { checked: boolean }) =>
-                    classNames(
+                    isColourVariant
+                      ? classNames(
+                          isOptionSoldOut || isVariantDisabledState
+                            ? "cursor-not-allowed"
+                            : "cursor-pointer",
+                          isVariantDisabledState ? "opacity-50" : "",
+                          "group relative z-10 flex w-[76px] flex-col items-center rounded-lg px-1 py-1 focus:outline-none",
+                          checked ? "" : "hover:bg-gray-50"
+                        )
+                      : classNames(
                       checked
                         ? "border-primary ring-1 ring-primary bg-[#e7f0ea] opacity relative z-10 overflow-hidden capitalize "
                         : "",
@@ -536,7 +558,7 @@ export default function VariantFields({
                     )
                   }
                 >
-                  {() => (
+                  {({ checked }: { checked: boolean }) => (
                     <>
                       {/* SEO-friendly anchor tag for variant URLs */}
                       <a
@@ -555,6 +577,40 @@ export default function VariantFields({
                           isVariantDisabledState || isOptionSoldOut ? -1 : 0
                         }
                       />
+                      {isColourVariant ? (
+                        // Round swatch with the colour name underneath
+                        <span className="pointer-events-none relative z-10 flex flex-col items-center gap-1.5">
+                          <span
+                            className={classNames(
+                              "relative block h-10 w-10 rounded-full border border-gray-300",
+                              checked ? "ring-2 ring-primary ring-offset-2" : "group-hover:ring-1 group-hover:ring-gray-300 group-hover:ring-offset-2",
+                              isOptionSoldOut ? "opacity-40" : ""
+                            )}
+                            style={{
+                              background:
+                                swatchHex(optionValue, rawOptionValue) ?? "#d1d5db",
+                            }}
+                          >
+                            {isOptionSoldOut && (
+                              // Diagonal strike-through on unavailable colours
+                              <span className="absolute left-1/2 top-1/2 h-px w-[130%] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gray-500" />
+                            )}
+                          </span>
+                          <span
+                            className={classNames(
+                              "text-center text-xs leading-tight normal-case",
+                              checked ? "font-semibold text-gray-900" : "text-gray-700"
+                            )}
+                          >
+                            {optionLabel(variantName, optionName)}
+                          </span>
+                          {showOutOfStockPill && (
+                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
+                              Out of stock
+                            </span>
+                          )}
+                        </span>
+                      ) : (
                       <span
                         className={`flex justify-center w-full relative z-10 pointer-events-none ${
                           optionCode ? "flex-row gap-3" : "flex-col"
@@ -583,13 +639,6 @@ export default function VariantFields({
                           ></span>
                         )}
 
-                        {/* Colour: "Out of stock" pill under the name */}
-                        {showOutOfStockPill && optionKind === "color" && (
-                          <span className="mx-auto mt-1 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
-                            Out of stock
-                          </span>
-                        )}
-
                         {/* Condition: "from £X" (lowest in-stock price for that condition) */}
                         {optionKind === "condition" && optionFromPrice && (
                           <span className="mt-0.5 block text-xs text-gray-600 text-center normal-case">
@@ -597,6 +646,7 @@ export default function VariantFields({
                           </span>
                         )}
                       </span>
+                      )}
                     </>
                   )}
                 </Radio>
