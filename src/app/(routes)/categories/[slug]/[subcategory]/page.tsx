@@ -52,16 +52,21 @@ async function getSubCategoryData(subCategoryName: string) {
   }
 }
 
-async function getProducts(subCategoryName: string) {
+async function getProducts(subCategoryName: string, parentCategory: string) {
+  // Scope to the parent category so /categories/samsung/tablets only lists
+  // Samsung tablets, not every product whose subcategory contains "tablets".
+  const parentQuery = parentCategory
+    ? `?category=${encodeURIComponent(parentCategory)}`
+    : "";
   try {
     let res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/get/product/by/subcategory/${encodeURIComponent(subCategoryName)}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/get/product/by/subcategory/${encodeURIComponent(subCategoryName)}${parentQuery}`,
       { next: { revalidate: 60 } }
     );
 
     if (!res.ok && subCategoryName !== toOriginalCase(subCategoryName)) {
       res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/get/product/by/subcategory/${encodeURIComponent(toOriginalCase(subCategoryName))}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/get/product/by/subcategory/${encodeURIComponent(toOriginalCase(subCategoryName))}${parentQuery}`,
         { next: { revalidate: 60 } }
       );
     }
@@ -88,7 +93,7 @@ export default async function SubCategoryPage({
     Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
   const [categoryData, products, navbarVariantTestConfig] = await Promise.all([
     getSubCategoryData(subcategory),
-    getProducts(subcategory),
+    getProducts(subcategory, slug),
     getNavbarVariantTestPublicServer(),
   ]);
   if (!categoryData) {
