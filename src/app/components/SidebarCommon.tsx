@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { Dialog, DialogTitle } from "@headlessui/react";
-import ShopAllFilterSidebar from "./ShopAllFilterSidebar";
 import FilterSidebar from "./FilterSidebar";
 export default function SidebarCommon({
   products,
@@ -64,7 +63,8 @@ export default function SidebarCommon({
               id="accordion-collapse"
               className="border border-gray-300 rounded-lg"
             >
-              <ShopAllFilterSidebar
+              <FilterSidebar
+                id={id}
                 products={products}
                 setFilteredProducts={setFilteredProducts}
                 selectedSort={selectedSort}

@@ -289,6 +289,15 @@ export default function VariantFields({
 
     // Check if currently selected option is in the dropdown
     const currentSelection = selectedOptions[variantName] ?? "";
+    // Options picked from the URL are stored as "white titanium" while the
+    // option value is "white-titanium"; match them so the right one is checked.
+    const looseOption = (s: string) => String(s || "").toLowerCase().replace(/[\s_-]+/g, " ").trim();
+    const groupValue =
+      buttonOptions
+        .filter(Boolean)
+        .map((opt: any) => processOptionValue(variantName, opt))
+        .find((name: string) => looseOption(name) === looseOption(currentSelection)) ??
+      currentSelection;
     const isSelectionInDropdown = dropdownOptions.some((opt: any) => {
       const optName = processOptionValue(variantName, opt);
       return optName === currentSelection;
@@ -375,7 +384,7 @@ export default function VariantFields({
 
         {/* Radio buttons for first 4 options */}
         <RadioGroup
-          value={selectedOptions[variantName] ?? ""}
+          value={groupValue}
           onChange={(selectedOption) => {
             handleOptionChange(variantName, selectedOption);
           }}
@@ -605,7 +614,7 @@ export default function VariantFields({
                             {optionLabel(variantName, optionName)}
                           </span>
                           {showOutOfStockPill && (
-                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
+                            <span className="whitespace-nowrap rounded-sm bg-red-600 px-1 py-px text-[7px] font-semibold uppercase leading-tight tracking-wide text-white">
                               Out of stock
                             </span>
                           )}
