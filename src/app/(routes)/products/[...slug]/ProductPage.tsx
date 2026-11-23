@@ -1334,6 +1334,37 @@ export default function ProductPage({
                   handleBatteryOptionChange={handleBatteryOptionChange}
                   setOpenBattery={setOpenBattery}
                 />
+                {/* "Select Options" from the product form (SIM type), styled like Comes With */}
+                {typeof (product as any)?.selectOptionName === "string" &&
+                  (product as any).selectOptionName.trim() && (
+                    <div>
+                      <h2 className="text-sm font-semibold leading-6 text-gray-900 mb-2">
+                        SIM Option
+                      </h2>
+                      <div className="grid md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 grid-cols-2 justify-start gap-3 items-stretch">
+                        <div className="flex min-w-0 flex-row items-center gap-2 border p-2 rounded-lg bg-green-50">
+                          <div className="h-6 w-6 shrink-0 flex items-center justify-center">
+                            {/* SIM card */}
+                            <svg
+                              className="w-5 h-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                              <rect x="8.5" y="11" width="7" height="6" rx="1" />
+                              <path strokeLinecap="round" d="M12 11v6M8.5 14h7" />
+                            </svg>
+                          </div>
+                          <span className="min-w-0 flex-1 text-xs font-medium leading-snug text-gray-900 break-anywhere">
+                            {(product as any).selectOptionName}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 {/* Comes With */}
                 <ComesWith
                   product={product}
