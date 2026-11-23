@@ -722,6 +722,60 @@ export default function ProductPage({
       });
     });
   };
+  // Condition + storage options of the cheapest purchasable variant, keyed like
+  // handleOptionChange stores them. Null when there's nothing in stock or the
+  // product has no condition/storage pickers.
+  const getCheapestConditionStorageOptions = (): Record<string, string> | null => {
+    if (!product?.variantValues?.length || !product?.variantNames?.length) return null;
+
+    const effectivePrice = (v: any): number => {
+      const price = Number(v?.Price);
+      const sale = Number(v?.salePrice);
+      if (Number.isFinite(sale) && sale > 0 && (!Number.isFinite(price) || price <= 0 || sale < price)) {
+        return sale;
+      }
+      return Number.isFinite(price) && price > 0 ? price : Number.POSITIVE_INFINITY;
+    };
+
+    const cheapest = product.variantValues
+      .filter((v: any) => !checkIfSoldOut(v) && Number.isFinite(effectivePrice(v)))
+      .reduce<any>(
+        (best, v) => (!best || effectivePrice(v) < effectivePrice(best) ? v : best),
+        null
+      );
+    if (!cheapest?.name) return null;
+
+    // Variant names are hyphen-joined option slugs, e.g. "refurbished-128gb-space-black"
+    const variantSlug = `-${String(cheapest.name).toLowerCase().replace(/_/g, "-")}-`;
+    const options: Record<string, string> = {};
+
+    product.variantNames.forEach((variantName: any) => {
+      const kind = getVariantKind(variantName.name);
+      if (kind !== "condition" && kind !== "storage") return;
+
+      // Longest matching slug wins ("refurbished-good" over "refurbished")
+      const match = (variantName.options || [])
+        .filter((option: any) => {
+          const slug = String(option?.slug || option?.value || option?.name || option || "")
+            .toLowerCase()
+            .trim()
+            .replace(/[\s_]+/g, "-");
+          return slug && variantSlug.includes(`-${slug}-`);
+        })
+        .sort(
+          (a: any, b: any) =>
+            String(b?.slug || b?.value || b?.name || b).length -
+            String(a?.slug || a?.value || a?.name || a).length
+        )[0];
+
+      if (match) {
+        options[variantName.name.trim()] = processOptionValue(variantName.name, match);
+      }
+    });
+
+    return Object.keys(options).length ? options : null;
+  };
+
   const initialOptionsSet = useRef(false);
   useEffect(() => {
     if (product && product.variantNames && !initialOptionsSet.current) {
@@ -778,10 +832,17 @@ export default function ProductPage({
         }
       }
 
-      // No auto-selection - let user select all options manually
+      // No variant in the URL: pre-select the condition and storage of the
+      // cheapest in-stock variant. Colour is left for the customer to pick.
       if (!variantFound) {
-        setSelectedOptions({});
-        setSelectedVariant(null);
+        const cheapestOptions = getCheapestConditionStorageOptions();
+        if (cheapestOptions) {
+          setSelectedOptions(cheapestOptions);
+          updateSelectedVariant(cheapestOptions);
+        } else {
+          setSelectedOptions({});
+          setSelectedVariant(null);
+        }
         initialOptionsSet.current = true;
       }
     }

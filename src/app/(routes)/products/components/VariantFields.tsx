@@ -25,32 +25,6 @@ import Image from "next/image";
 //   }
 // );
 
-const positivePrice = (value: unknown): number | null => {
-  const n = typeof value === "number" ? value : parseFloat(String(value ?? "").replace(/[£,\s]/g, ""));
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
-
-/**
- * Prices shown under a condition button, or null when there is none to show:
- * the variant is switched off or has no price yet. Without this the button
- * printed "£ £" with nothing after the signs.
- */
-function conditionPriceDisplay(
-  conditionPrices: ConditionPrices[],
-  optionName: string
-): { was: number | null; now: number } | null {
-  const wanted = optionName.toLowerCase().replace(/_/g, " ");
-  const cond = conditionPrices.find(
-    (c) => c.condition.split(" - ")[0].toLowerCase().replace(/_/g, " ") === wanted
-  );
-  if (!cond || cond.active === false) return null;
-  const price = positivePrice(cond.price);
-  const sale = positivePrice(cond.salePrice);
-  if (sale !== null) return { was: price !== null && price > sale ? price : null, now: sale };
-  if (price !== null) return { was: null, now: price };
-  return null;
-}
-
 export default function VariantFields({
   product,
   setOpenConditionDescription,
@@ -501,6 +475,27 @@ export default function VariantFields({
                 optionVariants.length > 0 &&
                 optionVariants.every((v: any) => isOutOfStock(v));
 
+              // Lowest price among the in-stock variants behind this option,
+              // shown on the button ("from £X" for condition, "£X" for storage).
+              const optionKind = getVariantKind(variantName);
+              const effectivePrice = (v: any): number => {
+                const price = Number(v?.Price);
+                const sale = Number(v?.salePrice);
+                if (Number.isFinite(sale) && sale > 0 && (!Number.isFinite(price) || price <= 0 || sale < price)) {
+                  return sale;
+                }
+                return Number.isFinite(price) && price > 0 ? price : Number.POSITIVE_INFINITY;
+              };
+              const inStockPrices = optionVariants
+                .filter((v: any) => !checkIfSoldOut(v))
+                .map(effectivePrice)
+                .filter((p: number) => Number.isFinite(p));
+              const optionFromPrice =
+                !isOptionSoldOut && inStockPrices.length
+                  ? Math.min(...inStockPrices).toFixed(2)
+                  : null;
+              const showOutOfStockPill = isOptionOutOfStock && !isVariantDisabledState;
+
               return (
                 <Radio
                   key={optionName}
@@ -565,8 +560,21 @@ export default function VariantFields({
                           optionCode ? "flex-row gap-3" : "flex-col"
                         }`}
                       >
-                        <span className="block md:text-sm text-[11px] font-medium text-gray-900 text-center normal-case">
-                          {optionLabel(variantName, optionName)}
+                        <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 md:text-sm text-[11px] font-medium text-gray-900 text-center normal-case">
+                          <span>{optionLabel(variantName, optionName)}</span>
+                          {/* Storage: "256GB | £849.99" */}
+                          {optionKind === "storage" && optionFromPrice && (
+                            <>
+                              <span className="h-3.5 w-px bg-gray-300" aria-hidden="true" />
+                              <span className="font-semibold text-primary">£{optionFromPrice}</span>
+                            </>
+                          )}
+                          {/* Condition and storage: inline "Out of stock" pill */}
+                          {showOutOfStockPill && optionKind !== "color" && (
+                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-white">
+                              Out of stock
+                            </span>
+                          )}
                         </span>
                         {optionCode && (
                           <span
@@ -575,68 +583,17 @@ export default function VariantFields({
                           ></span>
                         )}
 
-                        {/* Show Sold Out tag for individual colors */}
-                        {isOptionOutOfStock &&
-                          getVariantKind(variant.name) === "color" && (
-                            <span
-                              className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
-                              style={{
-                                transform:
-                                  "translate(-22%, 125%) rotate(-45deg)",
-                                transformOrigin: "bottom left",
-                                width: "78px",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Sold Out
-                            </span>
-                          )}
+                        {/* Colour: "Out of stock" pill under the name */}
+                        {showOutOfStockPill && optionKind === "color" && (
+                          <span className="mx-auto mt-1 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none text-white">
+                            Out of stock
+                          </span>
+                        )}
 
-                        {isOptionOutOfStock &&
-                          getVariantKind(variant.name) === "storage" && (
-                            <span
-                              className="absolute bottom-0 left-0 bg-red-600 text-white sm:text-[10px] text-[8px] text-center font-normal px-3 pt-[1px] transform rotate-45 origin-bottom-right"
-                              style={{
-                                transform:
-                                  "translate(-22%, 125%) rotate(-45deg)",
-                                transformOrigin: "bottom left",
-                                width: "78px",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Sold Out
-                            </span>
-                          )}
-                        {isOptionOutOfStock &&
-                          getVariantKind(variant.name) === "condition" && (
-                            <span
-                              className="w-[90px] absolute bottom-0 left-0 bg-red-600 text-white text-xs font-normal ps-6 py-0.5 transform -z-10 origin-bottom-left overflow-clip"
-                              style={{
-                                transform:
-                                  "translate(-22%, 32%) rotate(-45deg)",
-                                transformOrigin: "bottom left",
-                                // textAlign: 'center',
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Sold Out
-                            </span>
-                          )}
-                        {/* Display condition prices if variant is 'condition' */}
-                        {getVariantKind(variantName) === "condition" && (
-                          <span className="text-sm text-gray-900 text-center">
-                            {(() => {
-                              const shown = conditionPriceDisplay(conditionPrices, optionName);
-                              if (!shown) return null;
-                              return (
-                                <div className="flex justify-center items-center gap-5">
-                                  {shown.was !== null && (
-                                    <s className="text-gray-700 font-medium">£{shown.was}</s>
-                                  )}
-                                  <p className="text-base font-medium">£{shown.now}</p>
-                                </div>
-                              );
-                            })()}
+                        {/* Condition: "from £X" (lowest in-stock price for that condition) */}
+                        {optionKind === "condition" && optionFromPrice && (
+                          <span className="mt-0.5 block text-xs text-gray-600 text-center normal-case">
+                            from £{optionFromPrice}
                           </span>
                         )}
                       </span>
