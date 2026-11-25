@@ -152,12 +152,32 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 : [...prev[key], value],
         }));
 
-    // Parse every product's variants once
+    // Parse every product's variants once. The API sends clean `facets` per variant
+    // (read from the variant's own colour / storage / SIM fields); guessing from
+    // the variant name is only the fallback for older API responses.
     const parsedByProduct = useMemo(() => {
+        const fromFacets = (f: any): ParsedVariant => {
+            const clean = (s: unknown) => {
+                const t = String(s ?? "").trim().toLowerCase();
+                return t || null;
+            };
+            return {
+                condition: clean(f.condition),
+                // "128 GB" -> "128gb" so sizes sort and label like the name parser
+                storage: clean(f.storage)?.replace(/(\d)\s+(gb|tb)\b/, "$1$2") ?? null,
+                colour: clean(f.colour),
+                network: clean(f.network),
+            };
+        };
         const map = new Map<any, ParsedVariant[]>();
         products.forEach((product) => {
             const variants = Array.isArray(product?.variantValues) ? product.variantValues : [];
-            map.set(product, variants.map((v: any) => parseVariantName(v?.name)));
+            map.set(
+                product,
+                variants.map((v: any) =>
+                    v?.facets && typeof v.facets === "object" ? fromFacets(v.facets) : parseVariantName(v?.name)
+                )
+            );
         });
         return map;
     }, [products]);
