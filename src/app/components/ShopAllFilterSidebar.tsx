@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AccordionItem from "@/app/components/AccordionItem";
 import { StarIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "@/app/context/Auth";
 import axios from "axios";
 import { Product } from "../../../types";
@@ -9,12 +10,14 @@ export interface ShopAllFilterSidebarProps {
   products: Product[];
   setFilteredProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   selectedSort: { sortFunc: (a: Product, b: Product) => number };
+  onClose?: () => void;
 }
 
 const ShopAllFilterSidebar: React.FC<ShopAllFilterSidebarProps> = ({
   products,
   setFilteredProducts,
   selectedSort,
+  onClose,
 }) => {
   const auth = useAuth();
 
@@ -130,8 +133,47 @@ useEffect(() => {
 ]);
 
 
+  const hasActiveFilters =
+    selectedCategories.length > 0 ||
+    selectedRatings.length > 0 ||
+    sliderValues[0] !== 0 ||
+    sliderValues[1] !== 10000 ||
+    discountValues[0] !== 0 ||
+    discountValues[1] !== 100;
+
+  const clearAll = () => {
+    setSelectedCategories([]);
+    setSelectedRatings([]);
+    setSliderValues([0, 10000]);
+    setDiscountValues([0, 100]);
+  };
+
   return (
     <>
+      <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+        <span className="text-base font-semibold text-gray-900">Filter by</span>
+        <div className="flex items-center gap-3">
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Clear all
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              aria-label="Close filters"
+            >
+              <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
       <AccordionItem
         title="Categories"
         headingLevel={false}

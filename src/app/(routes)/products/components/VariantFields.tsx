@@ -307,7 +307,7 @@ export default function VariantFields({
       <fieldset key={variant?.name?.trim()}>
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <legend className="text-sm font-semibold leading-6 text-gray-900">
+            <legend className="text-sm font-extrabold leading-6 text-gray-900">
               {getVariantSelectLabel(variantName)}
             </legend>
             {isVariantDisabled(variantName) && (

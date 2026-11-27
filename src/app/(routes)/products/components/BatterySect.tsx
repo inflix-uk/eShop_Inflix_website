@@ -37,7 +37,7 @@ export default function BatterySect({
       {batteryStatus && (
         <fieldset key="battery-options" className="w-full">
           <div className="flex items-center justify-between w-full">
-            <legend className="text-sm font-semibold leading-6 text-gray-900">
+            <legend className="text-sm font-extrabold leading-6 text-gray-900">
               Battery
             </legend>
             <button

@@ -49,6 +49,16 @@ export default function ProductInfo({
 
   return (
     <>
+      <div className="mb-2.5 flex flex-wrap gap-2">
+        {["Free Next day Delivery", "Unlocked"].map((label) => (
+          <span
+            key={label}
+            className="inline-flex items-center rounded-full bg-[#e7f0ea] px-3 py-1 text-xs font-medium text-gray-900"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
       <div className="flex items-start justify-between">
         <div>
           {" "}

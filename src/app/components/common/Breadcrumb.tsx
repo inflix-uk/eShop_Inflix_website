@@ -11,11 +11,17 @@ interface BreadCrumbItem {
 
 export interface BreadCrumbProps {
   breadcrumb: BreadCrumbItem[];
+  className?: string;
 }
 
-const BreadCrumb: FC<BreadCrumbProps> = ({ breadcrumb }) => {
+const BreadCrumb: FC<BreadCrumbProps> = ({ breadcrumb, className }) => {
   return (
-    <div className="container max-w-screen-xl mx-auto flex md:flex-row mt-10 px-10">
+    <div
+      className={
+        className ??
+        "container max-w-screen-xl mx-auto flex md:flex-row mt-10 px-10"
+      }
+    >
       <nav className="flex mb-4 text-sm text-gray-600" aria-label="Breadcrumb">
         <ol role="list" className="flex items-center">
           <li>

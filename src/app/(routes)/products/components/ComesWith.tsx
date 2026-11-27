@@ -110,7 +110,7 @@ export default function ComesWith({
 
   return (
     <div>
-      <h2 className="text-sm font-semibold leading-6 text-gray-900 mb-2">
+      <h2 className="text-sm font-extrabold leading-6 text-gray-900 mb-2">
         Comes with
       </h2>
       <div className="grid md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 grid-cols-2 justify-start gap-3 items-stretch">

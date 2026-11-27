@@ -8,7 +8,8 @@ import { Product, SortOption } from "../../../../types";
 import Pagination from "@/app/components/Pagination";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import Link from "next/link";
-import Sidebar from "@/app/components/Sidebar";
+import ShopAllFilterSidebar from "@/app/components/ShopAllFilterSidebar";
+import FilterDrawer from "@/app/components/FilterDrawer";
 import SortMenu from "@/app/components/SortMenu";
 import { useAuth } from "@/app/context/Auth";
 export default function ShopAll() {
@@ -45,10 +46,6 @@ export default function ShopAll() {
     }
   }, [dispatch, userId, pricingGroupId, products.length]);
 
-  useEffect(() => {
-    setFilteredProducts(products);
-  }, [products]);
-
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
 
@@ -69,15 +66,19 @@ export default function ShopAll() {
           </Link>
         </nav>
 
-        <div className={`grid grid-flow-row-dense lg:grid-cols-5 my-5 py-5 `}>
-          <Sidebar
-            products={products}
-            setFilteredProducts={setFilteredProducts}
-            selectedSort={selectedSort}
-          />
-
-          <div className="sm:col-span-4 col-span-5">
-            <div className="flex items-center justify-end">
+        <div className="my-5 py-5">
+          <div>
+            <div className="flex items-center justify-end gap-2">
+              <FilterDrawer>
+                {(close) => (
+                  <ShopAllFilterSidebar
+                    products={products}
+                    setFilteredProducts={setFilteredProducts}
+                    selectedSort={selectedSort}
+                    onClose={close}
+                  />
+                )}
+              </FilterDrawer>
               <SortMenu
                 selectedSort={selectedSort}
                 setSelectedSort={
@@ -87,7 +88,7 @@ export default function ShopAll() {
                 }
               />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:p-5">
               {currentProducts.length === 0 ? (
                 <div>No products found</div>
               ) : (

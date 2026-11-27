@@ -9,7 +9,8 @@ import SortMenu from "@/app/components/SortMenu";
 import Pagination from "@/app/components/Pagination";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import { SortOptions } from "@/app/components/SortOptions";
-import SidebarCommon from "@/app/components/SidebarCommon";
+import FilterSidebar from "@/app/components/FilterSidebar";
+import FilterDrawer from "@/app/components/FilterDrawer";
 import axios from "axios";
 import { fetchNavbarHeaderPublic } from "@/app/services/navbarHeaderPublicService";
 
@@ -228,20 +229,25 @@ export default function SearchPage() {
               </div>
             )}
             <div
-              className={`relative grid grid-flow-row-dense lg:grid-cols-5 my-5 py-5 ${
+              className={`relative my-5 py-5 ${
                 loading || (!noProducts && !loading)
                   ? "filter blur-none"
                   : "filter blur-sm"
               }`}
             >
-              <SidebarCommon
-                products={products}
-                setFilteredProducts={setFilteredProducts}
-                selectedSort={selectedSort}
-                id={encodedTerm}
-              />
-              <div className="sm:col-span-4 col-span-5">
-                <div className="flex items-center justify-end">
+              <div>
+                <div className="flex items-center justify-end gap-2">
+                  <FilterDrawer>
+                    {(close) => (
+                      <FilterSidebar
+                        id={encodedTerm}
+                        products={products}
+                        setFilteredProducts={setFilteredProducts}
+                        selectedSort={selectedSort}
+                        onClose={close}
+                      />
+                    )}
+                  </FilterDrawer>
                   <SortMenu
                     selectedSort={selectedSort}
                     setSelectedSort={
@@ -251,7 +257,7 @@ export default function SearchPage() {
                     }
                   />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:p-5">
                   {currentProducts.length === 0 ? (
                     <div className="col-span-full text-gray-600">
                       {loading ? null : "No products match the selected filters."}

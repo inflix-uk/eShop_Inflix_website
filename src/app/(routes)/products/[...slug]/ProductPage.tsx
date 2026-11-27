@@ -1265,13 +1265,14 @@ export default function ProductPage({
       */}
       <NavbarVariantTestBar config={navbarVariantTestConfig || null} />
       <BreadCrumb
+        className="mx-auto flex w-full max-w-7xl mt-3 px-4 sm:px-6 lg:px-8"
         breadcrumb={breadcrumb.map((item) => ({
           ...item,
           name: item.name ?? "",
         }))}
       />
 
-      <main className="mx-auto max-w-7xl sm:px-6 sm:pt-16 lg:px-8 md:pb-20 pb-10">
+      <main className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 sm:pt-1 lg:px-8 md:pb-20">
         {/* All JSON-LD structured data removed - handled in page.tsx server component for proper SEO */}
         <div className="mx-auto max-w-2xl lg:max-w-none">
           {/* Product */}
@@ -1338,7 +1339,7 @@ export default function ProductPage({
                 {typeof (product as any)?.selectOptionName === "string" &&
                   (product as any).selectOptionName.trim() && (
                     <div>
-                      <h2 className="text-sm font-semibold leading-6 text-gray-900 mb-2">
+                      <h2 className="text-sm font-extrabold leading-6 text-gray-900 mb-2">
                         SIM Option
                       </h2>
                       <div className="grid md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 grid-cols-2 justify-start gap-3 items-stretch">

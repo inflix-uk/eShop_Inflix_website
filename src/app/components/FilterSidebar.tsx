@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import AccordionItem from "./AccordionItem";
 import Slider from "react-slider";
 import { StarIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface FilterSidebarProps {
     products: any[]; // Array of product objects
     setFilteredProducts: React.Dispatch<React.SetStateAction<any[]>>; // Function to update filtered products
     selectedSort: { sortFunc: (a: any, b: any) => number }; // Sort function for products
     id?: string; // ID used for filtering
+    onClose?: () => void;
 }
 
 type FacetKey = "condition" | "storage" | "colour" | "network";
@@ -112,6 +114,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     products,
     setFilteredProducts,
     selectedSort,
+    onClose,
 }) => {
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
         price: true,
@@ -342,15 +345,27 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         <>
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
                 <span className="text-base font-semibold text-gray-900">Filter by</span>
-                {hasActiveFilters && (
-                    <button
-                        type="button"
-                        onClick={clearAll}
-                        className="text-sm font-medium text-primary hover:underline"
-                    >
-                        Clear all
-                    </button>
-                )}
+                <div className="flex items-center gap-3">
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={clearAll}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                            aria-label="Close filters"
+                        >
+                            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <AccordionItem

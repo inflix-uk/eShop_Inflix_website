@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, type ReactNode } from "react";
 import ProductCardWithStockClient from "@/app/components/ProductCardWithStockClient";
 import SortMenu from "@/app/components/SortMenu";
 import Pagination from "@/app/components/Pagination";
-import SidebarCommon from "@/app/components/SidebarCommon";
+import FilterSidebar from "@/app/components/FilterSidebar";
+import FilterDrawer from "@/app/components/FilterDrawer";
 import { Product, SortOption } from "../../../../../../types";
 import { SortOptions } from "@/app/components/SortOptions";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -98,15 +99,20 @@ export default function ProductList({
   }, [totalPages]);
 
   return (
-    <div className="grid grid-flow-row-dense lg:grid-cols-5 my-5 py-5">
-      <SidebarCommon
-        products={products}
-        setFilteredProducts={setFilteredProducts}
-        selectedSort={selectedSort}
-        id={subCategoryName}
-      />
-      <div className="sm:col-span-4 col-span-5">
-        <div className="flex items-center justify-end">
+    <div className="my-5 py-5">
+      <div>
+        <div className="flex items-center justify-end gap-2 px-4 sm:px-5">
+          <FilterDrawer>
+            {(close) => (
+              <FilterSidebar
+                id={subCategoryName}
+                products={products}
+                setFilteredProducts={setFilteredProducts}
+                selectedSort={selectedSort}
+                onClose={close}
+              />
+            )}
+          </FilterDrawer>
           <SortMenu
             selectedSort={selectedSort}
             setSelectedSort={
@@ -116,7 +122,7 @@ export default function ProductList({
             }
           />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:p-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:p-5">
           {currentProducts.length === 0 ? (
             <div>No products found</div>
           ) : useServerProductCards ? (
